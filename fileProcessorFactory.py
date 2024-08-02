@@ -18,5 +18,9 @@ class FileProcessorsFactory:
     def processLogFile(self, logPath:str):
         self.loaderInstance.processLogFile(logPath)
     
-    def getMeasurements(self) -> dict[str:dataContainer.DataContainer]:
+    def getAllMeasurements(self) -> dict[str:dataContainer.DataContainer]:
         return self.loaderInstance.getMeasurements()
+    
+    def getTestMeasurements(self, testName:str) -> dataContainer.DataContainer:
+        allMeasurements = self.getAllMeasurements()
+        return allMeasurements.get(testName, None)
