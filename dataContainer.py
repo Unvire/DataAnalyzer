@@ -5,6 +5,9 @@ class DataContainer():
         self.lowerLimit = None
         self.upperLimit = None
     
+    def getName(self) -> str:
+        return self.name
+    
     def setLimits(self, lowerLimit:float, upperLimit:float):
         self.lowerLimit = float(lowerLimit)
         self.upperLimit = float(upperLimit)
