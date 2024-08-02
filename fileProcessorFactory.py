@@ -1,3 +1,4 @@
+import os
 import dataContainer
 import speaDataProcessor
 
@@ -8,6 +9,11 @@ class DataProcessorsFactory:
         }
 
         self.loaderInstance = self.dataProcessorsDict[loaderType]
+    
+    def processAllLogsInFolder(self, folderPath:str):
+        for file in os.listdir(folderPath):
+            logPath = os.path.join(folderPath, file)
+            self.processLogFile(logPath)
     
     def processLogFile(self, logPath:str):
         self.loaderInstance.processLogFile(logPath)
