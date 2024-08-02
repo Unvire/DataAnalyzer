@@ -8,7 +8,7 @@ class FileProcessorsFactory:
             'SPEA': speaDataProcessor.SpeaDataProcessor
         }
 
-        self.loaderInstance = self.dataProcessorsDict[loaderType]
+        self.loaderInstance = self.dataProcessorsDict[loaderType]()
     
     def processAllLogsInFolder(self, folderPath:str):
         for file in os.listdir(folderPath):
