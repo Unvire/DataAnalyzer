@@ -24,6 +24,3 @@ class DataContainer():
         for _, values in self.data.items():
             result += values
         return result
-
-if __name__ == '__main__':
-    a = DataContainer('test')
