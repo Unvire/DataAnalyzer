@@ -2,7 +2,7 @@ import os
 import dataContainer
 import speaDataProcessor
 
-class DataProcessorsFactory:
+class FileProcessorsFactory:
     def __init__(self, loaderType:str):
         self.dataProcessorsDict = {
             'SPEA': speaDataProcessor.SpeaDataProcessor
