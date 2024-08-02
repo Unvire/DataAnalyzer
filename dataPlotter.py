@@ -1,9 +1,6 @@
 import matplotlib.pyplot as plt
 
 class DataPlotter:
-    def __init__(self, dataList:list[float]):
-        pass
-
     def sequencePlot(self, dataList:list[float]):
         pass
 
