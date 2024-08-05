@@ -5,40 +5,38 @@ import seaborn as sns
 
 class DataPlotter:
     def sequencePlot(self, dataList:list[float], title:str, limits:list[float, float]):
-        lowerLimitValue, upperLimitValue = limits
         numberOfSamples = len(dataList)
-        lowerLimitList = [lowerLimitValue] * numberOfSamples
-        upperLimitList = [upperLimitValue] * numberOfSamples
-        
-        plt.plot(dataList, '.', linewidth=1)
-        plt.plot(lowerLimitList)
-        plt.plot(upperLimitList)
-        plt.title(title)
+
+        plt.plot(dataList, '.', linewidth=1, label=f'Data ({numberOfSamples} samples)')
         plt.xlim([0, numberOfSamples])
-        plt.xlabel('Sample')
-        plt.ylabel('Value')
-        plt.legend(['Data', 'Lower limit', 'Upper limit'])
         plt.grid()
-        plt.show()
+        self._addCommonPlotElements(title, limits, False, ['Sample', 'Value'])
 
     def normalDistributionPlot(self, dataList:list[float], title:str, limits:list[float, float]):
-        lowerLimitValue, upperLimitValue = limits
+        numberOfSamples = len(dataList)
         mean = np.mean(dataList)
-        
-        plt.rcParams["figure.figsize"] = (9,8)
-        plt.hist(dataList, bins=10, density=True, edgecolor='black', alpha=0.7, label='Measurements')
-        sns.kdeplot(dataList, color="blue", label="Density ST")
-        plt.axvline(lowerLimitValue, linestyle="--", color="red", label="LSL")
-        plt.axvline(upperLimitValue, linestyle="--", color="orange", label="USL")
-        plt.axvline(mean, linestyle="--", color="green", label="Mean")
-        plt.title(title)
-        plt.xlabel('Value')
-        plt.ylabel('Probability Density')
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
-        plt.show()
+
+        plt.hist(dataList, bins=10, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
+        sns.kdeplot(dataList, color='blue', label='Density ST')
+        plt.axvline(mean, linestyle='--', color='green', label='Mean')
+        self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'])
 
     def normalProbabilityPlot(self, dataList:list[float], title:str, limits:list[float, float]):
         pass
+
+    def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str]):
+        limitHandles = {True: plt.axvline, False:plt.axhline}
+        
+        lowerLimitValue, upperLimitValue = limits
+        xLabel, yLabel = axisLabels
+        limitHandles[isLimitsVertical](lowerLimitValue, linestyle='--', color='red', label='LSL')
+        limitHandles[isLimitsVertical](upperLimitValue, linestyle='--', color='orange', label='USL')
+        plt.rcParams['figure.figsize'] = (9, 9)
+        plt.title(title)
+        plt.xlabel(xLabel)
+        plt.ylabel(yLabel)
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
+        plt.show()
 
 if __name__ == '__main__':
     import os
@@ -51,5 +49,5 @@ if __name__ == '__main__':
     data = speaFileProcessor.getTestMeasurements('L7-1 -> INDL7 20m 20% -20%')
 
     plotter = DataPlotter()
-    #plotter.sequencePlot(data.getDataFromSite('1'), data.name, data.getLimits())
+    plotter.sequencePlot(data.getDataFromSite('1'), data.name, data.getLimits())
     plotter.normalDistributionPlot(data.getDataFromSite('1'), data.name, data.getLimits())
