@@ -9,7 +9,7 @@ class DataPlotter:
         numberOfSamples = len(dataList)
         lowerLimitList = [lowerLimitValue] * numberOfSamples
         upperLimitList = [upperLimitValue] * numberOfSamples
-
+        
         plt.plot(dataList, '.', linewidth=1)
         plt.plot(lowerLimitList)
         plt.plot(upperLimitList)
@@ -24,15 +24,10 @@ class DataPlotter:
     def normalDistributionPlot(self, dataList:list[float], title:str, limits:list[float, float]):
         lowerLimitValue, upperLimitValue = limits
         mean = np.mean(dataList)
-
-        x = np.linspace(np.min(dataList), np.max(dataList), 2 * len(dataList))
-        y = norm.pdf(x, loc=5, scale=1)
-
-        plt.figure(figsize=(15,10))
-        plt.figure().set_figheight(9)
+        
+        plt.rcParams["figure.figsize"] = (9,8)
         plt.hist(dataList, bins=10, density=True, edgecolor='black', alpha=0.7, label='Measurements')
         sns.kdeplot(dataList, color="blue", label="Density ST")
-        plt.plot(x, y, linestyle="--", color="black", label="Theorethical Density ST")
         plt.axvline(lowerLimitValue, linestyle="--", color="red", label="LSL")
         plt.axvline(upperLimitValue, linestyle="--", color="orange", label="USL")
         plt.axvline(mean, linestyle="--", color="green", label="Mean")
