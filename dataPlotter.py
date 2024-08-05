@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import norm
 import seaborn as sns
 
 class DataPlotter:
