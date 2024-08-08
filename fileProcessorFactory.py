@@ -10,19 +10,24 @@ class FileProcessorsFactory:
         self.observersList = []
     
     def setProcessorType(self, loaderType:str):
-        self.loaderInstance = self.dataProcessorsDict[loaderType]()
+        if loaderType in self.dataProcessorsDict:
+            self.loaderInstance = self.dataProcessorsDict[loaderType]()
     
     def addObserver(self, instance:object):
         self.observersList.append(instance)
 
-    def updateObservers(self, progress:int):
-        for observer in self.observersList:
-            observer.setProgressBar(progress)
-
     def processAllLogsInFolder(self, folderPath:str):
-        for file in os.listdir(folderPath):
+        numOfFiles = len(os.listdir(folderPath))
+        for i, file in enumerate(os.listdir(folderPath)):
             logPath = os.path.join(folderPath, file)
             self.processLogFile(logPath)
+
+            progressPercent = int((i + 1) / numOfFiles * 100)
+            self.updateObservers(progressPercent)
+    
+    def updateObservers(self, progressPercent:int):
+        for observer in self.observersList:
+            observer.updateProgressBar(progressPercent)
     
     def processLogFile(self, logPath:str):
         self.loaderInstance.processLogFile(logPath)
