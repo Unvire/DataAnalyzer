@@ -19,7 +19,7 @@ class SpeaDataProcessor:
     
     def _processFileLine(self, fileLine:str):
         _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')
-        testName = f'{testName1} -> {testName2}'
+        testName = f'{testName1} | {testName2}'
         if testName not in self.measurements:
             testContainer = dataContainer.DataContainer(testName)
             testContainer.setLimits(lowerLimit, upperLimit)

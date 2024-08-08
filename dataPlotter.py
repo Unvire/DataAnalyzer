@@ -43,9 +43,10 @@ if __name__ == '__main__':
     import dataContainer, fileProcessorFactory
 
     logFolderPath = folder_selected = filedialog.askdirectory()
-    speaFileProcessor = fileProcessorFactory.FileProcessorsFactory('SPEA')
+    speaFileProcessor = fileProcessorFactory.FileProcessorsFactory()
+    speaFileProcessor.setProcessorType('SPEA')
     speaFileProcessor.processAllLogsInFolder(logFolderPath)
-    data = speaFileProcessor.getTestMeasurements('L7-1 -> INDL7 20m 20% -20%')
+    data = speaFileProcessor.getTestMeasurements('L7-1 | INDL7 20m 20% -20%')
 
     plotter = DataPlotter()
     plotter.sequencePlot(data.getDataFromSite('1'), data.name, data.getLimits())
