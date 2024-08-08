@@ -20,9 +20,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         super(DataAnalyzerGUI, self).__init__()
         self.setupUi(self)
 
-        FILE_PROCESSORS = ['SPEA']
+        self.measurements = {}
+        self.factory = FileProcessorsFactory()
+        self.factory.addObserver(self)
+
+        FILE_PROCESSORS = ['Select file type', 'SPEA']
         for fileName in FILE_PROCESSORS:
             self.comboBox.addItem(fileName)
+        self.comboBox.currentTextChanged.connect(self.selectProcessor)
         
         self.pushButton.clicked.connect(self.selectFolder)
 
@@ -31,13 +36,24 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plot_layout.addWidget(self.canvas)
         self.plot()
     
+    def setMeasurements(self, measurementsDict:dict):
+        self.measurements = measurementsDict
+    
+    def selectProcessor(self, value:str):  
+        self.factory.setProcessorType(value)
+
     def selectFolder(self):
         folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory"))
         if folderPath:
             self.processLogsInFolder(folderPath)
     
     def processLogsInFolder(self, folderPath:str):
-        print(folderPath)
+        self.factory.processAllLogsInFolder(folderPath)
+        measurements = self.factory.getAllMeasurements()
+        self.setMeasurements(measurements)
+    
+    def updateProgressBar(self, progressPercent:int):
+        self.progressBar.setProperty("value", progressPercent)
 
     def plot(self):
         t = np.arange(0.0, 2.0, 0.01)
