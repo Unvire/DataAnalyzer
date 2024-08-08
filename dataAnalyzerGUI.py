@@ -7,6 +7,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from templateDataAnalyzerGUI import Ui_MainWindow
 from fileProcessorFactory import FileProcessorsFactory
+from dataPlotter import DataPlotter
 
 class MplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -51,9 +52,22 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.factory.processAllLogsInFolder(folderPath)
         measurements = self.factory.getAllMeasurements()
         self.setMeasurements(measurements)
+        self.generateMeasurementsList()
+        self.updateNumOfSites()
     
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty("value", progressPercent)
+    
+    def generateMeasurementsList(self):
+        self.listWidget.addItems(self.measurements.keys())
+    
+    def updateNumOfSites(self):
+        testNames = list(self.measurements.keys())
+        firstDataContainer = self.measurements[testNames[0]]
+        numOfTests = firstDataContainer.getNumOfSites() 
+        if numOfTests > 1:           
+            for i in range(numOfTests):
+                self.selectSiteComboBox.addItem(f'{i + 1}')
 
     def plot(self):
         t = np.arange(0.0, 2.0, 0.01)

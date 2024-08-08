@@ -27,3 +27,6 @@ class DataContainer():
         for _, values in self.data.items():
             result += values
         return result
+    
+    def getNumOfSites(self) -> int:
+        return len(self.data)
