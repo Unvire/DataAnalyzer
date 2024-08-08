@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1042</width>
-    <height>667</height>
+    <height>670</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,7 +19,7 @@
      <rect>
       <x>20</x>
       <y>470</y>
-      <width>342</width>
+      <width>371</width>
       <height>142</height>
      </rect>
     </property>
@@ -301,16 +301,6 @@
      </item>
     </layout>
    </widget>
-   <widget class="QListView" name="listView">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>170</y>
-      <width>341</width>
-      <height>291</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QComboBox" name="comboBox">
     <property name="geometry">
      <rect>
@@ -363,10 +353,10 @@
    <widget class="Line" name="line_2">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>140</y>
-      <width>401</width>
-      <height>16</height>
+      <x>20</x>
+      <y>110</y>
+      <width>391</width>
+      <height>20</height>
      </rect>
     </property>
     <property name="orientation">
@@ -379,7 +369,7 @@
       <x>430</x>
       <y>20</y>
       <width>599</width>
-      <height>589</height>
+      <height>551</height>
      </rect>
     </property>
     <property name="autoFillBackground">
@@ -391,6 +381,90 @@
     <property name="frameShadow">
      <enum>QFrame::Plain</enum>
     </property>
+   </widget>
+   <widget class="QListWidget" name="listWidget">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>130</y>
+      <width>371</width>
+      <height>321</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QWidget" name="horizontalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>430</x>
+      <y>580</y>
+      <width>551</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout_11">
+     <item>
+      <spacer name="horizontalSpacer_4">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="siteLabel">
+       <property name="text">
+        <string>Site</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="selectSiteComboBox">
+       <item>
+        <property name="text">
+         <string>All sites</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_3">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="changePlotButton">
+       <property name="text">
+        <string>Capability plot</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_5">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
