@@ -17,6 +17,7 @@ class FileProcessorsFactory:
         self.observersList.append(instance)
 
     def processAllLogsInFolder(self, folderPath:str):
+        self.loaderInstance.clear()
         numOfFiles = len(os.listdir(folderPath))
         for i, file in enumerate(os.listdir(folderPath)):
             logPath = os.path.join(folderPath, file)

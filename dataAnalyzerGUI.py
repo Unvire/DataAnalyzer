@@ -49,6 +49,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.processLogsInFolder(folderPath)
     
     def processLogsInFolder(self, folderPath:str):
+        self.resetSelectSitesComboBox()
         self.factory.processAllLogsInFolder(folderPath)
         measurements = self.factory.getAllMeasurements()
         self.setMeasurements(measurements)
@@ -59,15 +60,21 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.progressBar.setProperty("value", progressPercent)
     
     def generateMeasurementsList(self):
+        self.listWidget.clear()
         self.listWidget.addItems(self.measurements.keys())
     
     def updateNumOfSites(self):
         testNames = list(self.measurements.keys())
         firstDataContainer = self.measurements[testNames[0]]
-        numOfTests = firstDataContainer.getNumOfSites() 
+        numOfTests = firstDataContainer.getNumOfSites()
+
         if numOfTests > 1:           
             for i in range(numOfTests):
                 self.selectSiteComboBox.addItem(f'{i + 1}')
+    
+    def resetSelectSitesComboBox(self):
+        self.selectSiteComboBox.clear()
+        self.selectSiteComboBox.addItem('All sites')
 
     def plot(self):
         t = np.arange(0.0, 2.0, 0.01)

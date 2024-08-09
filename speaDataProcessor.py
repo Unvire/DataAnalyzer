@@ -4,6 +4,9 @@ class SpeaDataProcessor:
     def __init__(self):
         self.measurements = {}
     
+    def clear(self):
+        self.measurements = {}
+    
     def getMeasurements(self) -> dict[str:dataContainer.DataContainer]:
         return self.measurements
 
