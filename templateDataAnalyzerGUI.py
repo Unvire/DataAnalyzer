@@ -205,7 +205,7 @@ class Ui_MainWindow(object):
         self.listWidget.setGeometry(QtCore.QRect(20, 130, 371, 321))
         self.listWidget.setObjectName("listWidget")
         self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(430, 580, 551, 31))
+        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(430, 580, 601, 31))
         self.horizontalLayoutWidget.setObjectName("horizontalLayoutWidget")
         self.horizontalLayout_11 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget)
         self.horizontalLayout_11.setContentsMargins(0, 0, 0, 0)
@@ -253,7 +253,7 @@ class Ui_MainWindow(object):
         self.pushButton.setText(_translate("MainWindow", "Open logs folder"))
         self.siteLabel.setText(_translate("MainWindow", "Site"))
         self.selectSiteComboBox.setItemText(0, _translate("MainWindow", "All sites"))
-        self.changePlotButton.setText(_translate("MainWindow", "Capability plot"))
+        self.changePlotButton.setText(_translate("MainWindow", "Change plot type"))
 
 
 if __name__ == "__main__":
