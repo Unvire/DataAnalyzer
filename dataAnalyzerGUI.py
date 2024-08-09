@@ -23,6 +23,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.measurements = {}
         self.selectedTest = ''
+        self.selectedSite = '0'
 
         self.factory = FileProcessorsFactory()
         self.factory.addObserver(self)
@@ -31,9 +32,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         for fileName in FILE_PROCESSORS:
             self.comboBox.addItem(fileName)
 
-        self.comboBox.currentTextChanged.connect(self.selectProcessor)
+        self.comboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.pushButton.clicked.connect(self.selectFolder)
         self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
+        self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
 
         self.canvas = MplCanvas(self.plotFrame)
         self.plot_layout = QtWidgets.QVBoxLayout(self.plotFrame)
@@ -62,19 +64,25 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def listWidgetClickedEvent(self, item):
         self.selectedTest = item.text()
         self.generatePlot()
+    
+    def selectSiteComboBoxClickedEvent(self, value:str|int):
+        self.selectedSite = str(value)
 
     def generatePlot(self):
         generatePlot = {'Sequence plot':self._sequencePlot, 
                         'Capability plot': self._capabilityPlot}
-
-        testName = self.selectedTest
-        site = '1'
-        plotType = 'Capability plot'
-
-        data = self.measurements[testName]        
-        dataList = data.getDataFromSite(site)
-        limits = data.getLimits()
         
+        testName = self.selectedTest     
+        data = self.measurements[testName]        
+        limits = data.getLimits()
+
+        site = self.selectedSite
+        if site == '0':
+            dataList = data.getDataFromAllSites()
+        else:
+            dataList = data.getDataFromSite(site)
+        
+        plotType = 'Capability plot'
         generatePlot[plotType](dataList, testName, limits)
 
     def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float]):
