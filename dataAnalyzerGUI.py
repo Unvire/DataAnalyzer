@@ -24,7 +24,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.measurements = {}
         self.selectedTest = ''
         self.selectedSite = '0'
-        self.selectedPlotType = 'Sequence plot'
+        self.selectedPlotType = 'Sequence plot'        
+        self.isLogScale = False
 
         self.factory = FileProcessorsFactory()
         self.factory.addObserver(self)
@@ -38,6 +39,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
+        self.changeYScaleButton.clicked.connect(self.changeYScale)
 
         self.canvas = MplCanvas(self.plotFrame)
         self.plot_layout = QtWidgets.QVBoxLayout(self.plotFrame)
@@ -60,6 +62,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if folderPath:
             self.processLogsInFolder(folderPath)
     
+    def changeYScale(self):
+        self.isLogScale = not self.isLogScale
+        self.generatePlot()
+    
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
         self.factory.processAllLogsInFolder(folderPath)
@@ -81,8 +87,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         'Capability plot': self._capabilityPlot}
         
         testName = self.selectedTest     
-        data = self.measurements[testName]        
-        limits = data.getLimits()
+        data = self.measurements[testName]
 
         site = self.selectedSite
         if site == '0':
@@ -91,17 +96,17 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             dataList = data.getDataFromSite(site)
         
         plotType = self.selectedPlotType
-        generatePlot[plotType](dataList, testName, limits)
+        generatePlot[plotType](dataList, testName, data.getLimits(), self.isLogScale)
 
-    def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float]):
+    def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
         numberOfSamples = len(dataList)
         self.canvas.ax.cla()
         self.canvas.ax.plot(dataList, '.', linewidth=1, label=f'Data ({numberOfSamples} samples)')
         self.canvas.ax.set_xlim([0, numberOfSamples])
         self.canvas.ax.grid()
-        self._addCommonPlotElements(title, limits, False, ['Sample', 'Value'])
+        self._addCommonPlotElements(title, limits, False, ['Sample', 'Value'], isLogScale)
     
-    def _capabilityPlot(self, dataList:list[float], title:str, limits:list[float, float]):
+    def _capabilityPlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
         numberOfSamples = len(dataList)        
         self.canvas.ax.cla()
         mean = np.mean(dataList)
@@ -109,9 +114,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.canvas.ax.hist(dataList, bins=10, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
         sns.kdeplot(dataList, color='blue', label='Density ST')
         self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')
-        self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'])
+        self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'], isLogScale)
     
-    def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str]):
+    def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale):
+        yScale = {True:'log', False:'linear'}        
         limitHandles = {True: self.canvas.ax.axvline, False:self.canvas.ax.axhline}
         
         lowerLimitValue, upperLimitValue = limits
@@ -121,6 +127,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.canvas.ax.set_title(title)
         self.canvas.ax.set_xlabel(xLabel)
         self.canvas.ax.set_ylabel(yLabel)
+        self.canvas.ax.set_yscale(yScale[isLogScale])
         self.canvas.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
         self.canvas.draw()
     
