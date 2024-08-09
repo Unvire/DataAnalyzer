@@ -24,6 +24,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.measurements = {}
         self.selectedTest = ''
         self.selectedSite = '0'
+        self.selectedPlotType = 'Sequence plot'
 
         self.factory = FileProcessorsFactory()
         self.factory.addObserver(self)
@@ -34,6 +35,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.comboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.pushButton.clicked.connect(self.selectFolder)
+        self.changePlotButton.clicked.connect(self.selectPlotType)
         self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
 
@@ -47,6 +49,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     
     def selectProcessor(self, value:str):  
         self.factory.setProcessorType(value)
+    
+    def selectPlotType(self):
+        plotTypeMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
+        self.selectedPlotType = plotTypeMap[self.selectedPlotType]
+        self.generatePlot()
 
     def selectFolder(self):
         folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory"))
@@ -67,6 +74,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = str(value)
+        self.generatePlot()
 
     def generatePlot(self):
         generatePlot = {'Sequence plot':self._sequencePlot, 
@@ -82,7 +90,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             dataList = data.getDataFromSite(site)
         
-        plotType = 'Capability plot'
+        plotType = self.selectedPlotType
         generatePlot[plotType](dataList, testName, limits)
 
     def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float]):
