@@ -39,6 +39,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.pushButton.clicked.connect(self.selectFolder)
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
+        self.listWidget.currentRowChanged.connect(lambda rowID: self.listWidgetArrowKeyEvent(rowID))
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
         self.changeYScaleButton.clicked.connect(self.changeYScale)
 
@@ -76,7 +77,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setMeasurements(measurements)
         self.generateMeasurementsList()
         self.updateNumOfSites()
-
+    
+    def listWidgetArrowKeyEvent(self, rowID:int):
+        item = self.listWidget.item(rowID)
+        self.listWidgetClickedEvent(item)
+    
     def listWidgetClickedEvent(self, item):
         self.selectedTest = item.text()
         self.generatePlot()
