@@ -95,7 +95,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             dataList = data.getDataFromSite(site)
         
         plotType = self.selectedPlotType
-        generatePlot[plotType](dataList, testName, data.getLimits(), self.isLogScale)
+        limits = data.getLimits()
+        generatePlot[plotType](dataList, testName, limits, self.isLogScale)
+
+        mean = np.mean(dataList)
+        sigma = np.std(dataList)
+        self.updateStatisticalData(len(dataList), limits, mean, sigma)
 
     def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
         numberOfSamples = len(dataList)
@@ -114,6 +119,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         sns.kdeplot(dataList, color='blue', label='Density ST')
         self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')
         self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'], isLogScale)
+    
+    def updateStatisticalData(self, numOfSamples:int, limits:tuple[float, float], mean:float, sigma:float):
+        LSL, USL = limits
+        self.samplesEdit.setText(str(numOfSamples))
+        self.lowerLimitEdit.setText(str(LSL))
+        self.upperLimitEdit.setText(str(USL))
+        self.averageEdit.setText(str(mean))
+        self.sigmaEdit.setText(str(sigma))
     
     def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale):
         yScale = {True:'log', False:'linear'}        
