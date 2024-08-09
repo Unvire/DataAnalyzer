@@ -5,6 +5,7 @@ import seaborn as sns
 
 from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from templateDataAnalyzerGUI import Ui_MainWindow
 from fileProcessorFactory import FileProcessorsFactory
@@ -42,8 +43,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.changeYScaleButton.clicked.connect(self.changeYScale)
 
         self.canvas = MplCanvas(self.plotFrame)
-        self.plot_layout = QtWidgets.QVBoxLayout(self.plotFrame)
-        self.plot_layout.addWidget(self.canvas)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        
+        self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
+        self.plotLayout.addWidget(self.toolbar)
+        self.plotLayout.addWidget(self.canvas)
     
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -131,7 +135,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale):
         yScale = {True:'log', False:'linear'}        
         limitHandles = {True: self.canvas.ax.axvline, False:self.canvas.ax.axhline}
-        
+
         lowerLimitValue, upperLimitValue = limits
         xLabel, yLabel = axisLabels
         limitHandles[isLimitsVertical](lowerLimitValue, linestyle='--', color='red', label='LSL')
