@@ -44,7 +44,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.canvas = MplCanvas(self.plotFrame)
         self.plot_layout = QtWidgets.QVBoxLayout(self.plotFrame)
         self.plot_layout.addWidget(self.canvas)
-        self.plot()
     
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -150,13 +149,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def resetSelectSitesComboBox(self):
         self.selectSiteComboBox.clear()
         self.selectSiteComboBox.addItem('All sites')
-
-    def plot(self):
-        t = np.arange(0.0, 2.0, 0.01)
-        s = np.sin(2 * np.pi * t)
-        self.canvas.ax.plot(t, s)
-        self.canvas.ax.set(title='Sinus Wave', xlabel='Time (s)', ylabel='Amplitude')
-        self.canvas.draw()
 
 
 if __name__ == '__main__':
