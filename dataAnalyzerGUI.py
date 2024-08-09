@@ -1,6 +1,7 @@
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -68,7 +69,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         testName = self.selectedTest
         site = '1'
-        plotType = 'Sequence plot'
+        plotType = 'Capability plot'
 
         data = self.measurements[testName]        
         dataList = data.getDataFromSite(site)
@@ -85,7 +86,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self._addCommonPlotElements(title, limits, False, ['Sample', 'Value'])
     
     def _capabilityPlot(self, dataList:list[float], title:str, limits:list[float, float]):
-        pass
+        numberOfSamples = len(dataList)        
+        self.canvas.ax.cla()
+        mean = np.mean(dataList)
+
+        self.canvas.ax.hist(dataList, bins=10, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
+        sns.kdeplot(dataList, color='blue', label='Density ST')
+        self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')
+        self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'])
     
     def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str]):
         limitHandles = {True: self.canvas.ax.axvline, False:self.canvas.ax.axhline}
