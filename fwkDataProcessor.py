@@ -1,14 +1,9 @@
 import dataContainer
+from abstractDataProcessor import AbstractDataProcessor
 
-class FwkDataProcessor:
+class FwkDataProcessor(AbstractDataProcessor):
     def __init__(self):
-        self.measurements = {}
-    
-    def clear(self):
-        self.measurements = {}
-
-    def getMeasurements(self) -> dict[str:dataContainer.DataContainer]:
-        return self.measurements
+        super().__init__()
 
     def processLogFile(self, filePath:str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
