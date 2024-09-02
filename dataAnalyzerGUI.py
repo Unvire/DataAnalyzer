@@ -23,6 +23,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(DataAnalyzerGUI, self).__init__()
         self.setupUi(self)
+        self.setFixedSize(self.size())
 
         self.measurements = {}
         self.selectedTest = ''
