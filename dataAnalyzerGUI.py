@@ -73,7 +73,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.generatePlot()
 
     def selectFolder(self):
-        folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory"))
+        folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory'))
         if folderPath:
             self.processLogsInFolder(folderPath)
     
@@ -85,9 +85,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.resetSelectSitesComboBox()
         self.factory.processAllLogsInFolder(folderPath)
         measurements = self.factory.getAllMeasurements()
+
         self.setMeasurements(measurements)
         self.generateMeasurementsList()
         self.updateNumOfSites()
+        
         self.selectSiteComboBox.setEnabled(True)
         self.changeYScaleButton.setEnabled(True)
         self.changePlotButton.setEnabled(True)
