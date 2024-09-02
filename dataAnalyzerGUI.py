@@ -18,6 +18,8 @@ class MplCanvas(FigureCanvas):
         self.setParent(parent)
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
+    FILE_PROCESSORS = ['Select file type', 'SPEA']
+
     def __init__(self):
         super(DataAnalyzerGUI, self).__init__()
         self.setupUi(self)
@@ -31,9 +33,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.factory = FileProcessorsFactory()
         self.factory.addObserver(self)
 
-        FILE_PROCESSORS = ['Select file type', 'SPEA']
-        for fileName in FILE_PROCESSORS:
+        for fileName in DataAnalyzerGUI.FILE_PROCESSORS:
             self.logsTypeComboBox.addItem(fileName)
+        
+        self.openLogsFolderButton.setEnabled(False)
+        self.selectSiteComboBox.setEnabled(False)
+        self.changeYScaleButton.setEnabled(False)
+        self.changePlotButton.setEnabled(False)
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
@@ -53,8 +59,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
     
-    def selectProcessor(self, value:str):  
-        self.factory.setProcessorType(value)
+    def selectProcessor(self, value:str):
+        if value != DataAnalyzerGUI.FILE_PROCESSORS[0]:
+            self.factory.setProcessorType(value)
+            self.openLogsFolderButton.setEnabled(True)
+        else:
+            self.openLogsFolderButton.setEnabled(False)
     
     def selectPlotType(self):
         plotTypeMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
@@ -77,6 +87,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setMeasurements(measurements)
         self.generateMeasurementsList()
         self.updateNumOfSites()
+        self.selectSiteComboBox.setEnabled(True)
+        self.changeYScaleButton.setEnabled(True)
+        self.changePlotButton.setEnabled(True)
     
     def listWidgetArrowKeyEvent(self, rowID:int):
         item = self.listWidget.item(rowID)
