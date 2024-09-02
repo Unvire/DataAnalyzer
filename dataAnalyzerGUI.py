@@ -18,7 +18,7 @@ class MplCanvas(FigureCanvas):
         self.setParent(parent)
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
-    FILE_PROCESSORS = ['Select file type', 'SPEA']
+    FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK']
 
     def __init__(self):
         super(DataAnalyzerGUI, self).__init__()

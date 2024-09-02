@@ -1,11 +1,12 @@
 import os
 import dataContainer
-import speaDataProcessor
+import speaDataProcessor, fwkDataProcessor
 
 class FileProcessorsFactory:
     def __init__(self):
         self.dataProcessorsDict = {
-            'SPEA': speaDataProcessor.SpeaDataProcessor
+            'SPEA': speaDataProcessor.SpeaDataProcessor,
+            'FWK': fwkDataProcessor.FwkDataProcessor
         }
         self.observersList = []
     
