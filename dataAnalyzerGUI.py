@@ -33,10 +33,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         FILE_PROCESSORS = ['Select file type', 'SPEA']
         for fileName in FILE_PROCESSORS:
-            self.comboBox.addItem(fileName)
+            self.logsTypeComboBox.addItem(fileName)
 
-        self.comboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
-        self.pushButton.clicked.connect(self.selectFolder)
+        self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
+        self.openLogsFolderButton.clicked.connect(self.selectFolder)
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
         self.listWidget.currentRowChanged.connect(lambda rowID: self.listWidgetArrowKeyEvent(rowID))
