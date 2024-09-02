@@ -1,7 +1,7 @@
 import abc
 import dataContainer
 
-class AbstractDataProcessor(abc.ABC):
+class AbstractDataProcessor(metaclass=abc.ABCMeta):
     def __init__(self):
         self.measurements = {}
     
