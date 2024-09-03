@@ -38,9 +38,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.logsTypeComboBox.addItem(fileName)
         
         self.openLogsFolderButton.setEnabled(False)
-        self.selectSiteComboBox.setEnabled(False)
-        self.changeYScaleButton.setEnabled(False)
-        self.changePlotButton.setEnabled(False)
+        self._setStatusOfTestsHandlingWidgets(False)
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
@@ -89,10 +87,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setMeasurements(measurements)
         self.generateMeasurementsList()
         self.updateNumOfSites()
-        
-        self.selectSiteComboBox.setEnabled(True)
-        self.changeYScaleButton.setEnabled(True)
-        self.changePlotButton.setEnabled(True)
+
+        self._setStatusOfTestsHandlingWidgets(True)
+
     
     def listWidgetArrowKeyEvent(self, rowID:int):
         item = self.listWidget.item(rowID)
@@ -188,6 +185,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.selectSiteComboBox.clear()
         self.selectSiteComboBox.addItem('All sites')
 
+    def _setStatusOfTestsHandlingWidgets(self, status:bool):
+        self.selectSiteComboBox.setEnabled(status)
+        self.changeYScaleButton.setEnabled(status)
+        self.changePlotButton.setEnabled(status)
+        self.filterLogsButton.setEnabled(status)
+        self.resetFilterButton.setEnabled(status)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
