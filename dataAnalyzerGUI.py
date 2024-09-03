@@ -101,24 +101,19 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.resetSelectSitesComboBox()
         try:
             self.factory.processAllLogsInFolder(folderPath)
-        except Exception:
-            title = 'Error'
-            text = 'Error during processing files. Check if folder with logs is correct'
-            self.showErrorMessage(title, text)
+        except Exception:            
+            self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
             return
 
         measurements = self.factory.getAllMeasurements()
-
         self.setMeasurements(measurements)
-        testsList = self._getMeasurementsList()
-        self.generateMeasurementsList(testsList)
 
-        try:
+        try:            
+            testsList = self._getMeasurementsList()
+            self.generateMeasurementsList(testsList)
             self.updateNumOfSites()
         except IndexError:
-            title = 'Error'
-            text = 'Error after processing files. Check if correct loader was selected'
-            self.showErrorMessage(title, text)
+            self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
             return
 
         self._setStatusOfTestsHandlingWidgets(True)
