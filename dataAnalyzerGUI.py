@@ -1,4 +1,4 @@
-import sys
+import sys, re
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -47,6 +47,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.listWidget.currentRowChanged.connect(lambda rowID: self.listWidgetArrowKeyEvent(rowID))
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
         self.changeYScaleButton.clicked.connect(self.changeYScale)
+        self.filterLogsButton.clicked.connect(self.filterMeasurementsWithRegex)
+        self.resetFilterButton.clicked.connect(self.resetFilterMeasurements)
 
         self.canvas = MplCanvas(self.plotFrame)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -79,25 +81,44 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
+    def filterMeasurementsWithRegex(self):
+        pattern = self.regexPatternEdit.text()
+        testsList = self._getMeasurementsList()
+        result = []
+        try:
+            for testName in testsList:
+                if re.search(pattern, testName):
+                    result.append(testName)
+            self.generateMeasurementsList(result)
+        except re.error:
+            pass
+
+    def resetFilterMeasurements(self):
+        testsList = self._getMeasurementsList()
+        self.generateMeasurementsList(testsList)
+    
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
         self.factory.processAllLogsInFolder(folderPath)
         measurements = self.factory.getAllMeasurements()
 
         self.setMeasurements(measurements)
-        self.generateMeasurementsList()
+        testsList = self._getMeasurementsList()
+        self.generateMeasurementsList(testsList)
         self.updateNumOfSites()
 
         self._setStatusOfTestsHandlingWidgets(True)
-
     
     def listWidgetArrowKeyEvent(self, rowID:int):
         item = self.listWidget.item(rowID)
         self.listWidgetClickedEvent(item)
     
     def listWidgetClickedEvent(self, item):
-        self.selectedTest = item.text()
-        self.generatePlot()
+        try:
+            self.selectedTest = item.text()
+            self.generatePlot()
+        except AttributeError:
+            pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = str(value)
@@ -168,12 +189,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty("value", progressPercent)
     
-    def generateMeasurementsList(self):
+    def generateMeasurementsList(self, testsList:list[str]):
         self.listWidget.clear()
-        self.listWidget.addItems(self.measurements.keys())
+        self.listWidget.addItems(testsList)
     
     def updateNumOfSites(self):
-        testNames = list(self.measurements.keys())
+        testNames = self._getMeasurementsList()
         firstDataContainer = self.measurements[testNames[0]]
         numOfTests = firstDataContainer.getNumOfSites()
 
@@ -191,6 +212,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.changePlotButton.setEnabled(status)
         self.filterLogsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
+    
+    def _getMeasurementsList(self) -> list[str]:
+        return list(self.measurements.keys())
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
