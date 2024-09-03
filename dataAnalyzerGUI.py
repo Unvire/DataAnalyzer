@@ -154,7 +154,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sigmaEdit.setText(str(sigma))
     
     def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale):
-        yScale = {True:'log', False:'linear'}        
+        yScale = {True:'symlog', False:'linear'}        
         limitHandles = {True: self.canvas.ax.axvline, False:self.canvas.ax.axhline}
 
         lowerLimitValue, upperLimitValue = limits
