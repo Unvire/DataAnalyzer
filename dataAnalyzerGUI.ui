@@ -19,7 +19,7 @@
      <rect>
       <x>20</x>
       <y>520</y>
-      <width>371</width>
+      <width>391</width>
       <height>91</height>
      </rect>
     </property>
@@ -50,6 +50,9 @@
         <widget class="QLineEdit" name="samplesEdit">
          <property name="enabled">
           <bool>true</bool>
+         </property>
+         <property name="statusTip">
+          <string>Number of samples for selected test</string>
          </property>
          <property name="readOnly">
           <bool>true</bool>
@@ -95,6 +98,9 @@
              <property name="cursor">
               <cursorShape>IBeamCursor</cursorShape>
              </property>
+             <property name="statusTip">
+              <string>Lower limit of selected test</string>
+             </property>
              <property name="readOnly">
               <bool>true</bool>
              </property>
@@ -121,6 +127,9 @@
              </property>
              <property name="cursor">
               <cursorShape>IBeamCursor</cursorShape>
+             </property>
+             <property name="statusTip">
+              <string>Upper limit of selected test</string>
              </property>
              <property name="readOnly">
               <bool>true</bool>
@@ -153,6 +162,9 @@
              <property name="cursor">
               <cursorShape>IBeamCursor</cursorShape>
              </property>
+             <property name="statusTip">
+              <string>Mean value of selected test</string>
+             </property>
              <property name="readOnly">
               <bool>true</bool>
              </property>
@@ -180,6 +192,9 @@
              <property name="cursor">
               <cursorShape>IBeamCursor</cursorShape>
              </property>
+             <property name="statusTip">
+              <string>Standard deviation of selected test</string>
+             </property>
              <property name="readOnly">
               <bool>true</bool>
              </property>
@@ -202,15 +217,21 @@
       <height>31</height>
      </rect>
     </property>
+    <property name="statusTip">
+     <string>Log file type</string>
+    </property>
    </widget>
    <widget class="QPushButton" name="openLogsFolderButton">
     <property name="geometry">
      <rect>
       <x>234</x>
       <y>40</y>
-      <width>131</width>
+      <width>141</width>
       <height>31</height>
      </rect>
+    </property>
+    <property name="statusTip">
+     <string>Select folder with log files</string>
     </property>
     <property name="text">
      <string>Open logs folder</string>
@@ -221,9 +242,12 @@
      <rect>
       <x>20</x>
       <y>80</y>
-      <width>381</width>
+      <width>391</width>
       <height>23</height>
      </rect>
+    </property>
+    <property name="statusTip">
+     <string/>
     </property>
     <property name="value">
      <number>0</number>
@@ -264,6 +288,9 @@
       <height>551</height>
      </rect>
     </property>
+    <property name="statusTip">
+     <string>Plot</string>
+    </property>
     <property name="autoFillBackground">
      <bool>true</bool>
     </property>
@@ -279,9 +306,15 @@
      <rect>
       <x>20</x>
       <y>130</y>
-      <width>371</width>
-      <height>381</height>
+      <width>391</width>
+      <height>291</height>
      </rect>
+    </property>
+    <property name="statusTip">
+     <string>List of tests</string>
+    </property>
+    <property name="whatsThis">
+     <string/>
     </property>
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget">
@@ -316,6 +349,9 @@
      </item>
      <item>
       <widget class="QComboBox" name="selectSiteComboBox">
+       <property name="statusTip">
+        <string>Select cavity</string>
+       </property>
        <item>
         <property name="text">
          <string>All sites</string>
@@ -338,6 +374,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="changeYScaleButton">
+       <property name="statusTip">
+        <string>Linear/Log Y scale</string>
+       </property>
        <property name="text">
         <string>Change Y scale</string>
        </property>
@@ -358,6 +397,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="changePlotButton">
+       <property name="statusTip">
+        <string>Series plot/Capability plot</string>
+       </property>
        <property name="text">
         <string>Change plot type</string>
        </property>
@@ -377,6 +419,108 @@
       </spacer>
      </item>
     </layout>
+   </widget>
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>430</y>
+      <width>391</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout_4">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <item>
+        <widget class="QLineEdit" name="regexPatternEdit">
+         <property name="statusTip">
+          <string>Regex pattern for filtering out the tests</string>
+         </property>
+         <property name="placeholderText">
+          <string>Regex pattern</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <spacer name="horizontalSpacer_8">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="filterLogsButton">
+         <property name="statusTip">
+          <string>Filter out logs with given regex pattern</string>
+         </property>
+         <property name="text">
+          <string>Filter logs</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_7">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="resetFilterButton">
+         <property name="statusTip">
+          <string>Reset filter</string>
+         </property>
+         <property name="text">
+          <string>Reset filter</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_9">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+   <widget class="Line" name="line_3">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>500</y>
+      <width>391</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Horizontal</enum>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
