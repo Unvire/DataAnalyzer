@@ -99,13 +99,27 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
-        self.factory.processAllLogsInFolder(folderPath)
+        try:
+            self.factory.processAllLogsInFolder(folderPath)
+        except Exception:
+            title = 'Error'
+            text = 'Error during processing files. Check if folder with logs is correct'
+            self.showErrorMessage(title, text)
+            return
+
         measurements = self.factory.getAllMeasurements()
 
         self.setMeasurements(measurements)
         testsList = self._getMeasurementsList()
         self.generateMeasurementsList(testsList)
-        self.updateNumOfSites()
+
+        try:
+            self.updateNumOfSites()
+        except IndexError:
+            title = 'Error'
+            text = 'Error after processing files. Check if correct loader was selected'
+            self.showErrorMessage(title, text)
+            return
 
         self._setStatusOfTestsHandlingWidgets(True)
     
@@ -205,6 +219,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def resetSelectSitesComboBox(self):
         self.selectSiteComboBox.clear()
         self.selectSiteComboBox.addItem('All sites')
+    
+    def showErrorMessage(self, title:str, text:str):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Critical)
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        msg.exec_()
 
     def _setStatusOfTestsHandlingWidgets(self, status:bool):
         self.selectSiteComboBox.setEnabled(status)
