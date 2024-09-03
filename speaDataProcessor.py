@@ -17,6 +17,9 @@ class SpeaDataProcessor(AbstractDataProcessor):
     
     def _processFileLine(self, fileLine:str):
         _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')
+        if float(lowerLimit) == 0.0 and float(upperLimit) == 0.0:
+            return
+        
         testName = f'{testName1} | {testName2}'
         if testName not in self.measurements:
             testContainer = dataContainer.DataContainer(testName)
