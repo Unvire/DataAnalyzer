@@ -20,17 +20,17 @@ def test__processFileLine(fileLinesProcessingTest):
     
     measurements = loader.getMeasurements()
     
-    assert list(measurements.keys()) == ['RESR261 150K 1%', 'RESR262 10K 5%', 'RESR265 1K 1%']
+    assert list(measurements.keys()) == ['R261 | RESR261 150K 1%', 'R262 | RESR262 10K 5%', 'R265 | RESR265 1K 1%']
 
-    dataInstance = measurements['RESR261 150K 1%']
+    dataInstance = measurements['R261 | RESR261 150K 1%']
     assert list(dataInstance.data.keys()) == ['1']
     assert dataInstance.getDataFromSite('1') == [float('1.499953e+05')]
 
-    dataInstance = measurements['RESR262 10K 5%']
+    dataInstance = measurements['R262 | RESR262 10K 5%']
     assert list(dataInstance.data.keys()) == ['1']
     assert dataInstance.getDataFromSite('1') == [float('9.968847e+03')]
 
-    dataInstance = measurements['RESR265 1K 1%']
+    dataInstance = measurements['R265 | RESR265 1K 1%']
     assert list(dataInstance.data.keys()) == ['1', '2']
     assert dataInstance.getDataFromSite('1') == [float('9.960000e+02'), float('9.970000e+02')]
     assert dataInstance.getDataFromSite('2') == [float('9.980000e+02'), float('9.990000e+02')]
