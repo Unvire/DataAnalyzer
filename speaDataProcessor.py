@@ -21,8 +21,5 @@ class SpeaDataProcessor(AbstractDataProcessor):
             return
         
         testName = f'{testName1} | {testName2}'
-        if testName not in self.measurements:
-            testContainer = dataContainer.DataContainer(testName)
-            testContainer.setLimits(lowerLimit, upperLimit)
-            self.measurements[testName] = testContainer
+        self.createDataContainer(testName, lowerLimit, upperLimit)
         self.measurements[testName].addData(site, measuredValue)

@@ -29,8 +29,5 @@ class FwkDataProcessor(AbstractDataProcessor):
         if  not lowerLimit and not upperLimit:
             return
         
-        if testName not in self.measurements:
-            testContainer = dataContainer.DataContainer(testName)
-            testContainer.setLimits(lowerLimit, upperLimit)
-            self.measurements[testName] = testContainer
+        self.createDataContainer(testName, lowerLimit, upperLimit)
         self.measurements[testName].addData(site, measuredValue)
