@@ -13,7 +13,7 @@ def file1LinesProcessingTest():
 @pytest.fixture
 def file2LinesProcessingTest():
     mockFileLines = [
-        'test1;0;10',
+        'test1;0;10;',
         '3',
         '4', 
     ]
