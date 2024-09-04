@@ -23,8 +23,8 @@ def file2LinesProcessingTest():
 def file3LinesProcessingTest():
     mockFileLines = [
         'test2;10;20',
-        '15',
-        '16', 
+        '15;',
+        '16;', 
     ]
     return mockFileLines
 
