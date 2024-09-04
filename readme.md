@@ -19,4 +19,4 @@ Program is written with python (3.11). Used packages:
 - seaborn
 
 ## How to run?
-Install all required modules listed in requirements.txt and run dataAnalyzerGUI.py
+Install all required modules listed in requirements.txt and run mainGUI.py
