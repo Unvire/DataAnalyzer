@@ -26,15 +26,3 @@ class SpeaDataProcessor(AbstractDataProcessor):
             testContainer.setLimits(lowerLimit, upperLimit)
             self.measurements[testName] = testContainer
         self.measurements[testName].addData(site, measuredValue)
-
-if __name__ == '__main__':
-    import os
-    logFolder = r'C:\python programy\2023_07_27 get measurement from logs\Data'
-    logs = os.listdir(logFolder)
-    numOfLogs = len(logs)
-    
-    loader = SpeaDataProcessor()
-    for i, logfilePath in enumerate(logs):
-        logPath = os.path.join(logFolder, logfilePath)
-        loader.processLogFile(logPath)
-        print(f'{i + 1} | {numOfLogs}')
