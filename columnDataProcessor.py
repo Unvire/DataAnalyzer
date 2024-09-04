@@ -9,11 +9,8 @@ class ColumnDataProcessor(AbstractDataProcessor):
         with open(filePath, 'r', encoding='unicode_escape') as file:
             fileLines = file.readlines().replace('\n', '')
         
-        testName, lowerLimit, upperLimit = fileLines.pop(0).split(';')
-        if testName not in self.measurements:
-            testContainer = dataContainer.DataContainer(testName)
-            testContainer.setLimits(lowerLimit, upperLimit)
-            self.measurements[testName] = testContainer
+        testName, lowerLimit, upperLimit = self._getSiteLimitsFromHeader(fileLines)
+        self.createDataContainer(testName, lowerLimit, upperLimit)
             
         for line in fileLines:
             try:
@@ -23,3 +20,7 @@ class ColumnDataProcessor(AbstractDataProcessor):
     
     def _processFileLine(self, measuredValue:str, testName:str):
         self.measurements[testName].addData('1', measuredValue)
+    
+    def _getSiteLimitsFromHeader(self, fileLines:list[str]) -> tuple[str, str, str]:
+        testName, lowerLimit, upperLimit = fileLines.pop(0).split(';')
+        return testName, lowerLimit, upperLimit
