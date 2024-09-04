@@ -7,7 +7,7 @@ class FileProcessorsFactory:
         self.dataProcessorsDict = {
             'SPEA': speaDataProcessor.SpeaDataProcessor,
             'FWK': fwkDataProcessor.FwkDataProcessor,
-            'One column file': columnDataProcessor.ColumnDataProcessor
+            'Column file': columnDataProcessor.ColumnDataProcessor
         }
         self.observersList = []
     
