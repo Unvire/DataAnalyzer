@@ -1,13 +1,12 @@
-import sys, re
+import sys, re, os
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, uic
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-from templateDataAnalyzerGUI import Ui_MainWindow
 from fileProcessorFactory import FileProcessorsFactory
 
 class MplCanvas(FigureCanvas):
@@ -17,13 +16,13 @@ class MplCanvas(FigureCanvas):
         super(MplCanvas, self).__init__(fig)
         self.setParent(parent)
 
-class DataAnalyzerGUI(QtWidgets.QMainWindow, Ui_MainWindow):
+class DataAnalyzerGUI(QtWidgets.QMainWindow):
     FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK', 'Column file']
 
     def __init__(self):
-        super(DataAnalyzerGUI, self).__init__()
-        self.setupUi(self)
-        self.setFixedSize(self.size())
+        super().__init__()
+        uiFilePath = os.path.join(os.getcwd(), 'ui', 'main.ui')
+        uic.loadUi(uiFilePath, self)
 
         self.measurements = {}
         self.selectedTest = ''
