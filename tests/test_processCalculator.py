@@ -66,8 +66,8 @@ def sampleData():
     dataClass.LSL = 43
     dataClass.USL = 45
     dataClass.mean = 44.67
-    dataClass.sigmaWithin = 1.05
-    dataClass.sigmaOverall = 1.65
+    dataClass.sigmaWithin = 0.65
+    dataClass.sigmaOverall = 1.05
     dataClass.CPL = 1.37
     dataClass.CPU = 0.17
     dataClass.cp = 0.77
@@ -78,9 +78,9 @@ def sampleData():
     dataClass.ppk = 0.11    
     return dataClass
 
-def test__calculateMeanSigma(sampleData):
+def test__calculateMeanSigmaOverall(sampleData):
     instance = processCalculator.ProcessParameterCalculator()
     measurements = sampleData.measurements
-    mean, sigmaWithin = instance._calculateMeanSigma(measurements)
+    mean, sigmaOverall = instance._calculateMeanSigmaOverall(measurements)
     assert round(mean, 2) == sampleData.mean
-    assert round(sigmaWithin, 2) == sampleData.sigmaWithin
+    assert round(sigmaOverall, 2) == sampleData.sigmaOverall
