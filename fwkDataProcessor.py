@@ -1,4 +1,3 @@
-import dataContainer
 from abstractDataProcessor import AbstractDataProcessor
 
 class FwkDataProcessor(AbstractDataProcessor):
