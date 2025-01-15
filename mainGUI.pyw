@@ -1,4 +1,4 @@
-import sys, re, os
+import sys, os
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from testListWrapper import TestListWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
+from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
 from dataContainer import DataContainer
 
 class MplCanvas(FigureCanvas):
@@ -58,6 +59,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
         self.plotLayout.addWidget(self.toolbar)
         self.plotLayout.addWidget(self.canvas)
+
+        self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
+        self.capabilityPlotGenerator = CapabilityPlotGenerator(self.canvas)
     
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -120,8 +124,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.calculateProcessParameters()
 
     def generatePlot(self):
-        generatePlot = {'Sequence plot':self._sequencePlot, 
-                        'Capability plot': self._capabilityPlot}
+        generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
+                        'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
         testName = self.selectedTest        
         plotType = self.selectedPlotType
@@ -153,24 +157,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         else:
             dataList = data.getDataFromSite(site)
         return data, dataList        
-
-    def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
-        numberOfSamples = len(dataList)
-        self.canvas.ax.cla()
-        self.canvas.ax.plot(dataList, '.', linewidth=1, label=f'Data ({numberOfSamples} samples)')
-        self.canvas.ax.set_xlim([0, numberOfSamples])
-        self.canvas.ax.grid()
-        self._addCommonPlotElements(title, limits, False, ['Sample', 'Value'], isLogScale)
-    
-    def _capabilityPlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
-        numberOfSamples = len(dataList)        
-        self.canvas.ax.cla()
-        mean = np.mean(dataList)
-
-        self.canvas.ax.hist(dataList, bins=10, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
-        sns.kdeplot(dataList, color='blue', label='Density ST')
-        self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')
-        self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'], isLogScale)
     
     def updateStatisticalData(self, numOfSamples:int, limits:tuple[float, float], mean:float, sigma:float):
         LSL, USL = limits
@@ -179,21 +165,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.upperLimitEdit.setText(str(USL))
         self.averageEdit.setText(str(mean))
         self.sigmaEdit.setText(str(sigma))
-    
-    def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale):
-        yScale = {True:'symlog', False:'linear'}        
-        limitHandles = {True: self.canvas.ax.axvline, False:self.canvas.ax.axhline}
-
-        lowerLimitValue, upperLimitValue = limits
-        xLabel, yLabel = axisLabels
-        limitHandles[isLimitsVertical](lowerLimitValue, linestyle='--', color='red', label='LSL')
-        limitHandles[isLimitsVertical](upperLimitValue, linestyle='--', color='orange', label='USL')
-        self.canvas.ax.set_title(title)
-        self.canvas.ax.set_xlabel(xLabel)
-        self.canvas.ax.set_ylabel(yLabel)
-        self.canvas.ax.set_yscale(yScale[isLogScale])
-        self.canvas.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
-        self.canvas.draw()
     
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty("value", progressPercent)

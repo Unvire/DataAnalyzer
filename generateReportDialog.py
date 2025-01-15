@@ -1,5 +1,5 @@
 import sys, os
-from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5 import uic
 
 from testListWrapper import TestListWrapper
