@@ -124,7 +124,7 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="filterLogsButton">
+             <widget class="QPushButton" name="filterTestsButton">
               <property name="statusTip">
                <string/>
               </property>

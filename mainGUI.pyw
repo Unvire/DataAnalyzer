@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets, uic
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
+from testListWrapper import TestListWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from dataContainer import DataContainer
@@ -25,6 +26,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         super().__init__()
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'main.ui')
         uic.loadUi(uiFilePath, self)
+
+        self.testListWrapper = TestListWrapper(self.listWidget, self.filterTestsButton, self.resetFilterButton, self.regexPatternEdit)
+        self.testListWrapper.setRowOnClickEvent(self.listWidgetClickedEvent)
 
         self.measurements = {}
         self.selectedTest = ''
@@ -45,12 +49,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
         self.changePlotButton.clicked.connect(self.selectPlotType)
-        self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
-        self.listWidget.currentRowChanged.connect(lambda rowID: self.listWidgetArrowKeyEvent(rowID))
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
         self.changeYScaleButton.clicked.connect(self.changeYScale)
-        self.filterLogsButton.clicked.connect(self.filterMeasurementsWithRegex)
-        self.resetFilterButton.clicked.connect(self.resetFilterMeasurements)
 
         self.canvas = MplCanvas(self.plotFrame)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -83,22 +83,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
-    def filterMeasurementsWithRegex(self):
-        pattern = self.regexPatternEdit.text()
-        testsList = self._getMeasurementsList()
-        result = []
-        try:
-            for testName in testsList:
-                if re.search(pattern, testName):
-                    result.append(testName)
-            self.generateMeasurementsList(result)
-        except re.error:
-            pass
-
-    def resetFilterMeasurements(self):
-        testsList = self._getMeasurementsList()
-        self.generateMeasurementsList(testsList)
-    
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
         try:
@@ -112,19 +96,17 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         try:            
             testsList = self._getMeasurementsList()
-            self.generateMeasurementsList(testsList)
+            self.testListWrapper.setTestNames(testsList)
+            self.testListWrapper.generateMeasurementsList()
             self.updateNumOfSites()
+
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
             return
 
         self._setStatusOfTestsHandlingWidgets(True)
     
-    def listWidgetArrowKeyEvent(self, rowID:int):
-        item = self.listWidget.item(rowID)
-        self.listWidgetClickedEvent(item)
-    
-    def listWidgetClickedEvent(self, item):
+    def listWidgetClickedEvent(self, item):#
         try:
             self.selectedTest = item.text()
             self.generatePlot()            
@@ -216,10 +198,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty("value", progressPercent)
     
-    def generateMeasurementsList(self, testsList:list[str]):
-        self.listWidget.clear()
-        self.listWidget.addItems(testsList)
-    
     def updateNumOfSites(self):
         testNames = self._getMeasurementsList()
         firstDataContainer = self.measurements[testNames[0]]
@@ -244,7 +222,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectSiteComboBox.setEnabled(status)
         self.changeYScaleButton.setEnabled(status)
         self.changePlotButton.setEnabled(status)
-        self.filterLogsButton.setEnabled(status)
+        self.filterTestsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
         self.generateReportButton.setEnabled(status)
     
