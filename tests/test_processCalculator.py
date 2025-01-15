@@ -9,12 +9,8 @@ class MockDataClass:
         self.mean = None
         self.sigmaWithin = None
         self.sigmaOverall = None
-        self.CPL = None
-        self.CPU = None
         self.cp = None
         self.cpk = None
-        self.PPL = None
-        self.PPU = None
         self.pp = None
         self.ppk = None
 
@@ -68,12 +64,8 @@ def sampleData():
     dataClass.mean = 44.67
     dataClass.sigmaWithin = 0.65
     dataClass.sigmaOverall = 1.05
-    dataClass.CPL = 1.37
-    dataClass.CPU = 0.17
     dataClass.cp = 0.32
     dataClass.cpk = 0.10
-    dataClass.PPL = 0.11
-    dataClass.PPU = 0.85
     dataClass.pp = 0.32
     dataClass.ppk = 0.10    
     return dataClass
@@ -98,5 +90,13 @@ def test__calculateCpCpk(sampleData):
     measurements = sampleData.measurements
     mean, sigmaOverall = instance._calculateMeanSigmaOverall(measurements)
     cp, cpk = instance._calculateCpCpk(len(measurements), mean, sigmaOverall, sampleData.LSL, sampleData.USL)
+    assert round(cp, 2) == sampleData.cp    
+    assert round(cpk, 2) == sampleData.cpk
+
+def test__calculate(sampleData):
+    instance = processCalculator.ProcessParameterCalculator()
+    pp, ppk, cp, cpk = instance.calculate(sampleData.measurements, sampleData.LSL, sampleData.USL)
+    assert round(pp, 2) == sampleData.pp    
+    assert round(ppk, 2) == sampleData.ppk
     assert round(cp, 2) == sampleData.cp    
     assert round(cpk, 2) == sampleData.cpk

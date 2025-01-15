@@ -4,7 +4,10 @@ import numpy as np
 # https://datatab.net/statistics-calculator/process-capability
 class ProcessParameterCalculator:
     def calculate(self, measurements:list[float|int], lowerLimit:float, upperLimit:float) -> tuple[float, float, float, float]:
-        pass
+        mean, sigmaOverall = self._calculateMeanSigmaOverall(measurements)
+        pp, ppk = self._calculatePpPpk(mean, sigmaOverall, lowerLimit, upperLimit)
+        cp, cpk = self._calculateCpCpk(len(measurements), mean, sigmaOverall, lowerLimit, upperLimit)
+        return pp, ppk, cp, cpk
     
     def _calculateMeanSigmaOverall(self, measurements:list[float|int]) -> tuple[float, float]:
         mean = np.mean(measurements)
