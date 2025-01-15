@@ -109,6 +109,9 @@
        <property name="whatsThis">
         <string/>
        </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::MultiSelection</enum>
+       </property>
       </widget>
      </item>
      <item>
@@ -129,7 +132,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="filterLogsButton">
+          <widget class="QPushButton" name="filterTestsButton">
            <property name="statusTip">
             <string/>
            </property>
