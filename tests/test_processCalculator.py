@@ -95,7 +95,9 @@ def test__calculateCpCpk(sampleData):
 
 def test__calculate(sampleData):
     instance = processCalculator.ProcessParameterCalculator()
-    pp, ppk, cp, cpk = instance.calculate(sampleData.measurements, sampleData.LSL, sampleData.USL)
+    mean, sigmaOverall, pp, ppk, cp, cpk = instance.calculate(sampleData.measurements, sampleData.LSL, sampleData.USL)
+    assert round(mean, 2) == sampleData.mean    
+    assert round(sigmaOverall, 2) == sampleData.sigmaOverall
     assert round(pp, 2) == sampleData.pp    
     assert round(ppk, 2) == sampleData.ppk
     assert round(cp, 2) == sampleData.cp    

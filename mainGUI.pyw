@@ -114,14 +114,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         try:
             self.selectedTest = item.text()
             self.generatePlot()            
-            self.calculateProcessParameters()
+            self.updateProcessParameters()
         except AttributeError:
             pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = str(value)
         self.generatePlot()
-        self.calculateProcessParameters()
+        self.updateProcessParameters()
 
     def generatePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
@@ -133,19 +133,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data, dataList = self._getSelectedMeasurementData()
         limits = data.getLimits()
         generatePlot[plotType](dataList, testName, limits, self.isLogScale)
-
-        mean = np.mean(dataList)
-        sigma = np.std(dataList)
-        self.updateStatisticalData(len(dataList), limits, mean, sigma)
     
-    def calculateProcessParameters(self):
+    def updateProcessParameters(self):
         data, dataList = self._getSelectedMeasurementData()
         lowerLimit, upperLimit = data.getLimits()
-        pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
-        self.ppEdit.setText(str(pp))
-        self.ppkEdit.setText(str(ppk))
-        self.cpEdit.setText(str(cp))
-        self.cpkEdit.setText(str(cpk))
+        mean, sigma, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
+        self._updateStatisticalEdits(numOfSamples=len(dataList), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
+                                     sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk)
 
     def _getSelectedMeasurementData(self) -> tuple[DataContainer, list[float]]:
         testName = self.selectedTest     
@@ -158,13 +152,16 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             dataList = data.getDataFromSite(site)
         return data, dataList        
     
-    def updateStatisticalData(self, numOfSamples:int, limits:tuple[float, float], mean:float, sigma:float):
-        LSL, USL = limits
+    def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, ppk:float, cp:float, cpk:float):
         self.samplesEdit.setText(str(numOfSamples))
-        self.lowerLimitEdit.setText(str(LSL))
-        self.upperLimitEdit.setText(str(USL))
+        self.lowerLimitEdit.setText(str(lowerLimit))
+        self.upperLimitEdit.setText(str(upperLimit))
         self.averageEdit.setText(str(mean))
         self.sigmaEdit.setText(str(sigma))
+        self.ppEdit.setText(str(pp))
+        self.ppkEdit.setText(str(ppk))
+        self.cpEdit.setText(str(cp))
+        self.cpkEdit.setText(str(cpk))
     
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty("value", progressPercent)
