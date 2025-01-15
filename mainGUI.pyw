@@ -1,7 +1,5 @@
 import sys, os
 import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
 
 from PyQt5 import QtWidgets, uic
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -110,7 +108,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         self._setStatusOfTestsHandlingWidgets(True)
     
-    def listWidgetClickedEvent(self, item):#
+    def listWidgetClickedEvent(self, item):
         try:
             self.selectedTest = item.text()
             self.generatePlot()            

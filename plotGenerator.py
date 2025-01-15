@@ -7,7 +7,7 @@ class PlotGenerator:
         self.canvas = canvas
     
     def generatePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
-        pass
+        assert False
 
     def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale):
         yScale = {True:'symlog', False:'linear'}        
