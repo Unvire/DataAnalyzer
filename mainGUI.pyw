@@ -8,6 +8,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from fileProcessorFactory import FileProcessorsFactory
+from processCalculator import ProcessParameterCalculator
+from dataContainer import DataContainer
 
 class MplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -30,6 +32,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectedPlotType = 'Sequence plot'        
         self.isLogScale = False
 
+        self.processParameterCalculator = ProcessParameterCalculator()
         self.factory = FileProcessorsFactory()
         self.factory.addObserver(self)
 
@@ -124,18 +127,41 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def listWidgetClickedEvent(self, item):
         try:
             self.selectedTest = item.text()
-            self.generatePlot()
+            self.generatePlot()            
+            self.calculateProcessParameters()
         except AttributeError:
             pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = str(value)
         self.generatePlot()
+        self.calculateProcessParameters()
 
     def generatePlot(self):
         generatePlot = {'Sequence plot':self._sequencePlot, 
                         'Capability plot': self._capabilityPlot}
         
+        testName = self.selectedTest        
+        plotType = self.selectedPlotType
+        
+        data, dataList = self._getSelectedMeasurementData()
+        limits = data.getLimits()
+        generatePlot[plotType](dataList, testName, limits, self.isLogScale)
+
+        mean = np.mean(dataList)
+        sigma = np.std(dataList)
+        self.updateStatisticalData(len(dataList), limits, mean, sigma)
+    
+    def calculateProcessParameters(self):
+        data, dataList = self._getSelectedMeasurementData()
+        lowerLimit, upperLimit = data.getLimits()
+        pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
+        self.ppEdit.setText(str(pp))
+        self.ppkEdit.setText(str(ppk))
+        self.cpEdit.setText(str(cp))
+        self.cpkEdit.setText(str(cpk))
+
+    def _getSelectedMeasurementData(self) -> tuple[DataContainer, list[float]]:
         testName = self.selectedTest     
         data = self.measurements[testName]
 
@@ -144,14 +170,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             dataList = data.getDataFromAllSites()
         else:
             dataList = data.getDataFromSite(site)
-        
-        plotType = self.selectedPlotType
-        limits = data.getLimits()
-        generatePlot[plotType](dataList, testName, limits, self.isLogScale)
-
-        mean = np.mean(dataList)
-        sigma = np.std(dataList)
-        self.updateStatisticalData(len(dataList), limits, mean, sigma)
+        return data, dataList        
 
     def _sequencePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool):
         numberOfSamples = len(dataList)
@@ -227,6 +246,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.changePlotButton.setEnabled(status)
         self.filterLogsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
+        self.generateReportButton.setEnabled(status)
     
     def _getMeasurementsList(self) -> list[str]:
         return list(self.measurements.keys())

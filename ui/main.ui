@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1163</width>
-    <height>679</height>
+    <width>1075</width>
+    <height>644</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -415,16 +415,16 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_17" stretch="1,0,1">
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_16">
+           <layout class="QHBoxLayout" name="horizontalLayout_13">
             <item>
-             <widget class="QLabel" name="cpLabel">
+             <widget class="QLabel" name="ppLabel">
               <property name="text">
-               <string>cp</string>
+               <string>pp</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="cpEdit">
+             <widget class="QLineEdit" name="ppEdit">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -458,16 +458,16 @@
            </spacer>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_13">
+           <layout class="QHBoxLayout" name="horizontalLayout_16">
             <item>
-             <widget class="QLabel" name="ppLabel">
+             <widget class="QLabel" name="cpLabel">
               <property name="text">
-               <string>pp</string>
+               <string>cp</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="ppEdit">
+             <widget class="QLineEdit" name="cpEdit">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                 <horstretch>0</horstretch>
@@ -732,7 +732,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1163</width>
+     <width>1075</width>
      <height>21</height>
     </rect>
    </property>
