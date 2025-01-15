@@ -162,7 +162,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.cpkEdit.setText(str(cpk))
     
     def updateProgressBar(self, progressPercent:int):
-        self.progressBar.setProperty("value", progressPercent)
+        self.progressBar.setProperty('value', progressPercent)
     
     def updateNumOfSites(self):
         testNames = self._getMeasurementsList()
