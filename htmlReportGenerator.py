@@ -42,7 +42,8 @@ class HtmlReportGenerator:
                 }
                 td img {
                     width: auto;
-                    max-height: 400px
+                    height: auto;
+                    max-height: 50vh;
                 }
             </style>
         </head>
