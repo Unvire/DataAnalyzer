@@ -62,25 +62,26 @@ def sampleData():
     dataClass.LSL = 43
     dataClass.USL = 45
     dataClass.mean = 44.67
-    dataClass.sigmaWithin = 0.65
+    dataClass.sigmaWithin = 1.04
     dataClass.sigmaOverall = 1.05
     dataClass.cp = 0.32
-    dataClass.cpk = 0.10
+    dataClass.cpk = 0.11
     dataClass.pp = 0.32
     dataClass.ppk = 0.10    
     return dataClass
 
-def test__calculateMeanSigmaOverall(sampleData):
+def test__calculateMeanAndSigmas(sampleData):
     instance = processCalculator.ProcessParameterCalculator()
     measurements = sampleData.measurements
-    mean, sigmaOverall = instance._calculateMeanSigmaOverall(measurements)
+    mean, sigmaOverall, sigmaWithin = instance._calculateMeanAndSigmas(measurements)
     assert round(mean, 2) == sampleData.mean
     assert round(sigmaOverall, 2) == sampleData.sigmaOverall
+    assert round(sigmaWithin, 2) == sampleData.sigmaWithin
 
 def test__calculatePpPpk(sampleData):
     instance = processCalculator.ProcessParameterCalculator()
     measurements = sampleData.measurements
-    mean, sigmaOverall = instance._calculateMeanSigmaOverall(measurements)
+    mean, sigmaOverall, _ = instance._calculateMeanAndSigmas(measurements)
     pp, ppk = instance._calculatePpPpk(mean, sigmaOverall, sampleData.LSL, sampleData.USL)
     assert round(pp, 2) == sampleData.pp    
     assert round(ppk, 2) == sampleData.ppk
@@ -88,8 +89,8 @@ def test__calculatePpPpk(sampleData):
 def test__calculateCpCpk(sampleData):
     instance = processCalculator.ProcessParameterCalculator()
     measurements = sampleData.measurements
-    mean, sigmaOverall = instance._calculateMeanSigmaOverall(measurements)
-    cp, cpk = instance._calculateCpCpk(len(measurements), mean, sigmaOverall, sampleData.LSL, sampleData.USL)
+    mean, _, sigmaWithin = instance._calculateMeanAndSigmas(measurements)
+    cp, cpk = instance._calculateCpCpk(mean, sigmaWithin, sampleData.LSL, sampleData.USL)
     assert round(cp, 2) == sampleData.cp    
     assert round(cpk, 2) == sampleData.cpk
 
