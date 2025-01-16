@@ -1,5 +1,4 @@
-import sys, os, io
-import weasyprint
+import sys, os
 
 from PyQt5 import QtWidgets, uic
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -90,16 +89,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
             self.htmlReportGenerator = HtmlReportGenerator()
             htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
-
-            buffer = io.BytesIO()
-            weasyprint.HTML(string=htmlCode).write_pdf(buffer)
-            buffer.seek(0)
-            with open('report.pdf', 'wb') as file:
-                file.write(buffer.read())
-            
             with open('dump.html', 'w', encoding='utf-8') as file:
                 file.writelines(htmlCode)
-
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
