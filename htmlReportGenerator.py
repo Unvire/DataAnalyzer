@@ -1,9 +1,16 @@
-import io, base64
+import io, base64, os
+import multiprocessing
+from functools import partial
+
+import matplotlib
+matplotlib.use('Agg')
+os.environ['PYDEVD_DISABLE_FILE_VALIDATION'] = '1'
 
 from mplCanvas import MplCanvas
 from processCalculator import ProcessParameterCalculator
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
 from dataContainer import DataContainer
+
 
 class HtmlReportGenerator:
     def __init__(self):
@@ -55,18 +62,34 @@ class HtmlReportGenerator:
         '''
 
     def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
+        maxProcesses = os.cpu_count() or 4
+        chunks = self._splitMeasurementsDictToChunks(measurementsDict, maxProcesses)
+        
+        with multiprocessing.Pool(processes=maxProcesses) as pool:
+            results = pool.map(partial(self._processChunk, site=site), chunks)
+
+        return self.htmlHead + '\n'.join(results) + self.htmlEnd
+    
+    def _splitMeasurementsDictToChunks(self, measurementsDict:dict, numOfChunks:int) -> list[dict]:
+        items = list(measurementsDict.items())
+        chunk_size = len(items) // numOfChunks
+        chunks = [dict(items[i * chunk_size:(i + 1) * chunk_size]) for i in range(numOfChunks)]
+        
+        if len(items) % numOfChunks:
+            chunks[-1].update(items[numOfChunks * chunk_size:])
+        return chunks
+    
+    def _processChunk(self, chunk:list[dict], site:str):
         buffer = ''
-        i, iEnd = 0, len(measurementsDict)
-        for _, data in measurementsDict.items():
+        i, iEnd = 0, len(chunk)
+        for _, data in chunk.items():            
+            print(f'i:{i}, iEnd:{iEnd} -> {(i + 1) / iEnd * 100}%')
             try:
                 buffer += self._generateTable(data, site)
             except Exception as e:
-                print(data.name)
-                print(e)
-            print((i + 1) / iEnd * 100)
+                print(data.name, e)
             i+=1
-        buffer += self.htmlEnd
-        return self.htmlHead + buffer + self.htmlEnd
+        return buffer
         
     def _generateTable(self, data:DataContainer, site:int) -> str:
         title = data.name
@@ -115,7 +138,7 @@ class HtmlReportGenerator:
             'Capability': CapabilityPlotGenerator
         }
 
-        canvas = MplCanvas()
+        canvas = MplCanvas(isUsePyPlot=False)
         plotGenerator = plotTypeDict[plotType](canvas)
         plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), isLogScale)
         
