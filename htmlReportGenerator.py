@@ -1,5 +1,4 @@
 import io, base64
-import time
 
 from mplCanvas import MplCanvas
 from processCalculator import ProcessParameterCalculator
@@ -61,6 +60,7 @@ class HtmlReportGenerator:
             try:
                 buffer += self._generateTable(data, site)
             except Exception as e:
+                print(data.name)
                 print(e)
             print((i + 1) / iEnd * 100)
             i+=1
@@ -113,19 +113,12 @@ class HtmlReportGenerator:
             'capability': CapabilityPlotGenerator
         }
 
-        start = time.time()
-        print('\tgenerate')
         canvas = MplCanvas()
         plotGenerator = plotTypeDict[plotType](canvas)
         plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), False)
-        end = time.time()
-        print('\tgenerate end conversion start ', end - start)
         
-        start = time.time()
         buffer = io.BytesIO()
         canvas.savefig(buffer, format='png', bbox_inches='tight')    
         canvas.close()        
-        end = time.time()
-        print('\tconversion end ', end - start)
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
