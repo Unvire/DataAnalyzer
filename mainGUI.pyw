@@ -1,25 +1,17 @@
 import sys, os
-import matplotlib.pyplot as plt
 
 from PyQt5 import QtWidgets, uic
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from generateReportDialog import GenerateReportDialog
 
+from mplCanvas import MplCanvas
 from testListWrapper import TestListWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
 from htmlReportGenerator import HtmlReportGenerator
 from dataContainer import DataContainer
-
-class MplCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = plt.figure(figsize=(width, height), dpi=dpi)
-        self.ax = fig.add_subplot(111)
-        super(MplCanvas, self).__init__(fig)
-        self.setParent(parent)
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
     FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK', 'Column file']
@@ -96,7 +88,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             selectedTestNames, selectedSite = dialogWindow.getData()
             testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
             self.htmlReportGenerator = HtmlReportGenerator()
-            self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
+            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
+            with open('dump.html', 'w', encoding='utf-8') as file:
+                file.writelines(htmlCode)
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
