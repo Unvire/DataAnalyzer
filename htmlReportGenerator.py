@@ -1,5 +1,5 @@
 import io, base64
-import matplotlib.pyplot as plt
+import time
 
 from mplCanvas import MplCanvas
 from processCalculator import ProcessParameterCalculator
@@ -30,6 +30,7 @@ class HtmlReportGenerator:
                 table {
                     width: 100%;
                     border-collapse: collapse;
+                    table-layout: fixed;
                 }
                 th, td {
                     padding: 12px;
@@ -41,8 +42,8 @@ class HtmlReportGenerator:
                     background-color: #f2f2f2;
                 }
                 td img {
-                    width: 100%;
-                    height: auto;
+                    width: auto;
+                    max-height: 400px
                 }
             </style>
         </head>
@@ -101,8 +102,8 @@ class HtmlReportGenerator:
                     <td>cpk={cpk}</td>
                 </tr>
             </table>
-            </br>
         </div>
+        </br>
         '''
         return htmlSubtable
     
@@ -112,12 +113,19 @@ class HtmlReportGenerator:
             'capability': CapabilityPlotGenerator
         }
 
+        start = time.time()
+        print('\tgenerate')
         canvas = MplCanvas()
         plotGenerator = plotTypeDict[plotType](canvas)
         plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), False)
+        end = time.time()
+        print('\tgenerate end conversion start ', end - start)
         
+        start = time.time()
         buffer = io.BytesIO()
-        canvas.savefig(buffer, format='png')    
-        canvas.close()
+        canvas.savefig(buffer, format='png', bbox_inches='tight')    
+        canvas.close()        
+        end = time.time()
+        print('\tconversion end ', end - start)
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
