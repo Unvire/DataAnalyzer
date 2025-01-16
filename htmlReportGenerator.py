@@ -61,31 +61,25 @@ class HtmlReportGenerator:
         '''
 
     def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
-        def monitorProgress():
-            nonlocal processedTables
+        def monitorProgress(numOfTables:int):   
+            processedTables = 0
             while processedTables < numOfTables:
                 queue.get()
                 processedTables += 1
-                progressPercent = int((processedTables + 1) / numOfTables * 100)
-                progressPercent = 100 if progressPercent > 100 else progressPercent
-                print('\t', progressPercent)
+                progressPercent = int((processedTables) / numOfTables * 100)
                 self.updateObservers(progressPercent)
                 
-        maxProcesses = os.cpu_count() or 4
+        maxProcesses = os.cpu_count() - 1 or 4
         chunks = self._splitMeasurementsDictToChunks(measurementsDict, maxProcesses)
         
         with multiprocessing.Manager() as manager:
-
             queue = manager.Queue()
-            poolArgs = [(chunk, site, queue) for chunk in chunks]
-
+            poolArgs = [(chunk, site, queue) for chunk in chunks]            
+            numOfTables = len(measurementsDict)
+            
             with multiprocessing.Pool(processes=maxProcesses) as pool:
-                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)
-                
-                numOfTables = len(measurementsDict)
-                processedTables = 0
-        
-                progressThread = threading.Thread(target=monitorProgress, daemon=True)
+                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)        
+                progressThread = threading.Thread(target=lambda: monitorProgress(numOfTables), daemon=True)
                 progressThread.start()
 
                 results = results.get()
