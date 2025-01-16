@@ -89,7 +89,8 @@ class HtmlReportGenerator:
     def addObserver(self, instance:object):
         self.observersList.append(instance)
     
-    def updateObservers(self, progressPercent:int):
+    def updateObservers(self, progressPercent:int):        
+        print(progressPercent)
         for observer in self.observersList:
             observer.updateProgressBar(progressPercent)
     
@@ -110,7 +111,7 @@ class HtmlReportGenerator:
             try:
                 buffer += HtmlReportGenerator._generateTable(data, site)
             except Exception:
-                pass
+                print(data.name)
         return buffer
     
     @staticmethod
