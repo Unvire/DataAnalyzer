@@ -11,6 +11,7 @@ from testListWrapper import TestListWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
+from htmlReportGenerator import HtmlReportGenerator
 from dataContainer import DataContainer
 
 class MplCanvas(FigureCanvas):
@@ -93,9 +94,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
             selectedTestNames, selectedSite = dialogWindow.getData()
-            print(selectedTestNames, '\n', selectedSite)
-            
-
+            testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
+            self.htmlReportGenerator = HtmlReportGenerator()
+            self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
@@ -156,10 +157,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data = self.measurements[testName]
 
         site = self.selectedSite
-        if site == '0':
-            dataList = data.getDataFromAllSites()
-        else:
-            dataList = data.getDataFromSite(site)
+        dataList = data.getDataFromAllSites() if site == '0' else data.getDataFromSite(site)
         return data, dataList        
     
     def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, ppk:float, cp:float, cpk:float):
