@@ -1,4 +1,4 @@
-import io, base64, os
+import io, base64, os, time
 import multiprocessing, threading
 
 import matplotlib
@@ -14,6 +14,7 @@ from dataContainer import DataContainer
 class HtmlReportGenerator:
     def __init__(self):
         self.observersList = []
+        self.progressPercent = 0
 
         self.htmlHead = '''
         <html lang="pl">
@@ -66,8 +67,7 @@ class HtmlReportGenerator:
             while processedTables < numOfTables:
                 queue.get()
                 processedTables += 1
-                progressPercent = int((processedTables) / numOfTables * 100)
-                self.updateObservers(progressPercent)
+                self.progressPercent = int((processedTables) / numOfTables * 100)
                 
         maxProcesses = os.cpu_count() - 1 or 4
         chunks = self._splitMeasurementsDictToChunks(measurementsDict, maxProcesses)
@@ -82,8 +82,11 @@ class HtmlReportGenerator:
                 progressThread = threading.Thread(target=lambda: monitorProgress(numOfTables), daemon=True)
                 progressThread.start()
 
+                while not results.ready():                    
+                    self.updateObservers(self.progressPercent)
+                    time.sleep(0.1)
                 results = results.get()
-                progressThread.join()
+                
         return self.htmlHead + '\n'.join(results) + self.htmlEnd
 
     def addObserver(self, instance:object):
