@@ -84,8 +84,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     
     def openGenerateReportDialogWindow(self):    
         def runReportGeneration():
+            nonlocal htmlCode
             htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
-            self._saveReport(filePath, htmlCode)
             
         testNames = self._getMeasurementsList()
         dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
@@ -100,16 +100,19 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.htmlReportGenerator = HtmlReportGenerator()
             self.htmlReportGenerator.addObserver(self)
 
+            htmlCode= ''
             reportThread = threading.Thread(target=runReportGeneration, daemon=True)
             reportThread.start()
+            reportThread.join()
+                        
+            self._saveReport(filePath, htmlCode)
     
     def _saveReport(self, filePath:str, htmlCode:str):
         with open(filePath, 'w', encoding='utf-8') as file:
-                file.writelines(htmlCode)
+            file.writelines(htmlCode)
             
         self.updateProgressBar(100)
         QtWidgets.QMessageBox.information(self,  'Info',  f'Report was saved: {filePath}', QtWidgets.QMessageBox.Ok)
-
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
