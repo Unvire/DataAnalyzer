@@ -5,6 +5,8 @@ from PyQt5 import QtWidgets, uic
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
+from generateReportDialog import GenerateReportDialog
+
 from testListWrapper import TestListWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
@@ -50,6 +52,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
         self.changeYScaleButton.clicked.connect(self.changeYScale)
+        self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
 
         self.canvas = MplCanvas(self.plotFrame)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -84,6 +87,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def changeYScale(self):
         self.isLogScale = not self.isLogScale
         self.generatePlot()
+    
+    def openGenerateReportDialogWindow(self):
+        dialogWindow = GenerateReportDialog(self.measurements)
+        if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
+            selectedTestNames, selectedSite = dialogWindow.getData()
+            print(selectedTestNames, '\n', selectedSite)
+            
+
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
