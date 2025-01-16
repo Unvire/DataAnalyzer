@@ -85,11 +85,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         testNames = self._getMeasurementsList()
         dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
+            filePath, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save report', '', 'Hyper Text Markup Language file (*.html)')
+            if not filePath.lower().endswith('.html'):
+                filePath += '.html'
+
             selectedTestNames, selectedSite = dialogWindow.getData()
             testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
             self.htmlReportGenerator = HtmlReportGenerator()
             htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
-            with open('dump.html', 'w', encoding='utf-8') as file:
+            with open(filePath, 'w', encoding='utf-8') as file:
                 file.writelines(htmlCode)
     
     def processLogsInFolder(self, folderPath:str):
