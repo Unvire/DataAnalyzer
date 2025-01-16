@@ -1,4 +1,5 @@
 import sys, os
+import threading
 
 from PyQt5 import QtWidgets, uic
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -81,7 +82,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
-    def openGenerateReportDialogWindow(self):
+    def openGenerateReportDialogWindow(self):    
+        def runReportGeneration():
+            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
+            self._saveReport(filePath, htmlCode)
+            
         testNames = self._getMeasurementsList()
         dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
@@ -94,13 +99,17 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
             self.htmlReportGenerator = HtmlReportGenerator()
             self.htmlReportGenerator.addObserver(self)
-            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
 
-            with open(filePath, 'w', encoding='utf-8') as file:
+            reportThread = threading.Thread(target=runReportGeneration, daemon=True)
+            reportThread.start()
+    
+    def _saveReport(self, filePath:str, htmlCode:str):
+        with open(filePath, 'w', encoding='utf-8') as file:
                 file.writelines(htmlCode)
             
-            self.updateProgressBar(100)
-            QtWidgets.QMessageBox.information(self,  'Info',  f'Report was saved: {filePath}', QtWidgets.QMessageBox.Ok)
+        self.updateProgressBar(100)
+        QtWidgets.QMessageBox.information(self,  'Info',  f'Report was saved: {filePath}', QtWidgets.QMessageBox.Ok)
+
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
