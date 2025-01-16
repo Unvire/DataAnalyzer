@@ -27,9 +27,9 @@ class GenerateReportDialog(QDialog):
 
         self.generateButton.clicked.connect(self.accept)
     
-    def getData(self) -> tuple[list[str], int]:        
+    def getData(self) -> tuple[list[str], str]:        
         selectedTests = self.testNames if self.allTestsCheckBox.isChecked() else self.testListWrapper.getSelectedItems()
-        return selectedTests, self.selectSiteComboBox.currentIndex()
+        return selectedTests, str(self.selectSiteComboBox.currentIndex())
     
     def listWidgetClickedEvent(self, *args):
         pass
