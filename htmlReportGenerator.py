@@ -164,7 +164,7 @@ class HtmlReportGenerator:
             'Capability': CapabilityPlotGenerator
         }
 
-        canvas = MplCanvas(isUsePyPlot=False)
+        canvas = MplCanvas()
         plotGenerator = plotTypeDict[plotType](canvas)
         plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), isLogScale)
         
