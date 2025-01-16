@@ -3,16 +3,18 @@ from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5 import uic
 
 from testListWrapper import TestListWrapper
-from dataContainer import DataContainer
 
-class generateReportDialog(QDialog):
-    def __init__(self, measurementsDict:dict[str:DataContainer]):
+class GenerateReportDialog(QDialog):
+    def __init__(self, testNames:list[str], numOfSites:int):
         super().__init__()
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'generateRaportDialog.ui')
         uic.loadUi(uiFilePath, self)
 
-        self.measurements = measurementsDict
-        testNames = self._getTestNames()
+        self.testNames = testNames
+
+        if numOfSites > 1:           
+            for i in range(numOfSites):
+                self.selectSiteComboBox.addItem(f'{i + 1}')
 
         self.testListWrapper = TestListWrapper(self.listWidget, self.filterTestsButton, self.resetFilterButton, self.regexPatternEdit)
         self.testListWrapper.setRowOnClickEvent(self.listWidgetClickedEvent)
@@ -22,12 +24,15 @@ class generateReportDialog(QDialog):
 
         self._setStatusOfTestsHandlingWidgets(False)
         self.allTestsCheckBox.toggled.connect(lambda state: self._setStatusOfTestsHandlingWidgets(not state))
+
+        self.generateButton.clicked.connect(self.accept)
+    
+    def getData(self) -> tuple[list[str], int]:        
+        selectedTests = self.testNames if self.allTestsCheckBox.isChecked() else self.testListWrapper.getSelectedItems()
+        return selectedTests, self.selectSiteComboBox.currentIndex()
     
     def listWidgetClickedEvent(self, *args):
         pass
-    
-    def _getTestNames(self) -> list[str]:
-        return list(self.measurements.keys())
 
     def _allTestsCheckboxValueChanged(self, state):
         self._setStatusOfTestsHandlingWidgets(state)
@@ -39,8 +44,8 @@ class generateReportDialog(QDialog):
         self.regexPatternEdit.setEnabled(status)
 
 if __name__ == '__main__':
-    mockDict = {'a':'a', 'b':'b', 'c':'c', 'd':'d'}
+    mockDict = ['a', 'b', 'c', 'd', 'e', 'f']
     app = QApplication(sys.argv)
-    window = generateReportDialog(mockDict)
+    window = GenerateReportDialog(mockDict, 2)
     window.show()
     sys.exit(app.exec_())
