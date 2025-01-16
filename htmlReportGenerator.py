@@ -1,4 +1,4 @@
-import io, base64
+import io, base64, math
 
 from mplCanvas import MplCanvas
 from processCalculator import ProcessParameterCalculator
@@ -74,8 +74,9 @@ class HtmlReportGenerator:
         lowerLimit, upperLimit = data.getLimits()
         mean, sigmaOverall, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
         
-        sequencePlotBase64 = self._generatePlot('sequence', dataList, lowerLimit, upperLimit)
-        capabilityPlotBase64 = self._generatePlot('capability', dataList, lowerLimit, upperLimit)
+        isLogScale = upperLimit - lowerLimit > 10000
+        sequencePlotBase64 = self._generatePlot('Sequence', dataList, lowerLimit, upperLimit, isLogScale)
+        capabilityPlotBase64 = self._generatePlot('Capability', dataList, lowerLimit, upperLimit, isLogScale)
         
         siteStr = site if site != '0' else 'All sites'
         htmlSubtable = f'''
@@ -90,16 +91,16 @@ class HtmlReportGenerator:
                     <td colspan="2"><img src="data:image/png;base64,{capabilityPlotBase64}" width="400"></td>
                 </tr>
                 <tr>
-                    <td>LSL={lowerLimit}</td>
-                    <td>x̄={mean}</td>
-                    <td>pp={pp}</td>
-                    <td>cp={cp}</td>
+                    <td>LSL = {lowerLimit:.5e}</td>
+                    <td>x̄ = {mean:.5e}</td>
+                    <td>pp = {pp:.5e}</td>
+                    <td>cp = {cp:.5e}</td>
                 </tr>
                 <tr>
-                    <td>USL={upperLimit}</td>
-                    <td>σ={sigmaOverall}</td>
-                    <td>ppk={ppk}</td>
-                    <td>cpk={cpk}</td>
+                    <td>USL = {upperLimit:.5e}</td>
+                    <td>σ = {sigmaOverall:.5e}</td>
+                    <td>ppk = {ppk:.5e}</td>
+                    <td>cpk = {cpk:.5e}</td>
                 </tr>
             </table>
         </div>
@@ -107,15 +108,15 @@ class HtmlReportGenerator:
         '''
         return htmlSubtable
     
-    def _generatePlot(self, plotType:str, dataList:list[float], lowerLimit:float, upperLimit:float) -> bytes:
+    def _generatePlot(self, plotType:str, dataList:list[float], lowerLimit:float, upperLimit:float, isLogScale:bool) -> bytes:
         plotTypeDict = {
-            'sequence': SequencePlotGenerator,
-            'capability': CapabilityPlotGenerator
+            'Sequence': SequencePlotGenerator,
+            'Capability': CapabilityPlotGenerator
         }
 
         canvas = MplCanvas()
         plotGenerator = plotTypeDict[plotType](canvas)
-        plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), False)
+        plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), isLogScale)
         
         buffer = io.BytesIO()
         canvas.savefig(buffer, format='png', bbox_inches='tight')    
