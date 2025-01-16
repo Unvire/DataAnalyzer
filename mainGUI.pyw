@@ -89,7 +89,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.generatePlot()
     
     def openGenerateReportDialogWindow(self):
-        dialogWindow = GenerateReportDialog(self.measurements)
+        testNames = self._getMeasurementsList()
+        dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
             selectedTestNames, selectedSite = dialogWindow.getData()
             print(selectedTestNames, '\n', selectedSite)
