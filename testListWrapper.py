@@ -51,3 +51,5 @@ class TestListWrapper:
     def listWidgetClickedEvent(self, item):
         self.rowOnClickEvent(item)
     
+    def getSelectedItems(self) -> list[str]:
+        return [item.text() for item in self.listWidget.selectedItems()]
