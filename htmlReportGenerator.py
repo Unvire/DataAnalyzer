@@ -1,4 +1,4 @@
-import io, base64, math
+import io, base64
 
 from mplCanvas import MplCanvas
 from processCalculator import ProcessParameterCalculator
@@ -55,7 +55,7 @@ class HtmlReportGenerator:
         '''
 
     def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
-        buffer = self.htmlHead
+        buffer = ''
         i, iEnd = 0, len(measurementsDict)
         for _, data in measurementsDict.items():
             try:
@@ -66,7 +66,7 @@ class HtmlReportGenerator:
             print((i + 1) / iEnd * 100)
             i+=1
         buffer += self.htmlEnd
-        return buffer
+        return self.htmlHead + buffer + self.htmlEnd
         
     def _generateTable(self, data:DataContainer, site:int) -> str:
         title = data.name
