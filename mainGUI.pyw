@@ -91,8 +91,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
             selectedTestNames, selectedSite = dialogWindow.getData()
             testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
+
             self.htmlReportGenerator = HtmlReportGenerator()
+            self.htmlReportGenerator.addObserver(self)
             htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
+
             with open(filePath, 'w', encoding='utf-8') as file:
                 file.writelines(htmlCode)
     

@@ -1,6 +1,5 @@
 import io, base64, os
-import multiprocessing
-from functools import partial
+import multiprocessing, threading
 
 import matplotlib
 matplotlib.use('Agg')
@@ -14,7 +13,7 @@ from dataContainer import DataContainer
 
 class HtmlReportGenerator:
     def __init__(self):
-        self.processParameterCalculator = ProcessParameterCalculator()
+        self.observersList = []
 
         self.htmlHead = '''
         <html lang="pl">
@@ -62,45 +61,76 @@ class HtmlReportGenerator:
         '''
 
     def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
+        def monitorProgress():
+            nonlocal processedTables
+            while processedTables < numOfTables:
+                queue.get()
+                processedTables += 1
+                progressPercent = int((processedTables + 1) / numOfTables * 100)
+                progressPercent = 100 if progressPercent > 100 else progressPercent
+                print('\t', progressPercent)
+                self.updateObservers(progressPercent)
+                
         maxProcesses = os.cpu_count() or 4
         chunks = self._splitMeasurementsDictToChunks(measurementsDict, maxProcesses)
         
-        with multiprocessing.Pool(processes=maxProcesses) as pool:
-            results = pool.map(partial(self._processChunk, site=site), chunks)
+        with multiprocessing.Manager() as manager:
 
+            queue = manager.Queue()
+            poolArgs = [(chunk, site, queue) for chunk in chunks]
+
+            with multiprocessing.Pool(processes=maxProcesses) as pool:
+                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)
+                
+                numOfTables = len(measurementsDict)
+                processedTables = 0
+        
+                progressThread = threading.Thread(target=monitorProgress, daemon=True)
+                progressThread.start()
+
+                results = results.get()
+                progressThread.join()
         return self.htmlHead + '\n'.join(results) + self.htmlEnd
+
+    def addObserver(self, instance:object):
+        self.observersList.append(instance)
+    
+    def updateObservers(self, progressPercent:int):
+        for observer in self.observersList:
+            observer.updateProgressBar(progressPercent)
     
     def _splitMeasurementsDictToChunks(self, measurementsDict:dict, numOfChunks:int) -> list[dict]:
         items = list(measurementsDict.items())
         chunk_size = len(items) // numOfChunks
         chunks = [dict(items[i * chunk_size:(i + 1) * chunk_size]) for i in range(numOfChunks)]
-        
+
         if len(items) % numOfChunks:
             chunks[-1].update(items[numOfChunks * chunk_size:])
         return chunks
     
-    def _processChunk(self, chunk:list[dict], site:str):
+    @staticmethod
+    def _processChunk(chunk:list[dict], site:str, queue:multiprocessing.Queue) -> list[str]:
         buffer = ''
-        i, iEnd = 0, len(chunk)
-        for _, data in chunk.items():            
-            print(f'i:{i}, iEnd:{iEnd} -> {(i + 1) / iEnd * 100}%')
+        for _, data in chunk.items():    
+            queue.put(1)
             try:
-                buffer += self._generateTable(data, site)
-            except Exception as e:
-                print(data.name, e)
-            i+=1
+                buffer += HtmlReportGenerator._generateTable(data, site)
+            except Exception:
+                pass
         return buffer
-        
-    def _generateTable(self, data:DataContainer, site:int) -> str:
+    
+    @staticmethod
+    def _generateTable(data:DataContainer, site:int) -> str:
         title = data.name
         dataList = data.getDataFromAllSites() if site == '0' else data.getDataFromSite(site)
 
-        lowerLimit, upperLimit = data.getLimits()
-        mean, sigmaOverall, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
+        lowerLimit, upperLimit = data.getLimits()        
+        processParameterCalculator = ProcessParameterCalculator()
+        mean, sigmaOverall, pp, ppk, cp, cpk = processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
         
         isLogScale = upperLimit - lowerLimit > 10000
-        sequencePlotBase64 = self._generatePlot('Sequence', dataList, lowerLimit, upperLimit, isLogScale)
-        capabilityPlotBase64 = self._generatePlot('Capability', dataList, lowerLimit, upperLimit, isLogScale)
+        sequencePlotBase64 = HtmlReportGenerator._generatePlot('Sequence', dataList, lowerLimit, upperLimit, isLogScale)
+        capabilityPlotBase64 = HtmlReportGenerator._generatePlot('Capability', dataList, lowerLimit, upperLimit, isLogScale)
         
         siteStr = site if site != '0' else 'All sites'
         htmlSubtable = f'''
@@ -132,7 +162,8 @@ class HtmlReportGenerator:
         '''
         return htmlSubtable
     
-    def _generatePlot(self, plotType:str, dataList:list[float], lowerLimit:float, upperLimit:float, isLogScale:bool) -> bytes:
+    @staticmethod
+    def _generatePlot(plotType:str, dataList:list[float], lowerLimit:float, upperLimit:float, isLogScale:bool) -> bytes:
         plotTypeDict = {
             'Sequence': SequencePlotGenerator,
             'Capability': CapabilityPlotGenerator
@@ -146,4 +177,3 @@ class HtmlReportGenerator:
         canvas.savefig(buffer, format='png', bbox_inches='tight')    
         canvas.close()        
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
-
