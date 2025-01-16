@@ -92,8 +92,8 @@ class HtmlReportGenerator:
     def addObserver(self, instance:object):
         self.observersList.append(instance)
     
-    def updateObservers(self, progressPercent:int):        
-        print(progressPercent)
+    def updateObservers(self, progressPercent:int):   
+        progressPercent = progressPercent - 1 if progressPercent > 0 else 0
         for observer in self.observersList:
             observer.updateProgressBar(progressPercent)
     

@@ -98,6 +98,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
             with open(filePath, 'w', encoding='utf-8') as file:
                 file.writelines(htmlCode)
+            
+            self.updateProgressBar(100)
+            QtWidgets.QMessageBox.information(self,  'Info',  f'Report was saved: {filePath}', QtWidgets.QMessageBox.Ok)
     
     def processLogsInFolder(self, folderPath:str):
         self.resetSelectSitesComboBox()
