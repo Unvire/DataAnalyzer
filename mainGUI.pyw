@@ -126,7 +126,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             file.writelines(htmlCode)
             
         self.updateProgressBar(100)
-        QtWidgets.QMessageBox.information(self,  'Info',  f'Report was saved: {filePath}', QtWidgets.QMessageBox.Ok)
+        
+        message1 = f'Report was saved: {filePath}.\n\n To save it to PDF file open the report in browser.\n'
+        message2 = 'Press ctrl+P to open print menu. Set in advanced mode:\n'
+        message3 = '  -margins: none,\n  -scale: 40% (or different scale so the images will fit in tables),\n'
+        message4 = 'Save it as PDF file.'
+        message = message1 + message2 + message3 + message4        
+        QtWidgets.QMessageBox.information(self,  'Info',  message, QtWidgets.QMessageBox.Ok)
     
     def processLogsInFolder(self, folderPath:str):
         def runProcessLogs():
@@ -135,8 +141,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             except Exception:            
                 self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
                 self.logsProcessingSuccess = False
-            self.threadFinished = True
-            
+            self.threadFinished = True            
         
         self.resetSelectSitesComboBox()
         self._setStatusOfThreadsCallingWidgets(False)
