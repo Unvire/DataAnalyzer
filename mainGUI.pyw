@@ -2,6 +2,7 @@ import sys, os
 import threading
 
 from PyQt5 import QtWidgets, uic
+from PyQt5 import QtCore
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from generateReportDialog import GenerateReportDialog
@@ -30,6 +31,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectedSite = '0'
         self.selectedPlotType = 'Sequence plot'        
         self.isLogScale = False
+
+        self.threadTimer = QtCore.QTimer()
+        self.threadFinished = False
 
         self.processParameterCalculator = ProcessParameterCalculator()
         self.factory = FileProcessorsFactory()
@@ -86,6 +90,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         def runReportGeneration():
             nonlocal htmlCode
             htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
+            self.threadFinished = True
             
         testNames = self._getMeasurementsList()
         dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
@@ -103,8 +108,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             htmlCode= ''
             reportThread = threading.Thread(target=runReportGeneration, daemon=True)
             reportThread.start()
-            reportThread.join()
-                        
+
+            self.threadFinished = False
+            self.threadTimer.timeout.connect(lambda: self._reportThreadStatus(filePath, htmlCode))
+            self.threadTimer.start(100)
+    
+    def _reportThreadStatus(self, filePath:str, htmlCode:str):
+        if self.threadFinished:
+            self.threadTimer.stop()
             self._saveReport(filePath, htmlCode)
     
     def _saveReport(self, filePath:str, htmlCode:str):
