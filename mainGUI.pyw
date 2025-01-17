@@ -31,6 +31,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectedSite = '0'
         self.selectedPlotType = 'Sequence plot'        
         self.isLogScale = False
+        self.logsProcessingSuccess = True
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -126,13 +127,33 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.information(self,  'Info',  f'Report was saved: {filePath}', QtWidgets.QMessageBox.Ok)
     
     def processLogsInFolder(self, folderPath:str):
+        def runProcessLogs():
+            try:
+                self.factory.processAllLogsInFolder(folderPath)
+            except Exception:            
+                self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
+                self.logsProcessingSuccess = False
+            self.threadFinished = True
+            
+        
         self.resetSelectSitesComboBox()
-        try:
-            self.factory.processAllLogsInFolder(folderPath)
-        except Exception:            
-            self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
-            return
+        self.logsProcessingSuccess = True
+        reportThread = threading.Thread(target=runProcessLogs, daemon=True)
+        reportThread.start()
 
+        self.threadFinished = False
+        self.threadTimer.timeout.connect(self._processLogsThreadStatus)
+        self.threadTimer.start(100)
+    
+    def _processLogsThreadStatus(self):
+        if not self.threadFinished:
+            return
+        
+        self.threadTimer.stop()
+        if self.logsProcessingSuccess:
+            self._finishProcessingLogs()
+    
+    def _finishProcessingLogs(self):
         measurements = self.factory.getAllMeasurements()
         self.setMeasurements(measurements)
 
