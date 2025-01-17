@@ -10,6 +10,7 @@ class FileProcessorsFactory:
             'Column file': columnDataProcessor.ColumnDataProcessor
         }
         self.observersList = []
+        self.progressPercent = -1
     
     def setProcessorType(self, loaderType:str):
         if loaderType in self.dataProcessorsDict:
@@ -30,7 +31,10 @@ class FileProcessorsFactory:
     
     def updateObservers(self, progressPercent:int):
         for observer in self.observersList:
-            observer.updateProgressBar(progressPercent)
+            try:
+                observer.updateProgressBar(progressPercent)
+            except Exception:
+                pass
     
     def processLogFile(self, logPath:str):
         self.loaderInstance.processLogFile(logPath)
