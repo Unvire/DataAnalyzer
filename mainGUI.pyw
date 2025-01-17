@@ -106,7 +106,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.htmlReportGenerator = HtmlReportGenerator()
             self.htmlReportGenerator.addObserver(self)
 
-            htmlCode= ''
+            htmlCode= ''            
+            self._setStatusOfThreadsCallingWidgets(False)
             reportThread = threading.Thread(target=runReportGeneration, daemon=True)
             reportThread.start()
 
@@ -118,6 +119,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         if self.threadFinished:
             self.threadTimer.stop()
             self._saveReport(filePath, htmlCode)
+            self._setStatusOfThreadsCallingWidgets(True)
     
     def _saveReport(self, filePath:str, htmlCode:str):
         with open(filePath, 'w', encoding='utf-8') as file:
@@ -137,6 +139,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             
         
         self.resetSelectSitesComboBox()
+        self._setStatusOfThreadsCallingWidgets(False)
         self.logsProcessingSuccess = True
         reportThread = threading.Thread(target=runProcessLogs, daemon=True)
         reportThread.start()
@@ -166,7 +169,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
             return
-
+        
+        self._setStatusOfThreadsCallingWidgets(True)
         self._setStatusOfTestsHandlingWidgets(True)
     
     def listWidgetClickedEvent(self, item):
@@ -249,6 +253,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.filterTestsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
         self.generateReportButton.setEnabled(status)
+    
+    def _setStatusOfThreadsCallingWidgets(self, status:bool):
+        self.openLogsFolderButton.setEnabled(status)
+        self.generateReportButton.setEnabled(status)        
     
     def _getMeasurementsList(self) -> list[str]:
         return list(self.measurements.keys())
