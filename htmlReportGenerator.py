@@ -82,8 +82,11 @@ class HtmlReportGenerator:
                 progressThread = threading.Thread(target=lambda: monitorProgress(numOfTables), daemon=True)
                 progressThread.start()
 
-                while not results.ready():                    
-                    self.updateObservers(self.progressPercent)
+                while not results.ready():
+                    try:              
+                        self.updateObservers(self.progressPercent)
+                    except:
+                        pass
                     time.sleep(0.1)
                 results = results.get()
                 
