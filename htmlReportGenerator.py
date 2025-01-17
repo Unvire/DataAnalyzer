@@ -14,7 +14,6 @@ from dataContainer import DataContainer
 class HtmlReportGenerator:
     def __init__(self):
         self.observersList = []
-        self.progressPercent = 0
 
         self.htmlHead = '''
         <html lang="pl">
@@ -62,13 +61,6 @@ class HtmlReportGenerator:
         '''
 
     def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
-        def monitorProgress(numOfTables:int):   
-            processedTables = 0
-            while processedTables < numOfTables:
-                queue.get()
-                processedTables += 1
-                self.progressPercent = int((processedTables) / numOfTables * 100)
-                
         maxProcesses = os.cpu_count() - 1 or 4
         chunks = self._splitMeasurementsDictToChunks(measurementsDict, maxProcesses)
         
@@ -78,16 +70,19 @@ class HtmlReportGenerator:
             numOfTables = len(measurementsDict)
             
             with multiprocessing.Pool(processes=maxProcesses) as pool:
-                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)        
-                progressThread = threading.Thread(target=lambda: monitorProgress(numOfTables), daemon=True)
-                progressThread.start()
-
-                while not results.ready():
+                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)   
+                processedTables = 0
+                while processedTables < numOfTables:
+                    queue.get()
+                    processedTables += 1
+                    self.progressPercent = int((processedTables) / numOfTables * 100)
+                    
                     try:              
                         self.updateObservers(self.progressPercent)
-                    except:
+                    except Exception:
                         pass
                     time.sleep(0.1)
+    
                 results = results.get()
                 
         return self.htmlHead + '\n'.join(results) + self.htmlEnd
