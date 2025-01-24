@@ -31,7 +31,7 @@ class SequencePlotGenerator(PlotGenerator):
         self.canvas.ax.plot(dataList, '.', linewidth=1, label=f'Data ({numberOfSamples} samples)')
         self.canvas.ax.set_xlim([0, numberOfSamples])
         self.canvas.ax.grid()
-        self._addCommonPlotElements(title, limits, False, ['Sample', 'Value'], isLogScale)
+        self._addCommonPlotElements(title, limits, False, ['Samples sorted by date', 'Value'], isLogScale)
 
 class CapabilityPlotGenerator(PlotGenerator):
     def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool):

@@ -112,6 +112,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             reportThread.start()
 
             self.threadFinished = False
+            self.threadTimer = QtCore.QTimer()
             self.threadTimer.timeout.connect(lambda: self._reportThreadStatus(filePath, htmlCode))
             self.threadTimer.start(100)
     
@@ -150,6 +151,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         reportThread.start()
 
         self.threadFinished = False
+        self.threadTimer = QtCore.QTimer()
         self.threadTimer.timeout.connect(self._processLogsThreadStatus)
         self.threadTimer.start(100)
     
@@ -228,6 +230,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.cpEdit.setText(str(cp))
         self.cpkEdit.setText(str(cpk))
     
+    @QtCore.pyqtSlot(int)
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty('value', progressPercent)
     
