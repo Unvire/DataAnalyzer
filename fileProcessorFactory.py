@@ -21,8 +21,9 @@ class FileProcessorsFactory:
 
     def processAllLogsInFolder(self, folderPath:str):
         self.loaderInstance.clear()
-        numOfFiles = len(os.listdir(folderPath))
-        for i, file in enumerate(os.listdir(folderPath)):
+        logFiles = self.getLogsSortedByDate(folderPath)
+        numOfFiles = len(logFiles)
+        for i, file in enumerate(logFiles):
             logPath = os.path.join(folderPath, file)
             self.processLogFile(logPath)
 
@@ -45,3 +46,8 @@ class FileProcessorsFactory:
     def getTestMeasurements(self, testName:str) -> dataContainer.DataContainer:
         allMeasurements = self.getAllMeasurements()
         return allMeasurements.get(testName, None)
+    
+    def getLogsSortedByDate(self, folderPath:str) -> list[str]:
+        logNames = os.listdir(folderPath)
+        sortingKey = lambda x: os.path.getmtime(os.path.join(folderPath, x))
+        return sorted(logNames, key=sortingKey)
