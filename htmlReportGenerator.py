@@ -1,5 +1,5 @@
 import io, base64, os, time
-import multiprocessing, threading
+import multiprocessing
 
 import matplotlib
 matplotlib.use('Agg')
