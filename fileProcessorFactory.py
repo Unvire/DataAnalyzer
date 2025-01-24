@@ -37,7 +37,7 @@ class FileProcessorsFactory:
             try:
                 QMetaObject.invokeMethod(
                     observer,
-                    "updateProgressBar",
+                    'updateProgressBar',
                     Qt.QueuedConnection,
                     Q_ARG(int, progressPercent)
                 )

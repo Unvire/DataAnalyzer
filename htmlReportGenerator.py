@@ -1,5 +1,7 @@
 import io, base64, os, time
-import multiprocessing, threading
+import multiprocessing
+
+from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
 
 import matplotlib
 matplotlib.use('Agg')
@@ -61,6 +63,15 @@ class HtmlReportGenerator:
         '''
 
     def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
+        def dequeAndUpdateProgressBar(queue):
+            processedTables = 0
+            while processedTables < numOfTables:
+                queue.get()
+                processedTables += 1
+                progressPercent = int((processedTables) / numOfTables * 100)  
+                self.updateObservers(progressPercent)
+                time.sleep(0.1)
+
         maxProcesses = os.cpu_count() - 1 or 4
         chunks = self._splitMeasurementsDictToChunks(measurementsDict, maxProcesses)
         
@@ -71,17 +82,7 @@ class HtmlReportGenerator:
             
             with multiprocessing.Pool(processes=maxProcesses) as pool:
                 results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)   
-                processedTables = 0
-                while processedTables < numOfTables:
-                    queue.get()
-                    processedTables += 1
-                    self.progressPercent = int((processedTables) / numOfTables * 100)
-                    
-                    try:              
-                        self.updateObservers(self.progressPercent)
-                    except Exception:
-                        pass
-                    time.sleep(0.1)
+                dequeAndUpdateProgressBar(queue)
     
                 results = results.get()
                 
@@ -93,7 +94,15 @@ class HtmlReportGenerator:
     def updateObservers(self, progressPercent:int):   
         progressPercent = progressPercent - 1 if progressPercent > 0 else 0
         for observer in self.observersList:
-            observer.updateProgressBar(progressPercent)
+            try:
+                QMetaObject.invokeMethod(
+                    observer,
+                    'updateProgressBar',
+                    Qt.QueuedConnection,
+                    Q_ARG(int, progressPercent)
+                )
+            except Exception as e:
+                print(e)
     
     def _splitMeasurementsDictToChunks(self, measurementsDict:dict, numOfChunks:int) -> list[dict]:
         items = list(measurementsDict.items())
