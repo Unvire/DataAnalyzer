@@ -2,6 +2,8 @@ import os
 import dataContainer
 import speaDataProcessor, fwkDataProcessor, columnDataProcessor
 
+from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
+
 class FileProcessorsFactory:
     def __init__(self):
         self.dataProcessorsDict = {
@@ -33,9 +35,14 @@ class FileProcessorsFactory:
     def updateObservers(self, progressPercent:int):
         for observer in self.observersList:
             try:
-                observer.updateProgressBar(progressPercent)
-            except Exception:
-                pass
+                QMetaObject.invokeMethod(
+                    observer,
+                    "updateProgressBar",
+                    Qt.QueuedConnection,
+                    Q_ARG(int, progressPercent)
+                )
+            except Exception as e:
+                print(e)
     
     def processLogFile(self, logPath:str):
         self.loaderInstance.processLogFile(logPath)

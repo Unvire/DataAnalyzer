@@ -228,6 +228,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.cpEdit.setText(str(cp))
         self.cpkEdit.setText(str(cpk))
     
+    @QtCore.pyqtSlot(int)
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty('value', progressPercent)
     
