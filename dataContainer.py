@@ -15,14 +15,16 @@ class DataContainer():
     def getLimits(self) -> list[float, float]:
         return [self.lowerLimit, self.upperLimit]
 
-    def addData(self, site:str, value:float|int|str):
+    def addData(self, site:str, valueTuple:tuple[float|int|str, str]):
+        value, date = valueTuple
         self.data.setdefault(site, [])
-        self.data[site].append(float(value))
+        processedTuple = float(value), date
+        self.data[site].append(processedTuple)
     
-    def getDataFromSite(self, site:str) -> list[float]:
+    def getDataFromSite(self, site:str) -> list[tuple[float, str]]:
         return self.data[site]
     
-    def getDataFromAllSites(self) -> list[str]:
+    def getDataFromAllSites(self) -> list[tuple[float, str]]:
         result = []
         for _, values in self.data.items():
             result += values
