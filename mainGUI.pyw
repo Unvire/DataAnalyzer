@@ -4,6 +4,7 @@ import threading
 from PyQt5 import QtWidgets, uic
 from PyQt5 import QtCore
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backend_bases import PickEvent
 
 from generateReportDialog import GenerateReportDialog
 
@@ -32,6 +33,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectedPlotType = 'Sequence plot'        
         self.isLogScale = False
         self.logsProcessingSuccess = True
+        self.isPickedPoint = False
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -54,7 +56,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
 
         self.canvas = MplCanvas(self.plotFrame)
-        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar = NavigationToolbar(self.canvas, self)        
+        self.annotation = None
+        self.canvas.mpl_connect('pick_event', self.canvasOnPick)
+        self.canvas.mpl_connect('button_press_event', self.canvasOnClick)
         
         self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
         self.plotLayout.addWidget(self.toolbar)
@@ -62,6 +67,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
         self.capabilityPlotGenerator = CapabilityPlotGenerator(self.canvas)
+
     
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -268,6 +274,44 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     
     def _getMeasurementsList(self) -> list[str]:
         return list(self.measurements.keys())
+    
+    def canvasOnClick(self, event):
+        if event.inaxes is None:
+            return
+
+        if self.isPickedPoint:
+            self.isPickedPoint = False
+            return
+        
+        if self.annotation:
+            self.annotation.remove()
+            self.annotation = None
+            self.canvas.draw_idle() 
+
+    def canvasOnPick(self, event: PickEvent):
+        if self.annotation:
+            self.annotation.remove()
+        
+        self.isPickedPoint = True
+
+        index = event.ind[0]
+        x = event.artist.get_xdata()[index]
+        y = event.artist.get_ydata()[index]
+        self.annotation = self.canvas.ax.annotate(
+            f'({x:.2f}, {y:.2f})',
+            (x, y),
+            xytext=(0, 10),
+            textcoords='offset points',
+            ha='center',
+            bbox=dict(
+                boxstyle='round,pad=0.5',
+                fc='lightblue',
+                ec='black',
+                lw=1
+            ),
+            arrowprops=dict(arrowstyle='->')
+        )
+        self.canvas.draw_idle()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
