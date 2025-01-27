@@ -11,12 +11,14 @@ def fileLinesProcessingTest():
         'ANL;2;R265;264;1;RESR265 1K 1%;;PASS;9.980000e+02;9.300000e+02;1.070000e+03;ohm;385 162 ;422',
         'ANL;2;R265;264;1;RESR265 1K 1%;;PASS;9.990000e+02;9.300000e+02;1.070000e+03;ohm;385 162 ;422',
     ]
-    return mockFileLines
+    mockTestTime = '2024/01/01 14:23:14'
+    return mockFileLines, mockTestTime
 
 def test__processFileLine(fileLinesProcessingTest):
+    fileLines, testTime = fileLinesProcessingTest
     loader = speaDataProcessor.SpeaDataProcessor()
-    for line in fileLinesProcessingTest:
-        loader._processFileLine(line)
+    for line in fileLines:
+        loader._processFileLine(line, testTime)
     
     measurements = loader.getMeasurements()
     
@@ -24,13 +26,13 @@ def test__processFileLine(fileLinesProcessingTest):
 
     dataInstance = measurements['R261 | RESR261 150K 1%']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [float('1.499953e+05')]
+    assert dataInstance.getDataFromSite('1') == [(float('1.499953e+05'), '2024/01/01 14:23:14')]
 
     dataInstance = measurements['R262 | RESR262 10K 5%']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [float('9.968847e+03')]
+    assert dataInstance.getDataFromSite('1') == [(float('9.968847e+03'), '2024/01/01 14:23:14')]
 
     dataInstance = measurements['R265 | RESR265 1K 1%']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [float('9.960000e+02'), float('9.970000e+02')]
-    assert dataInstance.getDataFromSite('2') == [float('9.980000e+02'), float('9.990000e+02')]
+    assert dataInstance.getDataFromSite('1') == [(float('9.960000e+02'), '2024/01/01 14:23:14'), (float('9.970000e+02'), '2024/01/01 14:23:14')]
+    assert dataInstance.getDataFromSite('2') == [(float('9.980000e+02'), '2024/01/01 14:23:14'), (float('9.990000e+02'), '2024/01/01 14:23:14')]

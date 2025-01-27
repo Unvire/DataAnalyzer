@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+
 import dataContainer
 import speaDataProcessor, fwkDataProcessor, columnDataProcessor
 
@@ -23,11 +25,16 @@ class FileProcessorsFactory:
 
     def processAllLogsInFolder(self, folderPath:str):
         self.loaderInstance.clear()
-        logFiles = self.getLogsSortedByDate(folderPath)
+        logFiles = os.listdir(folderPath)
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
             logPath = os.path.join(folderPath, file)
-            self.processLogFile(logPath)
+
+            modificationDate = os.path.getmtime(logPath)
+            modificationDateAsTimeStamp = datetime.fromtimestamp(modificationDate)
+            formatedTime = modificationDateAsTimeStamp.strftime('%Y/%m/%d %H:%M:%S')
+
+            self.processLogFile(logPath, formatedTime)
 
             progressPercent = int((i + 1) / numOfFiles * 100)
             self.updateObservers(progressPercent)
@@ -44,8 +51,8 @@ class FileProcessorsFactory:
             except Exception as e:
                 print(e)
     
-    def processLogFile(self, logPath:str):
-        self.loaderInstance.processLogFile(logPath)
+    def processLogFile(self, logPath:str, testTime:str):
+        self.loaderInstance.processLogFile(logPath, testTime)
     
     def getAllMeasurements(self) -> dict[str:dataContainer.DataContainer]:
         return self.loaderInstance.getMeasurements()
@@ -53,8 +60,15 @@ class FileProcessorsFactory:
     def getTestMeasurements(self, testName:str) -> dataContainer.DataContainer:
         allMeasurements = self.getAllMeasurements()
         return allMeasurements.get(testName, None)
+
+
+if __name__ == '__main__':
+    def getFolderWithLogs() -> str:        
+        from tkinter import filedialog
+        folderPath = filedialog.askdirectory()
+        return folderPath
     
-    def getLogsSortedByDate(self, folderPath:str) -> list[str]:
-        logNames = os.listdir(folderPath)
-        sortingKey = lambda x: os.path.getmtime(os.path.join(folderPath, x))
-        return sorted(logNames, key=sortingKey)
+    folderPath = getFolderWithLogs()
+    factory = FileProcessorsFactory()
+    factory.setProcessorType('SPEA')
+    factory.processAllLogsInFolder(folderPath)
