@@ -70,5 +70,5 @@ if __name__ == '__main__':
     
     folderPath = getFolderWithLogs()
     factory = FileProcessorsFactory()
-    factory.setProcessorType('FWK')
+    factory.setProcessorType('SPEA')
     factory.processAllLogsInFolder(folderPath)

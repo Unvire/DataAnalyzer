@@ -4,7 +4,7 @@ class ColumnDataProcessor(AbstractDataProcessor):
     def __init__(self):
         super().__init__()
 
-    def processLogFile(self, filePath:str):
+    def processLogFile(self, filePath:str, testDate:str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
             fileLines = file.readlines()
         
@@ -14,13 +14,13 @@ class ColumnDataProcessor(AbstractDataProcessor):
             
         for line in fileLines:
             try:
-                self._processFileLine(line, testName)
+                self._processFileLine(line, testName, testDate)
             except ValueError:
                 pass
     
-    def _processFileLine(self, fileLine:str, testName:str):
+    def _processFileLine(self, fileLine:str, testName:str, testDate:str):
         measuredValue, *_ = fileLine.split(';')
-        self.measurements[testName].addData('1', measuredValue)
+        self.measurements[testName].addData('1', (measuredValue, testDate))
     
     def _getSiteLimitsFromHeader(self, fileLines:list[str]) -> tuple[str, str, str]:
         testName, lowerLimit, upperLimit, *_ = fileLines.pop(0).split(';')
