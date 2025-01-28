@@ -49,6 +49,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         
         self.openLogsFolderButton.setEnabled(False)
         self._setStatusOfTestsHandlingWidgets(False)
+        self._setStatusPlotHandlingWidgets(False)
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
@@ -93,9 +94,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.openLogsFolderButton.setEnabled(False)
     
     def selectPlotType(self):
-        if not self.selectedTest:
-            return
-        
         plotTypeMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
         self.selectedPlotType = plotTypeMap[self.selectedPlotType]
         self.generatePlot()
@@ -106,9 +104,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.processLogsInFolder(folderPath)
     
     def changeYScale(self):        
-        if not self.selectedTest:
-            return
-        
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
@@ -210,15 +205,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.selectedTest = item.text()
             self.generatePlot()            
             self.updateProcessParameters()
+            self._setStatusPlotHandlingWidgets(True)
         except AttributeError:
             pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
-        if not self.selectedTest:
-            return
-
         self.selectedSite = str(value)
-
         sortByState = self.selectedSite == '0'
         self.plotOrderByComboBox.setEnabled(sortByState)
 
@@ -226,9 +218,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.updateProcessParameters()
     
     def plotOrderByComboBoxClickedEvent(self, value:str):
-        if not self.selectedTest:
-            return
-        
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
         self.generatePlot()
 
@@ -299,13 +288,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         msg.exec_()
 
     def _setStatusOfTestsHandlingWidgets(self, status:bool):
+        self.filterTestsButton.setEnabled(status)
+        self.resetFilterButton.setEnabled(status)
+        self.generateReportButton.setEnabled(status)
+    
+    def _setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)
         self.plotOrderByComboBox.setEnabled(status)
         self.changeYScaleButton.setEnabled(status)
         self.changePlotButton.setEnabled(status)
-        self.filterTestsButton.setEnabled(status)
-        self.resetFilterButton.setEnabled(status)
-        self.generateReportButton.setEnabled(status)
     
     def _setStatusOfThreadsCallingWidgets(self, status:bool):
         self.openLogsFolderButton.setEnabled(status)
