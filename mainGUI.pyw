@@ -34,6 +34,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isLogScale = False
         self.logsProcessingSuccess = True
         self.isPickedPoint = False
+        self.dataList = []
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -71,6 +72,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
+    
+    def setPlottedDataList(self, dataList:list[tuple[float, str]]):
+        self.dataList = dataList
+    
+    def getValuesFromDataList(self) -> list[float]:
+        return [value for value, _ in self.dataList]
     
     def selectProcessor(self, value:str):
         if value != DataAnalyzerGUI.FILE_PROCESSORS[0]:
@@ -206,24 +213,29 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         testName = self.selectedTest        
         plotType = self.selectedPlotType
         
-        data, dataList = self._getSelectedMeasurementData()
+        data = self._getSelectedMeasurementDataContainer()
         limits = data.getLimits()
-        generatePlot[plotType](dataList, testName, limits, self.isLogScale)
+
+        dataListValues = self.getValuesFromDataList()
+        generatePlot[plotType](dataListValues, testName, limits, self.isLogScale)
     
     def updateProcessParameters(self):
-        data, dataList = self._getSelectedMeasurementData()
+        data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
-        mean, sigma, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
-        self._updateStatisticalEdits(numOfSamples=len(dataList), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
+        dataListValues = self.getValuesFromDataList()
+
+        mean, sigma, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
+        self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
                                      sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk)
 
-    def _getSelectedMeasurementData(self) -> tuple[DataContainer, list[float]]:
+    def _getSelectedMeasurementDataContainer(self) -> DataContainer:
         testName = self.selectedTest     
         data = self.measurements[testName]
 
         site = self.selectedSite
         dataList = data.getDataFromAllSites() if site == '0' else data.getDataFromSite(site)
-        return data, dataList        
+        self.setPlottedDataList(dataList)
+        return data  
     
     def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, ppk:float, cp:float, cpk:float):
         self.samplesEdit.setText(str(numOfSamples))
