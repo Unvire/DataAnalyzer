@@ -146,7 +146,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             try:
                 self.factory.processAllLogsInFolder(folderPath)
             except Exception:            
-                self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
                 self.logsProcessingSuccess = False
             self.threadFinished = True            
         
@@ -168,6 +167,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.threadTimer.stop()
         if self.logsProcessingSuccess:
             self._finishProcessingLogs()
+        else:
+            self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
     
     def _finishProcessingLogs(self):
         measurements = self.factory.getAllMeasurements()
