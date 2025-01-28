@@ -311,12 +311,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isPickedPoint = True
 
         index = event.ind[0]
-        date = self.getDateFromDataList(index)
-
         x = event.artist.get_xdata()[index]
-        y = event.artist.get_ydata()[index]
+        y = event.artist.get_ydata()[index]        
+        date = self.getDateFromDataList(index)
+        formattedValue = format(y, '.3E')
         self.annotation = self.canvas.ax.annotate(
-            f'{y:.2f}\n{date}',
+            f'{formattedValue}\n{date}',
             (x, y),
             xytext=(0, 10),
             textcoords='offset points',
