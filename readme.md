@@ -21,9 +21,10 @@ Data analyzer processes measurement log files in a folder and displays selected 
     First line is a header: testName;lowerLimit;upperLimit.
     Each line below header must contain 1 measurement value.
 2. Click button "Open logs folder" and select folder with result log files.
-3. After logs are processed, select a test from list. Statistical data will be displayed in the text fields and plot will be generated.
+3. After logs are processed, select a test from list. Statistical data will be displayed in the text fields and plot will be generated. Clicking on a point in a Sequence plot will show a label with value and date of the measurement
 4. Plot can be adjusted with the navbar above the plot and buttons below it.
 5. Tests can be filtered out with regex pattern.
+6. Click Generate Report button to generate a html report. User can parametrize select tests, sites and order of points on the sequence plot
 
 ## Language
 Program is written with python (3.11). Used packages:
