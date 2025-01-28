@@ -93,6 +93,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.openLogsFolderButton.setEnabled(False)
     
     def selectPlotType(self):
+        if not self.selectedTest:
+            return
+        
         plotTypeMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
         self.selectedPlotType = plotTypeMap[self.selectedPlotType]
         self.generatePlot()
@@ -102,7 +105,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         if folderPath:
             self.processLogsInFolder(folderPath)
     
-    def changeYScale(self):
+    def changeYScale(self):        
+        if not self.selectedTest:
+            return
+        
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
@@ -208,11 +214,21 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
+        if not self.selectedTest:
+            return
+
         self.selectedSite = str(value)
+
+        sortByState = self.selectedSite == '0'
+        self.plotOrderByComboBox.setEnabled(sortByState)
+
         self.generatePlot()
         self.updateProcessParameters()
     
     def plotOrderByComboBoxClickedEvent(self, value:str):
+        if not self.selectedTest:
+            return
+        
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
         self.generatePlot()
 
@@ -284,6 +300,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
     def _setStatusOfTestsHandlingWidgets(self, status:bool):
         self.selectSiteComboBox.setEnabled(status)
+        self.plotOrderByComboBox.setEnabled(status)
         self.changeYScaleButton.setEnabled(status)
         self.changePlotButton.setEnabled(status)
         self.filterTestsButton.setEnabled(status)
