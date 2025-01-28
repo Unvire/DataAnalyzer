@@ -78,6 +78,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     
     def getValuesFromDataList(self) -> list[float]:
         return [value for value, _ in self.dataList]
+
+    def getDateFromDataList(self, index:str) -> str:
+        _, date = self.dataList[index]
+        return date
     
     def selectProcessor(self, value:str):
         if value != DataAnalyzerGUI.FILE_PROCESSORS[0]:
@@ -307,10 +311,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isPickedPoint = True
 
         index = event.ind[0]
+        date = self.getDateFromDataList(index)
+
         x = event.artist.get_xdata()[index]
         y = event.artist.get_ydata()[index]
         self.annotation = self.canvas.ax.annotate(
-            f'({x:.2f}, {y:.2f})',
+            f'{y:.2f}\n{date}',
             (x, y),
             xytext=(0, 10),
             textcoords='offset points',
