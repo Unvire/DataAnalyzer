@@ -35,6 +35,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.logsProcessingSuccess = True
         self.isPickedPoint = False
         self.dataList = []
+        self.plotOrderBy = 'Date'
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -53,6 +54,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
+        self.plotOrderByComboBox.activated.connect(self.plotOrderByComboBoxClickedEvent)
         self.changeYScaleButton.clicked.connect(self.changeYScale)
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
 
@@ -209,6 +211,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectedSite = str(value)
         self.generatePlot()
         self.updateProcessParameters()
+    
+    def plotOrderByComboBoxClickedEvent(self, value:str):
+        self.plotOrderBy = self.plotOrderByComboBox.currentText()        
+        self.generatePlot()
 
     def generatePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
@@ -237,7 +243,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data = self.measurements[testName]
 
         site = self.selectedSite
-        dataList = data.getDataFromAllSites() if site == '0' else data.getDataFromSite(site)
+        dataList = data.getDataFromAllSites(self.plotOrderBy) if site == '0' else data.getDataFromSite(site)
         self.setPlottedDataList(dataList)
         return data  
     

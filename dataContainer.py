@@ -22,14 +22,14 @@ class DataContainer():
         self.data[site].append(processedTuple)
     
     def getDataFromSite(self, site:str) -> list[tuple[float, str]]:
-        return sorted(self.data[site], key=lambda _, date: date)
+        return sorted(self.data[site], key=lambda item: item[1])
     
     def getDataFromAllSites(self, sortBy:str) -> list[tuple[float, str]]:
         result = []
-        if sortBy == 'date':
+        if sortBy == 'Date':
             for _, values in self.data.items():
                 result += values
-            result = sorted(result, key=lambda _, date: date)
+            result = sorted(result, key=lambda item: item[1])
         else:
             for site in self.data:
                 result += self.getDataFromSite(site)
