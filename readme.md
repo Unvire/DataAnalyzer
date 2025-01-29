@@ -35,3 +35,4 @@ Program is written with python (3.11). Used packages:
 
 ## How to run?
 Install all required modules listed in requirements.txt and run mainGUI.pyw
+Compile for release version using nuitka or auto-py-to-exe
