@@ -34,6 +34,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isLogScale = False
         self.logsProcessingSuccess = True
         self.isPickedPoint = False
+        self.dataList = []
+        self.plotOrderBy = 'Date'
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -47,11 +49,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         
         self.openLogsFolderButton.setEnabled(False)
         self._setStatusOfTestsHandlingWidgets(False)
+        self._setStatusPlotHandlingWidgets(False)
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
+        self.plotOrderByComboBox.activated.connect(self.plotOrderByComboBoxClickedEvent)
         self.changeYScaleButton.clicked.connect(self.changeYScale)
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
 
@@ -72,6 +76,16 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
     
+    def setPlottedDataList(self, dataList:list[tuple[float, str]]):
+        self.dataList = dataList
+    
+    def getValuesFromDataList(self) -> list[float]:
+        return [value for value, _ in self.dataList]
+
+    def getDateFromDataList(self, index:str) -> str:
+        _, date = self.dataList[index]
+        return date
+    
     def selectProcessor(self, value:str):
         if value != DataAnalyzerGUI.FILE_PROCESSORS[0]:
             self.factory.setProcessorType(value)
@@ -89,14 +103,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         if folderPath:
             self.processLogsInFolder(folderPath)
     
-    def changeYScale(self):
+    def changeYScale(self):        
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
     def openGenerateReportDialogWindow(self):    
         def runReportGeneration():
             nonlocal htmlCode
-            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite)
+            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite, orderBy)
             self.threadFinished = True
             
         testNames = self._getMeasurementsList()
@@ -106,7 +120,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             if not filePath.lower().endswith('.html'):
                 filePath += '.html'
 
-            selectedTestNames, selectedSite = dialogWindow.getData()
+            selectedTestNames, selectedSite, orderBy = dialogWindow.getData()
             testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
 
             self.htmlReportGenerator = HtmlReportGenerator()
@@ -192,13 +206,21 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.selectedTest = item.text()
             self.generatePlot()            
             self.updateProcessParameters()
+            self._setStatusPlotHandlingWidgets(True)
         except AttributeError:
             pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = str(value)
+        sortByState = self.selectedSite == '0'
+        self.plotOrderByComboBox.setEnabled(sortByState)
+
         self.generatePlot()
         self.updateProcessParameters()
+    
+    def plotOrderByComboBoxClickedEvent(self, value:str):
+        self.plotOrderBy = self.plotOrderByComboBox.currentText()        
+        self.generatePlot()
 
     def generatePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
@@ -207,24 +229,29 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         testName = self.selectedTest        
         plotType = self.selectedPlotType
         
-        data, dataList = self._getSelectedMeasurementData()
+        data = self._getSelectedMeasurementDataContainer()
         limits = data.getLimits()
-        generatePlot[plotType](dataList, testName, limits, self.isLogScale)
+
+        dataListValues = self.getValuesFromDataList()
+        generatePlot[plotType](dataListValues, testName, limits, self.isLogScale)
     
     def updateProcessParameters(self):
-        data, dataList = self._getSelectedMeasurementData()
+        data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
-        mean, sigma, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
-        self._updateStatisticalEdits(numOfSamples=len(dataList), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
+        dataListValues = self.getValuesFromDataList()
+
+        mean, sigma, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
+        self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
                                      sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk)
 
-    def _getSelectedMeasurementData(self) -> tuple[DataContainer, list[float]]:
+    def _getSelectedMeasurementDataContainer(self) -> DataContainer:
         testName = self.selectedTest     
         data = self.measurements[testName]
 
         site = self.selectedSite
-        dataList = data.getDataFromAllSites() if site == '0' else data.getDataFromSite(site)
-        return data, dataList        
+        dataList = data.getDataFromAllSites(self.plotOrderBy) if site == '0' else data.getDataFromSite(site)
+        self.setPlottedDataList(dataList)
+        return data  
     
     def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, ppk:float, cp:float, cpk:float):
         self.samplesEdit.setText(str(numOfSamples))
@@ -262,12 +289,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         msg.exec_()
 
     def _setStatusOfTestsHandlingWidgets(self, status:bool):
-        self.selectSiteComboBox.setEnabled(status)
-        self.changeYScaleButton.setEnabled(status)
-        self.changePlotButton.setEnabled(status)
         self.filterTestsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
         self.generateReportButton.setEnabled(status)
+    
+    def _setStatusPlotHandlingWidgets(self, status:bool):        
+        self.selectSiteComboBox.setEnabled(status)
+        self.plotOrderByComboBox.setEnabled(status)
+        self.changeYScaleButton.setEnabled(status)
+        self.changePlotButton.setEnabled(status)
     
     def _setStatusOfThreadsCallingWidgets(self, status:bool):
         self.openLogsFolderButton.setEnabled(status)
@@ -297,9 +327,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         index = event.ind[0]
         x = event.artist.get_xdata()[index]
-        y = event.artist.get_ydata()[index]
+        y = event.artist.get_ydata()[index]        
+        date = self.getDateFromDataList(index)
+        formattedValue = format(y, '.3E')
         self.annotation = self.canvas.ax.annotate(
-            f'({x:.2f}, {y:.2f})',
+            f'{formattedValue}\n{date}',
             (x, y),
             xytext=(0, 10),
             textcoords='offset points',

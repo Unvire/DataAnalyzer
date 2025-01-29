@@ -27,9 +27,10 @@ class GenerateReportDialog(QDialog):
 
         self.generateButton.clicked.connect(self.accept)
     
-    def getData(self) -> tuple[list[str], str]:        
+    def getData(self) -> tuple[list[str], str, str]:        
         selectedTests = self.testNames if self.allTestsCheckBox.isChecked() else self.testListWrapper.getSelectedItems()
-        return selectedTests, str(self.selectSiteComboBox.currentIndex())
+        orderBy = self.plotOrderByComboBox.currentText()
+        return selectedTests, str(self.selectSiteComboBox.currentIndex()), orderBy
     
     def listWidgetClickedEvent(self, *args):
         pass

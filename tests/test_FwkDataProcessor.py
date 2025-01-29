@@ -26,19 +26,23 @@ def file2LinesProcessingTest():
     ]
     return mockFileLines
 
+@pytest.fixture
+def mockDate():
+    return '2024/01/01 14:52:30'
+
 def test__getSiteFromHeader(file1LinesProcessingTest, file2LinesProcessingTest):
     loader = fwkDataProcessor.FwkDataProcessor()
     assert loader._getSiteFromHeader(file1LinesProcessingTest) == '1'
     assert loader._getSiteFromHeader(file2LinesProcessingTest) == '2'
 
 
-def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest):
+def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mockDate):
     loader = fwkDataProcessor.FwkDataProcessor()
     for mockfile in [file1LinesProcessingTest, file2LinesProcessingTest]:
         site = loader._getSiteFromHeader(mockfile)
         for line in mockfile:
             try:
-                loader._processFileLine(line, site)
+                loader._processFileLine(line, site, mockDate)
             except ValueError:
                 pass
     
@@ -47,10 +51,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest):
 
     dataInstance = measurements['SW1 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [float('2.660224'), float('2.660224')]    
-    assert dataInstance.getDataFromSite('2') == [float('2.560224'), float('2.560224')]
+    assert dataInstance.getDataFromSite('1') == [(float('2.660224'), mockDate), (float('2.660224'), mockDate)]    
+    assert dataInstance.getDataFromSite('2') == [(float('2.560224'), mockDate), (float('2.560224'), mockDate)]
 
     dataInstance = measurements['SW2 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [float('2.652450')]    
-    assert dataInstance.getDataFromSite('2') == [float('2.552450')]
+    assert dataInstance.getDataFromSite('1') == [(float('2.652450'), mockDate)]    
+    assert dataInstance.getDataFromSite('2') == [(float('2.552450'), mockDate)]

@@ -28,6 +28,10 @@ def file3LinesProcessingTest():
     ]
     return mockFileLines
 
+@pytest.fixture
+def mockDate():
+    return '2024/01/01 14:52:30'
+
 def test__getSiteLimitsFromHeader(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest):    
     loader = columnDataProcessor.ColumnDataProcessor()
     assert loader._getSiteLimitsFromHeader(file1LinesProcessingTest) == ('test1', '0', '10')
@@ -35,21 +39,21 @@ def test__getSiteLimitsFromHeader(file1LinesProcessingTest, file2LinesProcessing
     assert loader._getSiteLimitsFromHeader(file3LinesProcessingTest) == ('test2', '10', '20')
     
 
-def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest):
+def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest, mockDate):
     loader = columnDataProcessor.ColumnDataProcessor()
     for mockFile in [file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest]:
         testName, lowerLimit, upperLimit = loader._getSiteLimitsFromHeader(mockFile)
         loader.createDataContainer(testName, lowerLimit, upperLimit)
         for line in mockFile:
-            loader._processFileLine(line, testName)
+            loader._processFileLine(line, testName, mockDate)
     
     measurements = loader.getMeasurements()
     assert list(measurements.keys()) == ['test1', 'test2']
 
     dataInstance = measurements['test1']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [float('1'), float('2'), float('3'), float('4')]
+    assert dataInstance.getDataFromSite('1') == [(float('1'), mockDate), (float('2'), mockDate), (float('3'), mockDate), (float('4'), mockDate)]
 
     dataInstance = measurements['test2']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [float('15'), float('16')]
+    assert dataInstance.getDataFromSite('1') == [(float('15'), mockDate), (float('16'), mockDate)]

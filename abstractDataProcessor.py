@@ -18,5 +18,5 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
             self.measurements[testName] = testContainer
 
     @abc.abstractmethod
-    def processLogFile(self, filePath:str):
+    def processLogFile(self, filePath:str, testDate:str):
         pass

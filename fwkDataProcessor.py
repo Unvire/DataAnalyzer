@@ -4,7 +4,7 @@ class FwkDataProcessor(AbstractDataProcessor):
     def __init__(self):
         super().__init__()
 
-    def processLogFile(self, filePath:str):
+    def processLogFile(self, filePath:str, testTime:str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
             fileLines = file.readlines()[:-3]
         
@@ -12,7 +12,7 @@ class FwkDataProcessor(AbstractDataProcessor):
         
         for line in fileLines:
             try:
-                self._processFileLine(line, site)
+                self._processFileLine(line, site, testTime)
             except ValueError:
                 pass
     
@@ -22,11 +22,11 @@ class FwkDataProcessor(AbstractDataProcessor):
                 _, site, *_ = line.split(';')
                 return site
     
-    def _processFileLine(self, fileLine:str, site:str):
+    def _processFileLine(self, fileLine:str, site:str, testTime:str):
         _, testName, *_, measuredValue, _, lowerLimit, upperLimit, _ = fileLine.split(';')
         
         if  not lowerLimit and not upperLimit:
             return
         
         self.createDataContainer(testName, lowerLimit, upperLimit)
-        self.measurements[testName].addData(site, measuredValue)
+        self.measurements[testName].addData(site, (measuredValue, testTime))

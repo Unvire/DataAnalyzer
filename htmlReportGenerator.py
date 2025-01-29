@@ -62,7 +62,7 @@ class HtmlReportGenerator:
         </html>
         '''
 
-    def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int) -> str:
+    def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int, orderBy:str) -> str:
         def dequeAndUpdateProgressBar(queue):
             processedTables = 0
             while processedTables < numOfTables:
@@ -77,7 +77,7 @@ class HtmlReportGenerator:
         
         with multiprocessing.Manager() as manager:
             queue = manager.Queue()
-            poolArgs = [(chunk, site, queue) for chunk in chunks]            
+            poolArgs = [(chunk, site, orderBy, queue) for chunk in chunks]            
             numOfTables = len(measurementsDict)
             
             with multiprocessing.Pool(processes=maxProcesses) as pool:
@@ -114,20 +114,21 @@ class HtmlReportGenerator:
         return chunks
     
     @staticmethod
-    def _processChunk(chunk:list[dict], site:str, queue:multiprocessing.Queue) -> list[str]:
+    def _processChunk(chunk:list[dict], site:str, orderBy:str, queue:multiprocessing.Queue) -> list[str]:
         buffer = ''
         for _, data in chunk.items():    
             queue.put(1)
             try:
-                buffer += HtmlReportGenerator._generateTable(data, site)
+                buffer += HtmlReportGenerator._generateTable(data, site, orderBy)
             except Exception:
                 print(data.name)
         return buffer
     
     @staticmethod
-    def _generateTable(data:DataContainer, site:int) -> str:
+    def _generateTable(data:DataContainer, site:int, orderBy:str) -> str:
         title = data.name
-        dataList = data.getDataFromAllSites() if site == '0' else data.getDataFromSite(site)
+        dataList = data.getDataFromAllSites(orderBy) if site == '0' else data.getDataFromSite(site)
+        dataList = [value for value, _ in dataList]
 
         lowerLimit, upperLimit = data.getLimits()        
         processParameterCalculator = ProcessParameterCalculator()
