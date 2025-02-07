@@ -17,7 +17,7 @@ from htmlReportGenerator import HtmlReportGenerator
 from dataContainer import DataContainer
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
-    FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK', 'Column file']
+    FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK', 'TestStand XYLEM', 'Column file']
 
     def __init__(self):
         super().__init__()
@@ -159,7 +159,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         def runProcessLogs():
             try:
                 self.factory.processAllLogsInFolder(folderPath)
-            except Exception:            
+            except Exception:         
                 self.logsProcessingSuccess = False
             self.threadFinished = True            
         
@@ -186,19 +186,20 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     
     def _finishProcessingLogs(self):
         measurements = self.factory.getAllMeasurements()
-        self.setMeasurements(measurements)
+        self.setMeasurements(measurements)            
 
-        try:            
+        try:       
             testsList = self._getMeasurementsList()
             self.testListWrapper.setTestNames(testsList)
             self.testListWrapper.generateMeasurementsList()
             self.updateNumOfSites()
-
+        
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
+            self.openLogsFolderButton.setEnabled(True)
             return
         
-        self._setStatusOfThreadsCallingWidgets(True)
+        self._setStatusOfThreadsCallingWidgets(True) 
         self._setStatusOfTestsHandlingWidgets(True)
     
     def listWidgetClickedEvent(self, item):

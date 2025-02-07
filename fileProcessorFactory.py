@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 import dataContainer
-import speaDataProcessor, fwkDataProcessor, columnDataProcessor
+import speaDataProcessor, fwkDataProcessor, columnDataProcessor, xylemDataProcessor
 
 from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
 
@@ -11,6 +11,7 @@ class FileProcessorsFactory:
         self.dataProcessorsDict = {
             'SPEA': speaDataProcessor.SpeaDataProcessor,
             'FWK': fwkDataProcessor.FwkDataProcessor,
+            'TestStand XYLEM': xylemDataProcessor.XylemDataProcessor,
             'Column file': columnDataProcessor.ColumnDataProcessor
         }
         self.observersList = []
@@ -70,5 +71,5 @@ if __name__ == '__main__':
     
     folderPath = getFolderWithLogs()
     factory = FileProcessorsFactory()
-    factory.setProcessorType('SPEA')
+    factory.setProcessorType('TestStand XYLEM')
     factory.processAllLogsInFolder(folderPath)
