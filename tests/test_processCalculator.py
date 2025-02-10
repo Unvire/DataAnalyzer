@@ -13,6 +13,7 @@ class MockDataClass:
         self.cpk = None
         self.pp = None
         self.ppk = None
+        self.stability = None
 
 @pytest.fixture
 def sampleData():
@@ -68,6 +69,7 @@ def sampleData():
     dataClass.cpk = 0.11
     dataClass.pp = 0.32
     dataClass.ppk = 0.10    
+    dataClass.stability = 0.1092
     return dataClass
 
 def test__calculateMeanAndSigmas(sampleData):
@@ -94,12 +96,19 @@ def test__calculateCpCpk(sampleData):
     assert round(cp, 2) == sampleData.cp    
     assert round(cpk, 2) == sampleData.cpk
 
+def test__calculateStability(sampleData):
+    instance = processCalculator.ProcessParameterCalculator()
+    measurements = sampleData.measurements
+    stability = instance._calculateStability(min(measurements), max(measurements))
+    assert round(stability, 4) == sampleData.stability
+
 def test__calculate(sampleData):
     instance = processCalculator.ProcessParameterCalculator()
-    mean, sigmaOverall, pp, ppk, cp, cpk = instance.calculate(sampleData.measurements, sampleData.LSL, sampleData.USL)
+    mean, sigmaOverall, pp, ppk, cp, cpk, stability = instance.calculate(sampleData.measurements, sampleData.LSL, sampleData.USL)
     assert round(mean, 2) == sampleData.mean    
     assert round(sigmaOverall, 2) == sampleData.sigmaOverall
     assert round(pp, 2) == sampleData.pp    
     assert round(ppk, 2) == sampleData.ppk
     assert round(cp, 2) == sampleData.cp    
     assert round(cpk, 2) == sampleData.cpk
+    assert round(stability, 4) == sampleData.stability

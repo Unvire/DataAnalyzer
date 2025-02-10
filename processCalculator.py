@@ -7,7 +7,8 @@ class ProcessParameterCalculator:
         mean, sigmaOverall, sigmaWithin = self._calculateMeanAndSigmas(measurements)
         pp, ppk = self._calculatePpPpk(mean, sigmaOverall, lowerLimit, upperLimit)
         cp, cpk = self._calculateCpCpk(mean, sigmaWithin, lowerLimit, upperLimit)
-        return mean, sigmaOverall, pp, ppk, cp, cpk
+        stability = self._calculateStability(min(measurements), max(measurements))
+        return mean, sigmaOverall, pp, ppk, cp, cpk, stability
     
     def _calculateMeanAndSigmas(self, measurements:list[float|int]) -> tuple[float, float, float]:
         mean = np.mean(measurements)
@@ -28,3 +29,6 @@ class ProcessParameterCalculator:
         CPU = (USL - mean) / (3 * sigmaWithin)
         cpk = min(CPL, CPU)
         return cp, cpk
+    
+    def _calculateStability(self, minVal:float, maxVal:float) -> float:
+        return maxVal / minVal - 1
