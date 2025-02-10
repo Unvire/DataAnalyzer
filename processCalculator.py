@@ -31,4 +31,6 @@ class ProcessParameterCalculator:
         return cp, cpk
     
     def _calculateStability(self, minVal:float, maxVal:float) -> float:
+        if minVal == 0:
+            return 0
         return maxVal / minVal - 1

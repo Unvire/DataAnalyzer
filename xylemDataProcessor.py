@@ -8,7 +8,10 @@ class XylemDataProcessor(AbstractDataProcessor):
         with open(filePath, 'r', encoding='unicode_escape') as file:
             fileLines = file.readlines()[:-3]
         
-        siteIndex, site = self._getSiteFromHeader(fileLines)
+        try:
+            siteIndex, site = self._getSiteFromHeader(fileLines)
+        except TypeError:
+            return
         
         for line in fileLines[siteIndex + 1:]:
             try:

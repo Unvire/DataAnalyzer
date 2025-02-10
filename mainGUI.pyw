@@ -182,7 +182,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         if self.logsProcessingSuccess:
             self._finishProcessingLogs()
         else:
-            self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')
+            self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')            
+            self.openLogsFolderButton.setEnabled(True)
     
     def _finishProcessingLogs(self):
         measurements = self.factory.getAllMeasurements()
@@ -241,9 +242,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         lowerLimit, upperLimit = data.getLimits()
         dataListValues = self.getValuesFromDataList()
 
-        mean, sigma, pp, ppk, cp, cpk = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
+        mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
         self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
-                                     sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk)
+                                     sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk, stability=stability)
 
     def _getSelectedMeasurementDataContainer(self) -> DataContainer:
         testName = self.selectedTest     
@@ -254,7 +255,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.setPlottedDataList(dataList)
         return data  
     
-    def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, ppk:float, cp:float, cpk:float):
+    def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, 
+                                ppk:float, cp:float, cpk:float, stability:float):
         self.samplesEdit.setText(str(numOfSamples))
         self.lowerLimitEdit.setText(str(lowerLimit))
         self.upperLimitEdit.setText(str(upperLimit))
@@ -264,6 +266,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.ppkEdit.setText(str(ppk))
         self.cpEdit.setText(str(cp))
         self.cpkEdit.setText(str(cpk))
+        self.stabilityEdit.setText(f'{stability * 100}%')
     
     @QtCore.pyqtSlot(int)
     def updateProgressBar(self, progressPercent:int):
