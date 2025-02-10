@@ -132,7 +132,8 @@ class HtmlReportGenerator:
 
         lowerLimit, upperLimit = data.getLimits()        
         processParameterCalculator = ProcessParameterCalculator()
-        mean, sigmaOverall, pp, ppk, cp, cpk = processParameterCalculator.calculate(dataList, lowerLimit, upperLimit)
+        mean, sigmaOverall, pp, ppk, cp, cpk, stability = processParameterCalculator.calculate(dataList, lowerLimit, upperLimit) 
+        stability *= 100
         
         isLogScale = upperLimit - lowerLimit > 10000
         sequencePlotBase64 = HtmlReportGenerator._generatePlot('Sequence', dataList, lowerLimit, upperLimit, isLogScale)
@@ -161,6 +162,9 @@ class HtmlReportGenerator:
                     <td>σ = {sigmaOverall:.5e}</td>
                     <td>ppk = {ppk:.5e}</td>
                     <td>cpk = {cpk:.5e}</td>
+                </tr>
+                <tr>
+                    <td colspan="4">Max / Min - 1 = {stability:.5e}%</td>
                 </tr>
             </table>
         </div>
