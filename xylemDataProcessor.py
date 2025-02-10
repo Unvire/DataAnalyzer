@@ -8,19 +8,19 @@ class XylemDataProcessor(AbstractDataProcessor):
         with open(filePath, 'r', encoding='unicode_escape') as file:
             fileLines = file.readlines()[:-3]
         
-        site = self._getSiteFromHeader(fileLines)
+        siteIndex, site = self._getSiteFromHeader(fileLines)
         
-        for line in fileLines:
+        for line in fileLines[siteIndex + 1:]:
             try:
                 self._processFileLine(line, site, testTime)
             except ValueError:
                 pass
     
-    def _getSiteFromHeader(self, fileLines:list[str]) -> str:
-        for line in fileLines:
+    def _getSiteFromHeader(self, fileLines:list[str]) -> tuple[int, str]:
+        for i, line in enumerate(fileLines):
             if line.startswith('Test Socket Index'):
                 *_, site = line.split(',')
-                return site
+                return i, site
     
     def _processFileLine(self, fileLine:str, site:str, testTime:str):        
         #Sequence	StepName	Status	Date	Time	Duration	Value	Units	Limit	LimitLow	LimitHigh	ReportText	ErrorCode	ErrorMsg	StepType
