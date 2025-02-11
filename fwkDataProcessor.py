@@ -20,7 +20,7 @@ class FwkDataProcessor(AbstractDataProcessor):
         for line in fileLines:
             if line.startswith('Test Socket Index'):
                 _, site, *_ = line.split(';')
-                return site
+                return site.strip()
     
     def _processFileLine(self, fileLine:str, site:str, testTime:str):
         _, testName, *_, measuredValue, _, lowerLimit, upperLimit, _ = fileLine.split(';')

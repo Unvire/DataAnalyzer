@@ -127,7 +127,7 @@ class HtmlReportGenerator:
     @staticmethod
     def _generateTable(data:DataContainer, site:int, orderBy:str) -> str:
         title = data.name
-        dataList = data.getDataFromAllSites(orderBy) if site == '0' else data.getDataFromSite(site)
+        dataList = data.getDataFromAllSites(orderBy) if site == 'All sites' else data.getDataFromSite(site)
         dataList = [value for value, _ in dataList]
 
         lowerLimit, upperLimit = data.getLimits()        

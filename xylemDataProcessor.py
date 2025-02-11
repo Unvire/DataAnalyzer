@@ -23,7 +23,7 @@ class XylemDataProcessor(AbstractDataProcessor):
         for i, line in enumerate(fileLines):
             if line.startswith('Test Socket Index'):
                 *_, site = line.split(',')
-                return i, site
+                return i, site.strip()
     
     def _processFileLine(self, fileLine:str, site:str, testTime:str):        
         #Sequence	StepName	Status	Date	Time	Duration	Value	Units	Limit	LimitLow	LimitHigh	ReportText	ErrorCode	ErrorMsg	StepType

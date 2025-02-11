@@ -43,11 +43,6 @@
          <property name="statusTip">
           <string/>
          </property>
-         <item>
-          <property name="text">
-           <string>All sites</string>
-          </property>
-         </item>
         </widget>
        </item>
        <item>

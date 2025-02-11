@@ -37,3 +37,6 @@ class DataContainer():
 
     def getNumOfSites(self) -> int:
         return len(self.data)
+    
+    def getSiteNames(self) -> list[str]:
+        return list(self.data.keys())

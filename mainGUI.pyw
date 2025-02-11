@@ -29,7 +29,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         self.measurements = {}
         self.selectedTest = ''
-        self.selectedSite = '0'
+        self.selectedSite = 'All sites'
         self.selectedPlotType = 'Sequence plot'        
         self.isLogScale = False
         self.logsProcessingSuccess = True
@@ -114,7 +114,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.threadFinished = True
             
         testNames = self._getMeasurementsList()
-        dialogWindow = GenerateReportDialog(testNames, self.selectSiteComboBox.count() - 1)
+        siteNames = [self.selectSiteComboBox.itemText(i) for i in range(self.selectSiteComboBox.count())]
+        dialogWindow = GenerateReportDialog(testNames, siteNames)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
             filePath, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save report', '', 'Hyper Text Markup Language file (*.html)')
             if not filePath.lower().endswith('.html'):
@@ -213,8 +214,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             pass
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
-        self.selectedSite = str(value)
-        sortByState = self.selectedSite == '0'
+        self.selectedSite = self.selectSiteComboBox.itemText(value)
+        sortByState = self.selectedSite == 'All sites'
         self.plotOrderByComboBox.setEnabled(sortByState)
 
         self.generatePlot()
@@ -251,7 +252,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data = self.measurements[testName]
 
         site = self.selectedSite
-        dataList = data.getDataFromAllSites(self.plotOrderBy) if site == '0' else data.getDataFromSite(site)
+        dataList = data.getDataFromAllSites(self.plotOrderBy) if site == 'All sites' else data.getDataFromSite(site)
         self.setPlottedDataList(dataList)
         return data  
     
@@ -278,8 +279,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         numOfTests = firstDataContainer.getNumOfSites()
 
         if numOfTests > 1:           
-            for i in range(numOfTests):
-                self.selectSiteComboBox.addItem(f'{i + 1}')
+            siteNames = firstDataContainer.getSiteNames()
+            for siteName in siteNames:
+                self.selectSiteComboBox.addItem(siteName)
     
     def resetSelectSitesComboBox(self):
         self.selectSiteComboBox.clear()

@@ -5,16 +5,15 @@ from PyQt5 import uic
 from testListWrapper import TestListWrapper
 
 class GenerateReportDialog(QDialog):
-    def __init__(self, testNames:list[str], numOfSites:int):
+    def __init__(self, testNames:list[str], siteNames:list[str]):
         super().__init__()
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'generateRaportDialog.ui')
         uic.loadUi(uiFilePath, self)
 
         self.testNames = testNames
 
-        if numOfSites > 1:           
-            for i in range(numOfSites):
-                self.selectSiteComboBox.addItem(f'{i + 1}')
+        for siteName in siteNames:
+            self.selectSiteComboBox.addItem(siteName)
 
         self.testListWrapper = TestListWrapper(self.listWidget, self.filterTestsButton, self.resetFilterButton, self.regexPatternEdit)
         self.testListWrapper.setRowOnClickEvent(self.listWidgetClickedEvent)
@@ -26,11 +25,13 @@ class GenerateReportDialog(QDialog):
         self.allTestsCheckBox.toggled.connect(lambda state: self._setStatusOfTestsHandlingWidgets(not state))
 
         self.generateButton.clicked.connect(self.accept)
+        self.cancelButton.clicked.connect(self.close)
     
     def getData(self) -> tuple[list[str], str, str]:        
         selectedTests = self.testNames if self.allTestsCheckBox.isChecked() else self.testListWrapper.getSelectedItems()
         orderBy = self.plotOrderByComboBox.currentText()
-        return selectedTests, str(self.selectSiteComboBox.currentIndex()), orderBy
+        siteName = self.selectSiteComboBox.currentText()
+        return selectedTests, siteName, orderBy
     
     def listWidgetClickedEvent(self, *args):
         pass
@@ -47,6 +48,6 @@ class GenerateReportDialog(QDialog):
 if __name__ == '__main__':
     mockDict = ['a', 'b', 'c', 'd', 'e', 'f']
     app = QApplication(sys.argv)
-    window = GenerateReportDialog(mockDict, 2)
+    window = GenerateReportDialog(mockDict, ['1', '2'])
     window.show()
     sys.exit(app.exec_())
