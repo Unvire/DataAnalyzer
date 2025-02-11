@@ -12,6 +12,12 @@ Data analyzer processes measurement log files in a folder and displays selected 
     Line with subtest result is given as \_, testName, \*\_, measuredValue, \_, lowerLimit, upperLimit, \_. Example:
     ``13;VDD_5V;Passed;06-08-1998;01:23:17;0.039621;4.936198;[V];4.750;5.250;-``
     ";" is a separator character. "\_" represents not needed value, "\*_" represents some number of not needed values.
+
+    -TestStand XYLEM: a file has a header and measurements. Header must include line "Test Socket Index,[ID]" which determines cavity of the test. Example:
+    ``Test Socket Index,0``
+    Line with subtest result is given as  \_, testName, \_, \_, \_, \_, \_, measuredValue, \_, \_, lowerLimit, upperLimit, \*\_. Example:
+    ``4.3.5: Chek Voltage,P04.003: Vdc BUS,Passed,2024/01/13,"00:18:27,759",0.510778,285.587410,[VDC],GELE,120.000000,350.000000,,1073676293,VISA Read in Keithley.,NumericLimitTest``
+    "," is a separator character. "\_" represents not needed value, "\*_" represents some number of not needed values.
     
     - Column file: First line of a file is a header and below that are measurements. Example:
     ``L1-1[H];1.499917e-02;4.800180e-02;``
