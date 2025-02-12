@@ -36,6 +36,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.isPickedPoint = False
         self.dataList = []
         self.plotOrderBy = 'Date'
+        self.currentFileType = ''
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -102,6 +103,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory'))
         if folderPath:
             self.processLogsInFolder(folderPath)
+            self.currentFileType = self.logsTypeComboBox.currentText()
     
     def changeYScale(self):        
         self.isLogScale = not self.isLogScale
@@ -210,6 +212,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.generatePlot()            
             self.updateProcessParameters()
             self._setStatusPlotHandlingWidgets(True)
+        except AttributeError:
+            pass
         except Exception:
             message = 'Error with selected measurement'
             self.showErrorMessage('Error', message)
