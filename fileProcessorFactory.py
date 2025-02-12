@@ -24,8 +24,10 @@ class FileProcessorsFactory:
     def addObserver(self, instance:object):
         self.observersList.append(instance)
 
-    def processAllLogsInFolder(self, folderPath:str):
-        self.loaderInstance.clear()
+    def processAllLogsInFolder(self, folderPath:str, isAppendTests:bool):
+        if not isAppendTests:
+            self.loaderInstance.clear()
+
         logFiles = os.listdir(folderPath)
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
@@ -72,4 +74,4 @@ if __name__ == '__main__':
     folderPath = getFolderWithLogs()
     factory = FileProcessorsFactory()
     factory.setProcessorType('TestStand XYLEM')
-    factory.processAllLogsInFolder(folderPath)
+    factory.processAllLogsInFolder(folderPath, isAppendTests=False)

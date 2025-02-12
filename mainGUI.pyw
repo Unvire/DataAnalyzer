@@ -105,7 +105,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def selectFolder(self):
         folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory'))
         if folderPath:
-            self.processLogsInFolder(folderPath)
+            isAppendTests = self.currentFileType == self.logsTypeComboBox.currentText()
+            self.processLogsInFolder(folderPath, isAppendTests)
             self.currentFileType = self.logsTypeComboBox.currentText()
             self._updateOpenLogsFolderButtonText(False)
     
@@ -168,10 +169,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         message = message1 + message2 + message3 + message4        
         QtWidgets.QMessageBox.information(self,  'Info',  message, QtWidgets.QMessageBox.Ok)
     
-    def processLogsInFolder(self, folderPath:str):
+    def processLogsInFolder(self, folderPath:str, isAppendTests:bool):
         def runProcessLogs():
             try:
-                self.factory.processAllLogsInFolder(folderPath)
+                self.factory.processAllLogsInFolder(folderPath, isAppendTests)
             except Exception:         
                 self.logsProcessingSuccess = False
             self.threadFinished = True            
