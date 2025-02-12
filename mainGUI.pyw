@@ -210,17 +210,22 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.generatePlot()            
             self.updateProcessParameters()
             self._setStatusPlotHandlingWidgets(True)
-        except AttributeError:
-            pass
+        except Exception:
+            message = 'Error with selected measurement'
+            self.showErrorMessage('Error', message)
     
     def selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = self.selectSiteComboBox.itemText(value)
         sortByState = self.selectedSite == 'All sites'
         self.plotOrderByComboBox.setEnabled(sortByState)
 
-        self.generatePlot()
-        self.updateProcessParameters()
-    
+        try:
+            self.generatePlot()
+            self.updateProcessParameters()
+        except Exception:
+            message = 'Error with selected measurement'
+            self.showErrorMessage('Error', message)
+
     def plotOrderByComboBoxClickedEvent(self, value:str):
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
         self.generatePlot()
