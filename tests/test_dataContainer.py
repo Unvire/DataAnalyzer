@@ -29,5 +29,5 @@ def test_getDataFromSite():
     assert instance.getDataFromSite('2') == [(20, '2025/01/01'), (30, '2025/01/01'), (40, '2025/01/01'), (50, '2025/01/01')]
 
     assert list(instance.data.keys()) == ['1', '2']
-    assert sorted(instance.getDataFromAllSites()) == [(1, '2025/01/01'), (2, '2025/01/01'), (3, '2025/01/01'), (4, '2025/01/01'), (5, '2025/01/01'),
+    assert sorted(instance.getDataFromAllSites(sortBy='Date')) == [(1, '2025/01/01'), (2, '2025/01/01'), (3, '2025/01/01'), (4, '2025/01/01'), (5, '2025/01/01'),
                                                       (20, '2025/01/01'), (30, '2025/01/01'), (40, '2025/01/01'), (50, '2025/01/01')]
