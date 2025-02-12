@@ -72,7 +72,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
         self.capabilityPlotGenerator = CapabilityPlotGenerator(self.canvas)
-
     
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -88,11 +87,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         return date
     
     def selectProcessor(self, value:str):
-        if value != DataAnalyzerGUI.FILE_PROCESSORS[0]:
-            self.factory.setProcessorType(value)
-            self.openLogsFolderButton.setEnabled(True)
-        else:
+        if value == DataAnalyzerGUI.FILE_PROCESSORS[0]:
             self.openLogsFolderButton.setEnabled(False)
+            return
+        
+        isFileTypeChanged = self.currentFileType != value
+        self._updateOpenLogsFolderButtonText(isFileTypeChanged)
+
+        self.factory.setProcessorType(value)
+        self.openLogsFolderButton.setEnabled(True)           
     
     def selectPlotType(self):
         plotTypeMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
@@ -104,6 +107,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         if folderPath:
             self.processLogsInFolder(folderPath)
             self.currentFileType = self.logsTypeComboBox.currentText()
+            self._updateOpenLogsFolderButtonText(False)
+    
+    def _updateOpenLogsFolderButtonText(self, isFileTypeChanged:bool):
+        if isFileTypeChanged:
+            self.openLogsFolderButton.setText('Open logs folder')
+        else:
+            self.openLogsFolderButton.setText('Append new logs')
     
     def changeYScale(self):        
         self.isLogScale = not self.isLogScale
