@@ -103,11 +103,18 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.generatePlot()
 
     def selectFolder(self):
-        folderPath = str(QtWidgets.QFileDialog.getExistingDirectory(self, 'Select Directory'))
-        if folderPath:
+        dialog = QtWidgets.QFileDialog()
+        dialog.setFileMode(QtWidgets.QFileDialog.Directory)
+        dialog.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        dialog.setOption(QtWidgets.QFileDialog.ShowDirsOnly, False)
+        dialog.setWindowTitle('Select Directory')
+
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            folderPath = dialog.selectedFiles()[0]
+
             isAppendTests = self.currentFileType == self.logsTypeComboBox.currentText()
             self.processLogsInFolder(folderPath, isAppendTests)
-            self.currentFileType = self.logsTypeComboBox.currentText()
+            self.currentFileType = self.logsTypeComboBox.currentText()            
             self._updateOpenLogsFolderButtonText(False)
     
     def _updateOpenLogsFolderButtonText(self, isFileTypeChanged:bool):
