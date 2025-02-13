@@ -79,8 +79,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def setPlottedDataList(self, dataList:list[tuple[float, str]]):
         self.dataList = dataList
     
-    def getValuesFromDataList(self) -> list[float]:
-        return [value for value, _ in self.dataList]
+    def getNestedValuesFromDataList(self) -> list[list[float]]:
+        return [[value for value, _ in siteData] for siteData in self.dataList]
+    
+    def getUnnestedValuesFromDataList(self) -> list[float]:
+        return [value for siteData in self.dataList for value, _ in siteData]
 
     def getDateFromDataList(self, index:str) -> str:
         _, date = self.dataList[index]
@@ -263,13 +266,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data = self._getSelectedMeasurementDataContainer()
         limits = data.getLimits()
 
-        dataListValues = self.getValuesFromDataList()
+        dataListValues = self.getNestedValuesFromDataList()
         generatePlot[plotType](dataListValues, testName, limits, self.isLogScale)
     
     def updateProcessParameters(self):
         data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
-        dataListValues = self.getValuesFromDataList()
+        dataListValues = self.getUnnestedValuesFromDataList()
 
         mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
         self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
