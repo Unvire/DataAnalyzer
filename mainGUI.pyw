@@ -107,7 +107,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         dialog.setFileMode(QtWidgets.QFileDialog.Directory)
         dialog.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         dialog.setOption(QtWidgets.QFileDialog.ShowDirsOnly, False)
-        dialog.setWindowTitle('Select Directory')
+        dialog.setOption(QtWidgets.QFileDialog.ReadOnly, False)
+        dialog.setWindowTitle('Select Directory or paste path in the "Directory" field')
 
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
             folderPath = dialog.selectedFiles()[0]
