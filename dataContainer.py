@@ -21,18 +21,18 @@ class DataContainer():
         processedTuple = float(value), date
         self.data[site].append(processedTuple)
     
-    def getDataFromSite(self, site:str) -> list[tuple[float, str]]:
-        return sorted(self.data[site], key=lambda item: item[1])
+    def getDataFromSite(self, site:str) -> list[list[tuple[float, str]]]:
+        return [sorted(self.data[site], key=lambda item: item[1])]
     
-    def getDataFromAllSites(self, sortBy:str) -> list[tuple[float, str]]:
+    def getDataFromAllSites(self, sortBy:str) -> list[list[tuple[float, str]]]:
         result = []
         if sortBy == 'Date':
             for _, values in self.data.items():
-                result += values
-            result = sorted(result, key=lambda item: item[1])
+                values = sorted(values, key=lambda item: item[1])
+                result.append(values)
         else:
             for site in self.data:
-                result += self.getDataFromSite(site)
+                result.append(self.getDataFromSite(site))
         return result
 
     def getNumOfSites(self) -> int:
