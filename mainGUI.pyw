@@ -3,6 +3,8 @@ import threading
 
 from PyQt5 import QtWidgets, uic
 from PyQt5 import QtCore
+from PyQt5.QtWidgets import QMessageBox
+
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backend_bases import PickEvent
 
@@ -124,6 +126,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self._updateOpenLogsFolderButtonText(False)
     
     def clear(self):
+        userResponse = QMessageBox.question(self, 'Warning', 'Do you want to clear loaded data?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if userResponse == QMessageBox.No:
+            return
+
         self.canvas.clear()
         self.testListWrapper.clear()
         self._updateStatisticalEdits()
