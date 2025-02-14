@@ -29,17 +29,18 @@ class PlotGenerator:
 class SequencePlotGenerator(PlotGenerator):
     def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
         if isMergeDataSublists:
-            dataSeriesList, numberOfSamples = listParser.mergedDataSeries(dataList)
+            dataSeriesList, longestSeriesLength = listParser.mergedDataSeries(dataList)
         else:            
-            dataSeriesList, numberOfSamples = listParser.continuousDataSeries(dataList)
+            dataSeriesList, longestSeriesLength = listParser.continuousDataSeries(dataList)
             
         self.canvas.ax.cla()        
-        self.canvas.ax.set_xlim([0, numberOfSamples])
+        self.canvas.ax.set_xlim([0, longestSeriesLength])
 
         for siteName, dataSeries in zip(siteNames, dataSeriesList):
             x = [point[0] for point in dataSeries]
             y = [point[1] for point in dataSeries]
-            self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Site{siteName} ({numberOfSamples} samples)', picker=5)
+            seriesLength = len(dataSeries)
+            self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
         
         self.canvas.ax.grid()
         self._addCommonPlotElements(title, limits, False, ['Samples sorted by date', 'Value'], isLogScale)
