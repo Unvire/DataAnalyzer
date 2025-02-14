@@ -3,7 +3,7 @@ def mergedDataSeries(data:list[list[float]]) -> tuple[list[list[tuple[int, float
     for dataSeries in data:
         seriesPointList = [(i, value) for i, value in enumerate(dataSeries)]
         result.append(seriesPointList)    
-    numberOfSamples = len(result[0])  
+    numberOfSamples = max([len(series) for series in result])
     return result, numberOfSamples
 
 def continuousDataSeries(data:list[list[float]]) -> tuple[list[list[tuple[int, float]]], int]:
@@ -13,10 +13,10 @@ def continuousDataSeries(data:list[list[float]]) -> tuple[list[list[tuple[int, f
         seriesPointList = [(i + offset, value) for i, value in enumerate(dataSeries)]
         offset += len(dataSeries)
         result.append(seriesPointList)
-    numberOfSamples = sum([len(series) for series in result])
-    return result, numberOfSamples
+    numberOfSamples, _ = result[-1][-1]
+    return result, numberOfSamples + 1
 
-def flattenValueList(data:list[list[float]]) -> tuple[list[float], int]:
+def flattenDataSeries(data:list[list[float]]) -> tuple[list[float], int]:
     result = [value for siteData in data for value in siteData]
     return result, len(result)
 

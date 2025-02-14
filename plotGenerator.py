@@ -46,7 +46,7 @@ class SequencePlotGenerator(PlotGenerator):
 
 class CapabilityPlotGenerator(PlotGenerator):
     def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, *args):
-        dataList, numberOfSamples = listParser.flattenValueList(dataList)
+        dataList, numberOfSamples = listParser.flattenDataSeries(dataList)
 
         self.canvas.ax.cla()
         mean = np.mean(dataList)
