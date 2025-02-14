@@ -55,17 +55,14 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
+        self.clearButton.clicked.connect(self.clear)
         self.changePlotButton.clicked.connect(self.selectPlotType)
         self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
         self.plotOrderByComboBox.activated.connect(self.plotOrderByComboBoxClickedEvent)
         self.changeYScaleButton.clicked.connect(self.changeYScale)
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
 
-        self.canvas = MplCanvas(self.plotFrame)
-        self.toolbar = NavigationToolbar(self.canvas, self)        
-        self.annotation = None
-        self.canvas.mpl_connect('pick_event', self.canvasOnPick)
-        self.canvas.mpl_connect('button_press_event', self.canvasOnClick)
+        self._initCanvas()
         
         self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
         self.plotLayout.addWidget(self.toolbar)
@@ -74,6 +71,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
         self.capabilityPlotGenerator = CapabilityPlotGenerator(self.canvas)
     
+    def _initCanvas(self):
+        self.canvas = MplCanvas(self.plotFrame)
+        self.toolbar = NavigationToolbar(self.canvas, self)        
+        self.annotation = None
+        self.canvas.mpl_connect('pick_event', self.canvasOnPick)
+        self.canvas.mpl_connect('button_press_event', self.canvasOnClick)
+
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
     
@@ -118,6 +122,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.processLogsInFolder(folderPath, isAppendTests)
             self.currentFileType = self.logsTypeComboBox.currentText()            
             self._updateOpenLogsFolderButtonText(False)
+    
+    def clear(self):
+        self.testListWrapper.clear()
+        self._updateStatisticalEdits()
+        self._updateOpenLogsFolderButtonText(True)
+        
+        self._setStatusOfTestsHandlingWidgets(False)
+        self._setStatusPlotHandlingWidgets(False)   
+        self._setStatusOfThreadsCallingWidgets(False)        
     
     def _updateOpenLogsFolderButtonText(self, isFileTypeChanged:bool):
         if isFileTypeChanged:
@@ -288,8 +301,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.setPlottedDataList(dataList)
         return data  
     
-    def _updateStatisticalEdits(self, numOfSamples:int, lowerLimit:float, upperLimit:float, mean:float, sigma:float, pp:float, 
-                                ppk:float, cp:float, cpk:float, stability:float):
+    def _updateStatisticalEdits(self, numOfSamples:int|str='', lowerLimit:float|str='', upperLimit:float|str='', mean:float|str='', 
+                                sigma:float|str='', pp:float|str='', ppk:float|str='', cp:float|str='', cpk:float|str='', stability:float|str=''):
         self.samplesEdit.setText(str(numOfSamples))
         self.lowerLimitEdit.setText(str(lowerLimit))
         self.upperLimitEdit.setText(str(upperLimit))
@@ -327,6 +340,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         msg.exec_()
 
     def _setStatusOfTestsHandlingWidgets(self, status:bool):
+        self.clearButton.setEnabled(status)
         self.filterTestsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
         self.generateReportButton.setEnabled(status)

@@ -19,6 +19,10 @@ class TestListWrapper:
     def setTestNames(self, testNames:list[str]):
         self.testNames = testNames
     
+    def clear(self):
+        self.listWidget.clear()
+        self.regexPatternEdit.setText('')
+    
     def setRowOnClickEvent(self, functionHandle):
         self.rowOnClickEvent = functionHandle
 
