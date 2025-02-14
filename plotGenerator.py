@@ -6,7 +6,7 @@ class PlotGenerator:
     def __init__(self, canvas:plt.Figure):
         self.canvas = canvas
     
-    def generatePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool, isMergeDataSublists:bool=False):
+    def generatePlot(self, dataList:list[float], title:str, limits:list[float, float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool=False):
         assert False
 
     def _addCommonPlotElements(self, title:str, limits:tuple[float], isLimitsVertical:bool, axisLabels:tuple[str], isLogScale:bool):
@@ -25,7 +25,7 @@ class PlotGenerator:
         self.canvas.draw()
 
 class SequencePlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, isMergeDataSublists:bool):
+    def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
         dataSeriesList = []
         
 
@@ -45,16 +45,16 @@ class SequencePlotGenerator(PlotGenerator):
         self.canvas.ax.cla()        
         self.canvas.ax.set_xlim([0, numberOfSamples])
 
-        for i, dataSeries in enumerate(dataSeriesList):
+        for siteName, dataSeries in zip(siteNames, dataSeriesList):
             x = [point[0] for point in dataSeries]
             y = [point[1] for point in dataSeries]
-            self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Data{i + 1}, ({numberOfSamples} samples)', picker=5)
+            self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Site{siteName} ({numberOfSamples} samples)', picker=5)
         
         self.canvas.ax.grid()
         self._addCommonPlotElements(title, limits, False, ['Samples sorted by date', 'Value'], isLogScale)
 
 class CapabilityPlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, isMergeDataSublists:bool):
+    def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
         unnestedDataList = [value for siteData in dataList for value in siteData]
         
         numberOfSamples = len(dataList)        

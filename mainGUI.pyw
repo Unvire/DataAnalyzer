@@ -266,9 +266,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data = self._getSelectedMeasurementDataContainer()
         limits = data.getLimits()        
         isMergeDataList = self.plotOrderBy == 'Date'
+
+        siteNames = data.getSiteNames() if self.selectedSite == 'All sites' else [self.selectedSite]
         
         dataList = self.getNestedValuesFromDataList()
-        generatePlot[plotType](dataList, testName, limits, self.isLogScale, isMergeDataList)
+        generatePlot[plotType](dataList, testName, limits, self.isLogScale, siteNames, isMergeDataList)
     
     def updateProcessParameters(self):
         data = self._getSelectedMeasurementDataContainer()
