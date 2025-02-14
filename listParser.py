@@ -15,3 +15,7 @@ def continuousDataSeries(data:list[list[float]]) -> tuple[list[list[tuple[int, f
         result.append(seriesPointList)
     numberOfSamples = sum([len(series) for series in result])
     return result, numberOfSamples
+
+def flattenValueList(data:list[list[float]]) -> tuple[list[float], int]:
+    result = [value for siteData in data for value in siteData]
+    return result, len(result)
