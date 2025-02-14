@@ -53,10 +53,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     dataInstance = measurements['P04.004: Vdd_ISO']
     assert list(dataInstance.data.keys()) == ['0']
-    assert dataInstance.getDataFromSite('0') == [(float('5.032810'), mockDate), (float('5.062810'), mockDate)]
+    assert dataInstance.getDataFromSite('0') == [[(float('5.032810'), mockDate), (float('5.062810'), mockDate)]]
     assert dataInstance.getLimits() == [float('4.800000'), float('5.100000')]
 
     dataInstance = measurements['P08.002: NTC1 Value']
     assert list(dataInstance.data.keys()) == ['0']
-    assert dataInstance.getDataFromSite('0') == [(float('891.000000'), mockDate), (float('921.000000'), mockDate)]
+    assert dataInstance.getDataFromSite('0') == [[(float('891.000000'), mockDate), (float('921.000000'), mockDate)]]
     assert dataInstance.getLimits() == [float('853.00000'), float('930.00000')]

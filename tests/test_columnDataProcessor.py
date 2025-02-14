@@ -52,8 +52,8 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, fi
 
     dataInstance = measurements['test1']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [(float('1'), mockDate), (float('2'), mockDate), (float('3'), mockDate), (float('4'), mockDate)]
+    assert dataInstance.getDataFromSite('1') == [[(float('1'), mockDate), (float('2'), mockDate), (float('3'), mockDate), (float('4'), mockDate)]]
 
     dataInstance = measurements['test2']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [(float('15'), mockDate), (float('16'), mockDate)]
+    assert dataInstance.getDataFromSite('1') == [[(float('15'), mockDate), (float('16'), mockDate)]]

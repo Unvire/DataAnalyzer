@@ -51,10 +51,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     dataInstance = measurements['SW1 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [(float('2.660224'), mockDate), (float('2.660224'), mockDate)]    
-    assert dataInstance.getDataFromSite('2') == [(float('2.560224'), mockDate), (float('2.560224'), mockDate)]
+    assert dataInstance.getDataFromSite('1') == [[(float('2.660224'), mockDate), (float('2.660224'), mockDate)]]    
+    assert dataInstance.getDataFromSite('2') == [[(float('2.560224'), mockDate), (float('2.560224'), mockDate)]]
 
     dataInstance = measurements['SW2 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [(float('2.652450'), mockDate)]    
-    assert dataInstance.getDataFromSite('2') == [(float('2.552450'), mockDate)]
+    assert dataInstance.getDataFromSite('1') == [[(float('2.652450'), mockDate)]]    
+    assert dataInstance.getDataFromSite('2') == [[(float('2.552450'), mockDate)]]

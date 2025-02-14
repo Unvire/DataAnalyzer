@@ -26,13 +26,13 @@ def test__processFileLine(fileLinesProcessingTest):
 
     dataInstance = measurements['R261 | RESR261 150K 1%']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [(float('1.499953e+05'), '2024/01/01 14:23:14')]
+    assert dataInstance.getDataFromSite('1') == [[(float('1.499953e+05'), '2024/01/01 14:23:14')]]
 
     dataInstance = measurements['R262 | RESR262 10K 5%']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [(float('9.968847e+03'), '2024/01/01 14:23:14')]
+    assert dataInstance.getDataFromSite('1') == [[(float('9.968847e+03'), '2024/01/01 14:23:14')]]
 
     dataInstance = measurements['R265 | RESR265 1K 1%']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [(float('9.960000e+02'), '2024/01/01 14:23:14'), (float('9.970000e+02'), '2024/01/01 14:23:14')]
-    assert dataInstance.getDataFromSite('2') == [(float('9.980000e+02'), '2024/01/01 14:23:14'), (float('9.990000e+02'), '2024/01/01 14:23:14')]
+    assert dataInstance.getDataFromSite('1') == [[(float('9.960000e+02'), '2024/01/01 14:23:14'), (float('9.970000e+02'), '2024/01/01 14:23:14')]]
+    assert dataInstance.getDataFromSite('2') == [[(float('9.980000e+02'), '2024/01/01 14:23:14'), (float('9.990000e+02'), '2024/01/01 14:23:14')]]
