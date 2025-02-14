@@ -45,7 +45,7 @@ class SequencePlotGenerator(PlotGenerator):
         self._addCommonPlotElements(title, limits, False, ['Samples sorted by date', 'Value'], isLogScale)
 
 class CapabilityPlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
+    def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, *args):
         dataList, numberOfSamples = listParser.flattenValueList(dataList)
 
         self.canvas.ax.cla()

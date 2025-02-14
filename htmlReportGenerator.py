@@ -12,6 +12,7 @@ from processCalculator import ProcessParameterCalculator
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
 from dataContainer import DataContainer
 
+import listParser
 
 class HtmlReportGenerator:
     def __init__(self):
@@ -120,26 +121,34 @@ class HtmlReportGenerator:
             queue.put(1)
             try:
                 buffer += HtmlReportGenerator._generateTable(data, site, orderBy)
-            except Exception:
-                print(data.name)
+            except Exception as e:
+                print(data.name, e.__repr__())
         return buffer
     
     @staticmethod
     def _generateTable(data:DataContainer, site:int, orderBy:str) -> str:
-        title = data.name
-        dataList = data.getDataFromAllSites(orderBy) if site == 'All sites' else data.getDataFromSite(site)
-        dataList = [value for value, _ in dataList]
+        if site == 'All sites':        
+            dataSeriesList = data.getDataFromAllSites(orderBy)
+            siteNames = data.getSiteNames()
+        else:
+            dataSeriesList = data.getDataFromSite(site)
+            siteNames = [site]
+
+        plotSeriesList = listParser.valueDateSeriesToValueSeries(dataSeriesList)
+        flatValuesList = listParser.valueDateSeriesToFlatValueList(dataSeriesList)
 
         lowerLimit, upperLimit = data.getLimits()        
         processParameterCalculator = ProcessParameterCalculator()
-        mean, sigmaOverall, pp, ppk, cp, cpk, stability = processParameterCalculator.calculate(dataList, lowerLimit, upperLimit) 
+        mean, sigmaOverall, pp, ppk, cp, cpk, stability = processParameterCalculator.calculate(flatValuesList, lowerLimit, upperLimit) 
         stability *= 100
         
-        isLogScale = upperLimit - lowerLimit > 10000
-        sequencePlotBase64 = HtmlReportGenerator._generatePlot('Sequence', dataList, lowerLimit, upperLimit, isLogScale)
-        capabilityPlotBase64 = HtmlReportGenerator._generatePlot('Capability', dataList, lowerLimit, upperLimit, isLogScale)
-        
-        siteStr = site if site != '0' else 'All sites'
+        isLogScale = upperLimit - lowerLimit > 10000  
+        isMergeDataSublist = orderBy == 'Date'
+        sequencePlotBase64 = HtmlReportGenerator._generatePlot('Sequence', plotSeriesList, lowerLimit, upperLimit, isLogScale, siteNames, isMergeDataSublist)
+        capabilityPlotBase64 = HtmlReportGenerator._generatePlot('Capability', plotSeriesList, lowerLimit, upperLimit, isLogScale, siteNames, isMergeDataSublist)
+          
+        title = data.name
+        siteStr = ', '.join(siteNames)
         htmlSubtable = f'''
         <div class="table-container">
             <table>
@@ -173,7 +182,8 @@ class HtmlReportGenerator:
         return htmlSubtable
     
     @staticmethod
-    def _generatePlot(plotType:str, dataList:list[float], lowerLimit:float, upperLimit:float, isLogScale:bool) -> bytes:
+    def _generatePlot(plotType:str, dataList:list[list[float]], lowerLimit:float, upperLimit:float, isLogScale:bool, siteNames:list[str], 
+                      isMergeDataSublists:bool=False) -> bytes:
         plotTypeDict = {
             'Sequence': SequencePlotGenerator,
             'Capability': CapabilityPlotGenerator
@@ -181,7 +191,7 @@ class HtmlReportGenerator:
 
         canvas = MplCanvas()
         plotGenerator = plotTypeDict[plotType](canvas)
-        plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), isLogScale)
+        plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), isLogScale, siteNames, isMergeDataSublists)
         
         buffer = io.BytesIO()
         canvas.savefig(buffer, format='png', bbox_inches='tight')    
