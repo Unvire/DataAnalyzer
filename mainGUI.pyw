@@ -133,7 +133,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.canvas.clear()
         self.testListWrapper.clear()
         self._updateStatisticalEdits()
+
+        self.currentFileType = ''
         self._updateOpenLogsFolderButtonText(True)
+        self.logsTypeComboBox.setCurrentIndex(0)
         
         self._setStatusOfTestsHandlingWidgets(False)
         self._setStatusPlotHandlingWidgets(False)   
