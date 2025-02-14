@@ -124,6 +124,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self._updateOpenLogsFolderButtonText(False)
     
     def clear(self):
+        self.canvas.clear()
         self.testListWrapper.clear()
         self._updateStatisticalEdits()
         self._updateOpenLogsFolderButtonText(True)

@@ -18,3 +18,7 @@ class MplCanvas(FigureCanvas):
     
     def close(self):
         plt.close(self.fig)
+    
+    def clear(self):
+        self.ax.clear()
+        self.draw()
