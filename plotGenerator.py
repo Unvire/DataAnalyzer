@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
+import listParser
+
 class PlotGenerator:
     def __init__(self, canvas:plt.Figure):
         self.canvas = canvas
@@ -26,21 +28,10 @@ class PlotGenerator:
 
 class SequencePlotGenerator(PlotGenerator):
     def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
-        dataSeriesList = []
-        
-
         if isMergeDataSublists:
-            for dataSeries in dataList:
-                subDataSeries = [(i, value) for i, value in enumerate(dataSeries)]
-                dataSeriesList.append(subDataSeries)    
-            numberOfSamples = len(dataSeriesList[0])        
+            dataSeriesList, numberOfSamples = listParser.mergedDataSeries(dataList)
         else:            
-            offset = 0
-            for dataSeries in dataList:
-                subDataSeries = [(i + offset, value) for i, value in enumerate(dataSeries)]
-                offset += len(dataSeries)
-                dataSeriesList.append(subDataSeries)
-            numberOfSamples = sum([len(series) for series in dataSeriesList])
+            dataSeriesList, numberOfSamples = listParser.continuousDataSeries(dataList)
         
         self.canvas.ax.cla()        
         self.canvas.ax.set_xlim([0, numberOfSamples])
