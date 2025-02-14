@@ -19,3 +19,9 @@ def continuousDataSeries(data:list[list[float]]) -> tuple[list[list[tuple[int, f
 def flattenValueList(data:list[list[float]]) -> tuple[list[float], int]:
     result = [value for siteData in data for value in siteData]
     return result, len(result)
+
+def valueDateSeriesToValueSeries(data:list[list[float, str]]) -> list[list[float]]:
+    return [[value for value, _ in siteData] for siteData in data]
+
+def valueDateSeriesToFlatValueList(data:list[list[float, str]]) -> list[float]:
+    return [value for siteData in data for value, _ in siteData]

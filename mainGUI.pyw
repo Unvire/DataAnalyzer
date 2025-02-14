@@ -15,6 +15,7 @@ from processCalculator import ProcessParameterCalculator
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
 from htmlReportGenerator import HtmlReportGenerator
 from dataContainer import DataContainer
+import listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
     FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK', 'TestStand XYLEM', 'Column file']
@@ -78,9 +79,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     
     def setPlottedDataList(self, dataList:list[tuple[float, str]]):
         self.dataList = dataList
-    
-    def getNestedValuesFromDataList(self) -> list[list[float]]:
-        return [[value for value, _ in siteData] for siteData in self.dataList]
     
     def getUnnestedValuesFromDataList(self) -> list[float]:
         return [value for siteData in self.dataList for value, _ in siteData]
@@ -269,13 +267,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         siteNames = data.getSiteNames() if self.selectedSite == 'All sites' else [self.selectedSite]
         
-        dataList = self.getNestedValuesFromDataList()
+        dataList = listParser.valueDateSeriesToValueSeries(self.dataList)
         generatePlot[plotType](dataList, testName, limits, self.isLogScale, siteNames, isMergeDataList)
     
     def updateProcessParameters(self):
         data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
-        dataListValues = self.getUnnestedValuesFromDataList()
+        dataListValues = listParser.valueDateSeriesToFlatValueList(self.dataList)
 
         mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
         self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
