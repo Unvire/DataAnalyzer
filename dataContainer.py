@@ -32,7 +32,7 @@ class DataContainer():
                 result.append(values)
         else:
             for site in self.data:
-                result.append(self.getDataFromSite(site))
+                result += self.getDataFromSite(site)
         return result
 
     def getNumOfSites(self) -> int:
