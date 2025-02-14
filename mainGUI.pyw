@@ -264,10 +264,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         plotType = self.selectedPlotType
         
         data = self._getSelectedMeasurementDataContainer()
-        limits = data.getLimits()
-
-        dataListValues = self.getNestedValuesFromDataList()
-        generatePlot[plotType](dataListValues, testName, limits, self.isLogScale)
+        limits = data.getLimits()        
+        isMergeDataList = self.plotOrderBy == 'Date'
+        
+        dataList = self.getNestedValuesFromDataList()
+        generatePlot[plotType](dataList, testName, limits, self.isLogScale, isMergeDataList)
     
     def updateProcessParameters(self):
         data = self._getSelectedMeasurementDataContainer()
