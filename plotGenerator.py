@@ -27,7 +27,7 @@ class PlotGenerator:
         self.canvas.draw()
 
 class SequencePlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
+    def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
         if isMergeDataSublists:
             dataSeriesList, numberOfSamples = listParser.mergedDataSeries(dataList)
         else:            
@@ -45,14 +45,31 @@ class SequencePlotGenerator(PlotGenerator):
         self._addCommonPlotElements(title, limits, False, ['Samples sorted by date', 'Value'], isLogScale)
 
 class CapabilityPlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[float], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
-        unnestedDataList = [value for siteData in dataList for value in siteData]
-        
-        numberOfSamples = len(dataList)        
+    def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
+        dataList, numberOfSamples = listParser.flattenValueList(dataList)
+
         self.canvas.ax.cla()
         mean = np.mean(dataList)
+        numOfBins = _calculateNumberOfHistogramBins(dataList)
 
-        self.canvas.ax.hist(unnestedDataList, bins=10, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
+        self.canvas.ax.hist(dataList, bins=numOfBins, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
         sns.kdeplot(dataList, color='blue', label='Density ST')
         self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')
         self._addCommonPlotElements(title, limits, True, ['Value', 'Probability density'], isLogScale)
+    
+
+def _calculateNumberOfHistogramBins(data:list[float]) -> int:
+    numberOfSamples = len(data)
+    if numberOfSamples == 0:
+        return 10
+    
+    binsStruges = int(1 + np.log2(numberOfSamples))
+    binsRice = int(2 * numberOfSamples ** (1/3))
+    if numberOfSamples > 1:
+        q75, q25 = np.percentile(data, [75, 25])
+        iqr = q75 - q25
+        binWidth = 2 * iqr / (numberOfSamples ** (1/3))
+        binsFd = int((max(data) - min(data)) / binWidth) if binWidth > 0 else binsRice
+    else:
+        binsFd = binsRice    
+    return max(5, min(binsStruges, binsRice, binsFd))
