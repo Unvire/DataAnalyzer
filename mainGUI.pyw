@@ -83,8 +83,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def getUnnestedValuesFromDataList(self) -> list[float]:
         return [value for siteData in self.dataList for value, _ in siteData]
 
-    def getDateFromDataList(self, index:str) -> str:
-        _, date = self.dataList[index]
+    def getDateFromDataList(self, seriesIndex:int, pointIndex:int) -> str:
+        _, date = self.dataList[seriesIndex][pointIndex]
         return date
     
     def selectProcessor(self, value:str):
@@ -358,15 +358,22 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.canvas.draw_idle() 
 
     def canvasOnPick(self, event: PickEvent):
+        def getSeriesID(artist):
+            for i, line in enumerate(self.canvas.ax.lines):
+                if line == artist:
+                    return i
+
         if self.annotation:
             self.annotation.remove()
         
         self.isPickedPoint = True
 
+        seriesID = getSeriesID(event.artist)
         index = event.ind[0]
         x = event.artist.get_xdata()[index]
         y = event.artist.get_ydata()[index]        
-        date = self.getDateFromDataList(index)
+        
+        date = self.getDateFromDataList(seriesID, index)
         formattedValue = format(y, '.3E')
         self.annotation = self.canvas.ax.annotate(
             f'{formattedValue}\n{date}',

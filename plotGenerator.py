@@ -32,7 +32,7 @@ class SequencePlotGenerator(PlotGenerator):
             dataSeriesList, numberOfSamples = listParser.mergedDataSeries(dataList)
         else:            
             dataSeriesList, numberOfSamples = listParser.continuousDataSeries(dataList)
-        
+            
         self.canvas.ax.cla()        
         self.canvas.ax.set_xlim([0, numberOfSamples])
 
