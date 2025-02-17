@@ -56,6 +56,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
     
+    def generateDataList(self, dataContainer:DataContainer):
+        selectedSite = self.plotWidget.getSelectedSite()
+        plotOrderBy = self.plotWidget.getPlotOrderBy()
+        dataList = dataContainer.getDataFromAllSites(plotOrderBy) if selectedSite == 'All sites' else dataContainer.getDataFromSite(selectedSite)
+        self.dataList = dataList
+    
+    def getDataList(self) -> list[tuple[float, str]]:
+        return self.dataList
+    
     def selectProcessor(self, value:str):
         if value == DataAnalyzerGUI.FILE_PROCESSORS[0]:
             self.openLogsFolderButton.setEnabled(False)
@@ -197,7 +206,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.testListWrapper.generateMeasurementsList()
 
             firstMeasurement = self.measurements[testsList[0]]
-            self.plotWidget.setDataContainer(firstMeasurement)
+            self.generateDataList(firstMeasurement)
+            dataList = self.getDataList()
+            
+            self.plotWidget.setDataList(dataList)
+            self.plotWidget.setPlottedData(firstMeasurement)
             self.plotWidget.updateNumOfSites()
         
         except IndexError:
@@ -211,10 +224,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def listWidgetClickedEvent(self, item):
         try:
             self.selectedTest = item.text()
-            dataContainer = self._getSelectedMeasurementDataContainer()                        
+            dataContainer = self._getSelectedMeasurementDataContainer()
+            self.generateDataList(dataContainer)                  
             self.updateProcessParameters()
 
-            self.plotWidget.setDataContainer(dataContainer)
+            self.plotWidget.setPlottedData(dataContainer)
+            self.plotWidget.setDataList(self.dataList)
             self.plotWidget.generatePlot()
             self.plotWidget.setStatusPlotHandlingWidgets(True)
         except AttributeError:
@@ -227,7 +242,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
 
-        dataList = self.plotWidget.getDataList()
+        dataList = self.getDataList()
         dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
 
         mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
