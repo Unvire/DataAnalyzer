@@ -5,16 +5,12 @@ from PyQt5 import QtWidgets, uic
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QMessageBox
 
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.backend_bases import PickEvent
-
 from generateReportDialog import GenerateReportDialog
 
-from mplCanvas import MplCanvas
 from testListWrapper import TestListWrapper
+from displayPlotWrapper import PlotWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
-from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
 from htmlReportGenerator import HtmlReportGenerator
 from dataContainer import DataContainer
 import listParser
@@ -32,13 +28,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
         self.measurements = {}
         self.selectedTest = ''
-        self.selectedSite = 'All sites'
-        self.selectedPlotType = 'Sequence plot'        
-        self.isLogScale = False
         self.logsProcessingSuccess = True
-        self.isPickedPoint = False
-        self.dataList = []
-        self.plotOrderBy = 'Date'
         self.currentFileType = ''
 
         self.threadTimer = QtCore.QTimer()
@@ -51,47 +41,20 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         for fileName in DataAnalyzerGUI.FILE_PROCESSORS:
             self.logsTypeComboBox.addItem(fileName)
         
-        self.openLogsFolderButton.setEnabled(False)
-        self._setStatusOfTestsHandlingWidgets(False)
-        self._setStatusPlotHandlingWidgets(False)
+        self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
+                                      self.changePlotButton)
+        
+        self.openLogsFolderButton.setEnabled(False)  
+        self.plotWidget.setStatusPlotHandlingWidgets(False)
+        self._setStatusOfTestsHandlingWidgets(False)  
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
         self.clearButton.clicked.connect(self.clear)
-        self.changePlotButton.clicked.connect(self.selectPlotType)
-        self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))
-        self.plotOrderByComboBox.activated.connect(self.plotOrderByComboBoxClickedEvent)
-        self.changeYScaleButton.clicked.connect(self.changeYScale)
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
-
-        self._initCanvas()
-        
-        self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
-        self.plotLayout.addWidget(self.toolbar)
-        self.plotLayout.addWidget(self.canvas)
-
-        self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
-        self.capabilityPlotGenerator = CapabilityPlotGenerator(self.canvas)
-    
-    def _initCanvas(self):
-        self.canvas = MplCanvas(self.plotFrame)
-        self.toolbar = NavigationToolbar(self.canvas, self)        
-        self.annotation = None
-        self.canvas.mpl_connect('pick_event', self.canvasOnPick)
-        self.canvas.mpl_connect('button_press_event', self.canvasOnClick)
 
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
-    
-    def setPlottedDataList(self, dataList:list[tuple[float, str]]):
-        self.dataList = dataList
-    
-    def getUnnestedValuesFromDataList(self) -> list[float]:
-        return [value for siteData in self.dataList for value, _ in siteData]
-
-    def getDateFromDataList(self, seriesIndex:int, pointIndex:int) -> str:
-        _, date = self.dataList[seriesIndex][pointIndex]
-        return date
     
     def selectProcessor(self, value:str):
         if value == DataAnalyzerGUI.FILE_PROCESSORS[0]:
@@ -102,12 +65,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self._updateOpenLogsFolderButtonText(isFileTypeChanged)
 
         self.factory.setProcessorType(value)
-        self.openLogsFolderButton.setEnabled(True)           
-    
-    def selectPlotType(self):
-        plotTypeMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
-        self.selectedPlotType = plotTypeMap[self.selectedPlotType]
-        self.generatePlot()
+        self.openLogsFolderButton.setEnabled(True)  
 
     def selectFolder(self):
         dialog = QtWidgets.QFileDialog()
@@ -129,17 +87,16 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         userResponse = QMessageBox.question(self, 'Warning', 'Do you want to clear loaded data?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if userResponse == QMessageBox.No:
             return
-
-        self.canvas.clear()
+        
         self.testListWrapper.clear()
         self._updateStatisticalEdits()
 
-        self.currentFileType = ''
-        self._updateOpenLogsFolderButtonText(True)
+        self.currentFileType = ''            
         self.logsTypeComboBox.setCurrentIndex(0)
+        self._updateOpenLogsFolderButtonText(True)
         
         self._setStatusOfTestsHandlingWidgets(False)
-        self._setStatusPlotHandlingWidgets(False)   
+        self.plotWidget.setStatusPlotHandlingWidgets(False)   
         self._setStatusOfThreadsCallingWidgets(False)        
     
     def _updateOpenLogsFolderButtonText(self, isFileTypeChanged:bool):
@@ -148,10 +105,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         else:
             self.openLogsFolderButton.setText('Append new logs')
     
-    def changeYScale(self):        
-        self.isLogScale = not self.isLogScale
-        self.generatePlot()
-    
     def openGenerateReportDialogWindow(self):    
         def runReportGeneration():
             nonlocal htmlCode
@@ -159,7 +112,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.threadFinished = True
             
         testNames = self._getMeasurementsList()
-        siteNames = [self.selectSiteComboBox.itemText(i) for i in range(self.selectSiteComboBox.count())]
+        testName = self.selectedTest     
+        data = self.measurements[testName]
+        siteNames = data.getSiteNames()
+
         dialogWindow = GenerateReportDialog(testNames, siteNames)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
             filePath, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save report', '', 'Hyper Text Markup Language file (*.html)')
@@ -209,7 +165,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
                 self.logsProcessingSuccess = False
             self.threadFinished = True            
         
-        self.resetSelectSitesComboBox()
+        self.plotWidget.resetSelectSitesComboBox()
         self._setStatusOfThreadsCallingWidgets(False)
         self.logsProcessingSuccess = True
         reportThread = threading.Thread(target=runProcessLogs, daemon=True)
@@ -239,7 +195,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             testsList = self._getMeasurementsList()
             self.testListWrapper.setTestNames(testsList)
             self.testListWrapper.generateMeasurementsList()
-            self.updateNumOfSites()
+
+            firstMeasurement = self.measurements[testsList[0]]
+            self.plotWidget.setDataContainer(firstMeasurement)
+            self.plotWidget.updateNumOfSites()
         
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
@@ -252,51 +211,24 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def listWidgetClickedEvent(self, item):
         try:
             self.selectedTest = item.text()
-            self.generatePlot()            
+            dataContainer = self._getSelectedMeasurementDataContainer()                        
             self.updateProcessParameters()
-            self._setStatusPlotHandlingWidgets(True)
+
+            self.plotWidget.setDataContainer(dataContainer)
+            self.plotWidget.generatePlot()
+            self.plotWidget.setStatusPlotHandlingWidgets(True)
         except AttributeError:
             pass
         except Exception:
             message = 'Error with selected measurement'
             self.showErrorMessage('Error', message)
     
-    def selectSiteComboBoxClickedEvent(self, value:str|int):
-        self.selectedSite = self.selectSiteComboBox.itemText(value)
-        sortByState = self.selectedSite == 'All sites'
-        self.plotOrderByComboBox.setEnabled(sortByState)
-
-        try:
-            self.generatePlot()
-            self.updateProcessParameters()
-        except Exception:
-            message = 'Error with selected measurement'
-            self.showErrorMessage('Error', message)
-
-    def plotOrderByComboBoxClickedEvent(self, value:str):
-        self.plotOrderBy = self.plotOrderByComboBox.currentText()        
-        self.generatePlot()
-
-    def generatePlot(self):
-        generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
-                        'Capability plot': self.capabilityPlotGenerator.generatePlot}
-        
-        testName = self.selectedTest        
-        plotType = self.selectedPlotType
-        
-        data = self._getSelectedMeasurementDataContainer()
-        limits = data.getLimits()        
-        isMergeDataList = self.plotOrderBy == 'Date'
-
-        siteNames = data.getSiteNames() if self.selectedSite == 'All sites' else [self.selectedSite]
-        
-        dataList = listParser.valueDateSeriesToValueSeries(self.dataList)
-        generatePlot[plotType](dataList, testName, limits, self.isLogScale, siteNames, isMergeDataList)
-    
     def updateProcessParameters(self):
         data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
-        dataListValues = listParser.valueDateSeriesToFlatValueList(self.dataList)
+
+        dataList = self.plotWidget.getDataList()
+        dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
 
         mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
         self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
@@ -304,12 +236,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
 
     def _getSelectedMeasurementDataContainer(self) -> DataContainer:
         testName = self.selectedTest     
-        data = self.measurements[testName]
-
-        site = self.selectedSite
-        dataList = data.getDataFromAllSites(self.plotOrderBy) if site == 'All sites' else data.getDataFromSite(site)
-        self.setPlottedDataList(dataList)
-        return data  
+        return self.measurements[testName]
     
     def _updateStatisticalEdits(self, numOfSamples:int|str='', lowerLimit:float|str='', upperLimit:float|str='', mean:float|str='', 
                                 sigma:float|str='', pp:float|str='', ppk:float|str='', cp:float|str='', cpk:float|str='', stability:float|str=''):
@@ -328,20 +255,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def updateProgressBar(self, progressPercent:int):
         self.progressBar.setProperty('value', progressPercent)
     
-    def updateNumOfSites(self):
-        testNames = self._getMeasurementsList()
-        firstDataContainer = self.measurements[testNames[0]]
-        numOfTests = firstDataContainer.getNumOfSites()
-
-        if numOfTests > 1:           
-            siteNames = firstDataContainer.getSiteNames()
-            for siteName in siteNames:
-                self.selectSiteComboBox.addItem(siteName)
-    
-    def resetSelectSitesComboBox(self):
-        self.selectSiteComboBox.clear()
-        self.selectSiteComboBox.addItem('All sites')
-    
     def showErrorMessage(self, title:str, text:str):
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Critical)
@@ -355,65 +268,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.resetFilterButton.setEnabled(status)
         self.generateReportButton.setEnabled(status)
     
-    def _setStatusPlotHandlingWidgets(self, status:bool):        
-        self.selectSiteComboBox.setEnabled(status)
-        self.plotOrderByComboBox.setEnabled(status)
-        self.changeYScaleButton.setEnabled(status)
-        self.changePlotButton.setEnabled(status)
-    
     def _setStatusOfThreadsCallingWidgets(self, status:bool):
         self.openLogsFolderButton.setEnabled(status)
         self.generateReportButton.setEnabled(status)        
     
     def _getMeasurementsList(self) -> list[str]:
         return list(self.measurements.keys())
-    
-    def canvasOnClick(self, event):
-        if event.inaxes is None:
-            return
-
-        if self.isPickedPoint:
-            self.isPickedPoint = False
-            return
-        
-        if self.annotation:
-            self.annotation.remove()
-            self.annotation = None
-            self.canvas.draw_idle() 
-
-    def canvasOnPick(self, event: PickEvent):
-        def getSeriesID(artist):
-            for i, line in enumerate(self.canvas.ax.lines):
-                if line == artist:
-                    return i
-
-        if self.annotation:
-            self.annotation.remove()
-        
-        self.isPickedPoint = True
-
-        seriesID = getSeriesID(event.artist)
-        index = event.ind[0]
-        x = event.artist.get_xdata()[index]
-        y = event.artist.get_ydata()[index]        
-        
-        date = self.getDateFromDataList(seriesID, index)
-        formattedValue = format(y, '.3E')
-        self.annotation = self.canvas.ax.annotate(
-            f'{formattedValue}\n{date}',
-            (x, y),
-            xytext=(0, 10),
-            textcoords='offset points',
-            ha='center',
-            bbox=dict(
-                boxstyle='round,pad=0.5',
-                fc='lightblue',
-                ec='black',
-                lw=1
-            ),
-            arrowprops=dict(arrowstyle='->')
-        )
-        self.canvas.draw_idle()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
