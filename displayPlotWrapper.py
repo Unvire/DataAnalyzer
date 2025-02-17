@@ -11,15 +11,16 @@ import listParser
 
 
 class PlotWrapper:
-    def __init__(self, plotFrame:QFrame, selectSiteComboBox:QComboBox, plotOrderByComboBox:QComboBox, changeYScaleButton:QPushButton, 
+    def __init__(self, plotFrame:QFrame, selectSiteComboBox:QComboBox, plotOrderByComboBox:QComboBox, _changeYScaleButton:QPushButton, 
                  changePlotButton:QPushButton):
         
         self.plotFrame = plotFrame
         self.selectSiteComboBox = selectSiteComboBox
         self.plotOrderByComboBox = plotOrderByComboBox
-        self.changeYScaleButton = changeYScaleButton
+        self._changeYScaleButton = _changeYScaleButton
         self.changePlotButton = changePlotButton
-        
+
+        self.dataContainer = None        
         self.selectedSite = 'All sites'
         self.selectedPlotType = 'Sequence plot'
         self.plotOrderBy = 'Date'        
@@ -42,14 +43,17 @@ class PlotWrapper:
     def _bindEvents(self):
         self.canvas.mpl_connect('pick_event', self.canvasOnPick)
         self.canvas.mpl_connect('button_press_event', self.canvasOnClick)
-        self.selectSiteComboBox.activated.connect(lambda value: self.selectSiteComboBoxClickedEvent(value))        
-        self.plotOrderByComboBox.activated.connect(self.plotOrderByComboBoxClickedEvent)        
-        self.changeYScaleButton.clicked.connect(self.changeYScale)        
-        self.changePlotButton.clicked.connect(self.changePlotType)  
+        self.selectSiteComboBox.activated.connect(lambda value: self._selectSiteComboBoxClickedEvent(value))        
+        self.plotOrderByComboBox.activated.connect(self._plotOrderByComboBoxClickedEvent)        
+        self.changeYScaleButton.clicked.connect(self._changeYScale)        
+        self.changePlotButton.clicked.connect(self._changePlotType)
+    
+    def setDataContainer(self, dataContainer:DataContainer):
+        self.dataContainer = dataContainer
     
     def clear(self):
-        self.canvas.clear()        
-        self.logsTypeComboBox.setCurrentIndex(0)
+        self.canvas.clear()
+        self.dataContainer = None
     
     def setPlottedDataList(self, dataList:list[tuple[float, str]]):
         self.dataList = dataList  
@@ -58,16 +62,16 @@ class PlotWrapper:
         _, date = self.dataList[seriesIndex][pointIndex]
         return date  
     
-    def changePlotType(self):
+    def _changePlotType(self):
         plotTypeInverterMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
         self.selectedPlotType = plotTypeInverterMap[self.selectedPlotType]
         self.generatePlot()
     
-    def changeYScale(self):        
+    def _changeYScale(self):        
         self.isLogScale = not self.isLogScale
         self.generatePlot()
     
-    def selectSiteComboBoxClickedEvent(self, value:str|int):
+    def _selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = self.selectSiteComboBox.itemText(value)
         sortByState = self.selectedSite == 'All sites'
         self.plotOrderByComboBox.setEnabled(sortByState)
@@ -79,21 +83,21 @@ class PlotWrapper:
             message = 'Error with selected measurement'
             self.showErrorMessage('Error', message)
 
-    def plotOrderByComboBoxClickedEvent(self, value:str):
+    def _plotOrderByComboBoxClickedEvent(self, value:str):
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
         self.generatePlot()
 
-    def generatePlot(self, testData:DataContainer):
+    def generatePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
-        testName = testData.name       
+        testName = self.dataContainer.name       
         plotType = self.selectedPlotType
         
-        limits = testData.getLimits()        
+        limits = self.dataContainer.getLimits()        
         isMergeDataList = self.plotOrderBy == 'Date'
 
-        siteNames = testData.getSiteNames() if self.selectedSite == 'All sites' else [self.selectedSite]
+        siteNames = self.dataContainer.getSiteNames() if self.selectedSite == 'All sites' else [self.selectedSite]
         
         dataList = listParser.valueDateSeriesToValueSeries(self.dataList)
         generatePlot[plotType](dataList, testName, limits, self.isLogScale, siteNames, isMergeDataList)
@@ -101,16 +105,14 @@ class PlotWrapper:
     def setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)
         self.plotOrderByComboBox.setEnabled(status)
-        self.changeYScaleButton.setEnabled(status)
+        self._changeYScaleButton.setEnabled(status)
         self.changePlotButton.setEnabled(status)
     
     def updateNumOfSites(self):
-        testNames = self._getMeasurementsList()
-        firstDataContainer = self.measurements[testNames[0]]
-        numOfTests = firstDataContainer.getNumOfSites()
+        numOfTests = self.dataContainer.getNumOfSites()
 
         if numOfTests > 1:           
-            siteNames = firstDataContainer.getSiteNames()
+            siteNames =  self.dataContainer.getSiteNames()
             for siteName in siteNames:
                 self.selectSiteComboBox.addItem(siteName)
     
