@@ -19,17 +19,20 @@ class PlotWrapper:
         self.plotOrderByComboBox = plotOrderByComboBox
         self.changeYScaleButton = _changeYScaleButton
         self.changePlotButton = changePlotButton
+       
+        self.plotName = ''
+        self.limits = []
+        self.siteNames = []
 
-        self.dataContainer = None        
         self.selectedSite = 'All sites'
         self.selectedPlotType = 'Sequence plot'
         self.plotOrderBy = 'Date'        
         self.dataList = []
         self.isLogScale = False        
-        self.isPickedPoint = False
+        self.isPickedPoint = False        
 
-        self.errorMessageHandle = None
-        self.updateProcessParameters = None
+        self.errorMessageHandle = lambda: None
+        self.updateProcessParameters = lambda: None
 
         self._initCanvas()
         self._bindEvents()
@@ -53,10 +56,14 @@ class PlotWrapper:
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
         self.changePlotButton.clicked.connect(self._changePlotType)
     
-    def setPlottedData(self, dataContainer:DataContainer):
-        self.testName = dataContainer.name
-        self.limits = dataContainer.getLimits()
-        self.siteNames = dataContainer.getSiteNames()
+    def setPlotName(self, plotName:str):
+        self.plotName = plotName
+    
+    def setLimits(self, limits:list[float, float]):
+        self.limits = limits
+
+    def setSiteNames(self, siteNames:list[str]):
+        self.siteNames = siteNames
     
     def setDataList(self, dataList:list[tuple[float, str]]):
         self.dataList = dataList
@@ -75,7 +82,6 @@ class PlotWrapper:
     
     def clear(self):
         self.canvas.clear()
-        self.dataContainer = None 
 
     def _getDateFromDataList(self, seriesIndex:int, pointIndex:int) -> str:
         _, date = self.dataList[seriesIndex][pointIndex]
@@ -115,7 +121,7 @@ class PlotWrapper:
         siteNames = self.siteNames if self.selectedSite == 'All sites' else [self.selectedSite]
         
         dataList = listParser.valueDateSeriesToValueSeries(self.dataList)
-        generatePlot[plotType](dataList, self.testName, self.limits, self.isLogScale, siteNames, isMergeDataList)
+        generatePlot[plotType](dataList, self.plotName, self.limits, self.isLogScale, siteNames, isMergeDataList)
     
     def setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)

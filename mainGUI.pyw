@@ -217,7 +217,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             dataList = self.getDataList()
             
             self.plotWidget.setDataList(dataList)
-            self.plotWidget.setPlottedData(firstMeasurement)
+            self.plotWidget.setPlotName(firstMeasurement.name)
+            self.plotWidget.setLimits(firstMeasurement.getLimits())
+            self.plotWidget.setSiteNames(firstMeasurement.getSiteNames())
             self.plotWidget.updateNumOfSites()
         
         except IndexError:
@@ -235,8 +237,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.generateDataListInPlace(dataContainer)                  
             self._updateProcessParameters(self.dataList)
 
-            self.plotWidget.setPlottedData(dataContainer)
             self.plotWidget.setDataList(self.dataList)
+            self.plotWidget.setPlotName(dataContainer.name)
+            self.plotWidget.setLimits(dataContainer.getLimits())
+            self.plotWidget.setSiteNames(dataContainer.getSiteNames())
             self.plotWidget.generatePlot()
             self.plotWidget.setStatusPlotHandlingWidgets(True)
         except AttributeError:
