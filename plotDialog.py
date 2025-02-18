@@ -3,10 +3,9 @@ from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5 import uic
 
 from displayPlotWrapper import PlotWrapper
-from dataContainer import DataContainer
 
 class PlotDialog(QDialog):
-    def __init__(self, dataContainer:DataContainer):
+    def __init__(self):
         super().__init__()
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'plotDialog.ui')
         uic.loadUi(uiFilePath, self)

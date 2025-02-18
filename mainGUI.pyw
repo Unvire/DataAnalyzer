@@ -6,6 +6,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QMessageBox
 
 from generateReportDialog import GenerateReportDialog
+from plotDialog import PlotDialog
 
 from testListWrapper import TestListWrapper
 from displayPlotWrapper import PlotWrapper
@@ -30,6 +31,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.selectedTest = ''
         self.logsProcessingSuccess = True
         self.currentFileType = ''
+        self.plotWindowsDict = {}
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -54,6 +56,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.openLogsFolderButton.clicked.connect(self.selectFolder)
         self.clearButton.clicked.connect(self.clear)
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
+        self.plotNewWindowButton.clicked.connect(self.plotInNewWindow)
 
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -172,6 +175,16 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         message4 = 'Save it as PDF file.'
         message = message1 + message2 + message3 + message4        
         QtWidgets.QMessageBox.information(self,  'Info',  message, QtWidgets.QMessageBox.Ok)
+    
+    def plotInNewWindow(self):
+        if self.selectedTest in self.plotWindowsDict:
+            return
+        
+        dataContainer = self._getSelectedMeasurementDataContainer()
+        dialogWindow = PlotDialog()
+        dialogWindow.plotData(dataList=self.dataList, plotName=dataContainer.name, limits=dataContainer.getLimits(), 
+                              siteNames=dataContainer.getSiteNames())        
+        dialogWindow.exec_()
     
     def processLogsInFolder(self, folderPath:str, isAppendTests:bool):
         def runProcessLogs():
