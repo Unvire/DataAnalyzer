@@ -28,6 +28,9 @@ class PlotWrapper:
         self.isLogScale = False        
         self.isPickedPoint = False
 
+        self.errorMessageHandle = None
+        self.updateProcessParameters = None
+
         self._initCanvas()
         self._bindEvents()
         self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
@@ -43,8 +46,8 @@ class PlotWrapper:
         self.plotLayout.addWidget(self.canvas)
     
     def _bindEvents(self):
-        self.canvas.mpl_connect('pick_event', self.canvasOnPick)
-        self.canvas.mpl_connect('button_press_event', self.canvasOnClick)
+        self.canvas.mpl_connect('pick_event', self._canvasOnPick)
+        self.canvas.mpl_connect('button_press_event', self._canvasOnClick)
         self.selectSiteComboBox.activated.connect(lambda value: self._selectSiteComboBoxClickedEvent(value))        
         self.plotOrderByComboBox.activated.connect(self._plotOrderByComboBoxClickedEvent)        
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
@@ -58,6 +61,12 @@ class PlotWrapper:
     def setDataList(self, dataList:list[tuple[float, str]]):
         self.dataList = dataList
     
+    def setErrorMessegeHandle(self, functionHandle):
+        self.errorMessageHandle = functionHandle
+    
+    def setUpdateProcessParametersHandle(self, functionHandle):
+        self.updateProcessParameters = functionHandle
+
     def getSelectedSite(self) -> str:
         return self.selectedSite
     
@@ -68,7 +77,7 @@ class PlotWrapper:
         self.canvas.clear()
         self.dataContainer = None 
 
-    def getDateFromDataList(self, seriesIndex:int, pointIndex:int) -> str:
+    def _getDateFromDataList(self, seriesIndex:int, pointIndex:int) -> str:
         _, date = self.dataList[seriesIndex][pointIndex]
         return date  
     
@@ -91,7 +100,7 @@ class PlotWrapper:
             self.updateProcessParameters()
         except Exception:
             message = 'Error with selected measurement'
-            self.showErrorMessage('Error', message)
+            self.errorMessageHandle('Error', message)
 
     def _plotOrderByComboBoxClickedEvent(self, value:str):
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
@@ -125,7 +134,7 @@ class PlotWrapper:
         self.selectSiteComboBox.clear()
         self.selectSiteComboBox.addItem('All sites')
     
-    def canvasOnClick(self, event):
+    def _canvasOnClick(self, event):
         if event.inaxes is None:
             return
 
@@ -138,7 +147,7 @@ class PlotWrapper:
             self.annotation = None
             self.canvas.draw_idle() 
 
-    def canvasOnPick(self, event: PickEvent):
+    def _canvasOnPick(self, event: PickEvent):
         def getSeriesID(artist):
             for i, line in enumerate(self.canvas.ax.lines):
                 if line == artist:
@@ -154,7 +163,7 @@ class PlotWrapper:
         x = event.artist.get_xdata()[index]
         y = event.artist.get_ydata()[index]        
         
-        date = self.getDateFromDataList(seriesID, index)
+        date = self._getDateFromDataList(seriesID, index)
         formattedValue = format(y, '.3E')
         self.annotation = self.canvas.ax.annotate(
             f'{formattedValue}\n{date}',

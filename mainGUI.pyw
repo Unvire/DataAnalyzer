@@ -43,6 +43,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         
         self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
                                       self.changePlotButton)
+        self.plotWidget.setErrorMessegeHandle(self.showErrorMessage)
+        self.plotWidget.setUpdateProcessParametersHandle(self.updateProcessParametersFromPlotWidget)
         
         self.openLogsFolderButton.setEnabled(False)  
         self.plotWidget.setStatusPlotHandlingWidgets(False)
@@ -56,7 +58,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
     
-    def generateDataList(self, dataContainer:DataContainer):
+    def generateDataListInPlace(self, dataContainer:DataContainer):
         selectedSite = self.plotWidget.getSelectedSite()
         plotOrderBy = self.plotWidget.getPlotOrderBy()
         dataList = dataContainer.getDataFromAllSites(plotOrderBy) if selectedSite == 'All sites' else dataContainer.getDataFromSite(selectedSite)
@@ -98,10 +100,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             return
         
         self.testListWrapper.clear()
+        self.plotWidget.clear()
         self._updateStatisticalEdits()
 
         self.currentFileType = ''            
         self.logsTypeComboBox.setCurrentIndex(0)
+        self.updateProgressBar(0)
         self._updateOpenLogsFolderButtonText(True)
         
         self._setStatusOfTestsHandlingWidgets(False)
@@ -121,9 +125,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.threadFinished = True
             
         testNames = self._getMeasurementsList()
-        testName = self.selectedTest     
-        data = self.measurements[testName]
-        siteNames = data.getSiteNames()
+        data = self._getSelectedMeasurementDataContainer()
+
+        if len(data.getSiteNames()) == 1:
+            siteNames = ['All sites']
+        else:
+            siteNames = ['All sites'] + data.getSiteNames()
 
         dialogWindow = GenerateReportDialog(testNames, siteNames)
         if dialogWindow.exec_() == QtWidgets.QDialog.Accepted:
@@ -206,7 +213,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.testListWrapper.generateMeasurementsList()
 
             firstMeasurement = self.measurements[testsList[0]]
-            self.generateDataList(firstMeasurement)
+            self.generateDataListInPlace(firstMeasurement)
             dataList = self.getDataList()
             
             self.plotWidget.setDataList(dataList)
@@ -225,8 +232,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         try:
             self.selectedTest = item.text()
             dataContainer = self._getSelectedMeasurementDataContainer()
-            self.generateDataList(dataContainer)                  
-            self.updateProcessParameters()
+            self.generateDataListInPlace(dataContainer)                  
+            self._updateProcessParameters(self.dataList)
 
             self.plotWidget.setPlottedData(dataContainer)
             self.plotWidget.setDataList(self.dataList)
@@ -238,11 +245,15 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             message = 'Error with selected measurement'
             self.showErrorMessage('Error', message)
     
-    def updateProcessParameters(self):
+    def updateProcessParametersFromPlotWidget(self):
+        dataContainer = self._getSelectedMeasurementDataContainer()
+        self.generateDataListInPlace(dataContainer)
+        self._updateProcessParameters(self.dataList)
+    
+    def _updateProcessParameters(self, dataList:list[tuple[float, str]]):
         data = self._getSelectedMeasurementDataContainer()
         lowerLimit, upperLimit = data.getLimits()
 
-        dataList = self.getDataList()
         dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
 
         mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
