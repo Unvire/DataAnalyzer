@@ -181,10 +181,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             return
         
         dataContainer = self._getSelectedMeasurementDataContainer()
-        dialogWindow = PlotDialog()
-        dialogWindow.plotData(dataList=self.dataList, plotName=dataContainer.name, limits=dataContainer.getLimits(), 
-                              siteNames=dataContainer.getSiteNames())        
-        dialogWindow.exec_()
+        dialogWindow = PlotDialog(dataList=self.dataList, plotName=dataContainer.name, limits=dataContainer.getLimits(), 
+                              siteNames=dataContainer.getSiteNames())
+        dialogWindow.show()
+        self.plotWindowsDict[self.selectedTest] = dialogWindow
     
     def processLogsInFolder(self, folderPath:str, isAppendTests:bool):
         def runProcessLogs():
