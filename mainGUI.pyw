@@ -318,6 +318,11 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def _getMeasurementsList(self) -> list[str]:
         return list(self.measurements.keys())
 
+    def closeEvent(self, event):
+        for _, subWindowHandle in self.plotWindowsDict.items():
+            subWindowHandle.close()
+        super().close()
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = DataAnalyzerGUI()
