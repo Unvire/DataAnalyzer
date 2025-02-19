@@ -117,10 +117,16 @@ class PlotWrapper:
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
         plotType = self.selectedPlotType             
-        isMergeDataList = self.plotOrderBy == 'Date'
-        siteNames = self.siteNames if self.selectedSite == 'All sites' else [self.selectedSite]
-        
+        isMergeDataList = self.plotOrderBy == 'Date'        
         dataList = listParser.valueDateSeriesToValueSeries(self.dataList)
+
+        if self.selectedSite == 'All sites':
+            siteNames = self.siteNames
+        else:
+            siteNames = [self.selectedSite]
+            subListIndex = self.selectSiteComboBox.findText(self.selectedSite)
+            dataList = [dataList[subListIndex - 1]] # must be nested list and first item is 'All sites'
+        
         generatePlot[plotType](dataList, self.plotName, self.limits, self.isLogScale, siteNames, isMergeDataList)
     
     def setStatusPlotHandlingWidgets(self, status:bool):        
