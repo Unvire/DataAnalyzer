@@ -17,9 +17,12 @@ class DataContainer():
 
     def addData(self, site:str, valueTuple:tuple[float|int|str, str]):
         value, date = valueTuple
-        self.data.setdefault(site, [])
+        if site not in self.data:
+            self.data[site] = []
+            self.data = {key:self.data[key] for key in sorted(self.data)}
         processedTuple = float(value), date
         self.data[site].append(processedTuple)
+
     
     def getDataFromSite(self, site:str) -> list[list[tuple[float, str]]]:
         return [sorted(self.data[site], key=lambda item: item[1])]
