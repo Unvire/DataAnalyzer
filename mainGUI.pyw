@@ -290,7 +290,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.clearButton.setEnabled(status)
         self.filterTestsButton.setEnabled(status)
         self.resetFilterButton.setEnabled(status)
-        self.generateReportButton.setEnabled(status)
+        self.generateReportButton.setEnabled(status)        
+        self.plotNewWindowButton.setEnabled(status)
     
     def _setStatusOfThreadsCallingWidgets(self, status:bool):
         self.openLogsFolderButton.setEnabled(status)
