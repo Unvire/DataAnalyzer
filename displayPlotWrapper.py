@@ -19,17 +19,14 @@ class PlotWrapper:
         self.plotOrderByComboBox = plotOrderByComboBox
         self.changeYScaleButton = _changeYScaleButton
         self.changePlotButton = changePlotButton
-       
-        self.plotName = ''
-        self.limits = []
-        self.siteNames = []
+        
+        self.dataContainer = None 
 
         self.selectedSite = 'All sites'
         self.selectedPlotType = 'Sequence plot'
-        self.plotOrderBy = 'Date'        
-        self.dataList = []
+        self.plotOrderBy = 'Date'
         self.isLogScale = False        
-        self.isPickedPoint = False        
+        self.isPickedPoint = False 
 
         self.errorMessageHandle = lambda: None
         self.updateProcessParameters = lambda: None
@@ -56,17 +53,8 @@ class PlotWrapper:
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
         self.changePlotButton.clicked.connect(self._changePlotType)
     
-    def setPlotName(self, plotName:str):
-        self.plotName = plotName
-    
-    def setLimits(self, limits:list[float, float]):
-        self.limits = limits
-
-    def setSiteNames(self, siteNames:list[str]):
-        self.siteNames = siteNames
-    
-    def setDataList(self, dataList:list[tuple[float, str]]):
-        self.dataList = dataList
+    def setDataContainer(self, dataContainer:DataContainer):
+        self.dataContainer = dataContainer
     
     def setErrorMessegeHandle(self, functionHandle):
         self.errorMessageHandle = functionHandle
@@ -116,18 +104,23 @@ class PlotWrapper:
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
+        plotName = self.dataContainer.name
+        limits = self.dataContainer.getLimits()
+        
         plotType = self.selectedPlotType             
-        isMergeDataList = self.plotOrderBy == 'Date'        
-        dataList = listParser.valueDateSeriesToValueSeries(self.dataList)
+        isMergeDataList = self.plotOrderBy == 'Date'
+        
+        nestedDataList = DataContainer.generateDataList(self.dataContainer, self.plotOrderBy, 'All sites')
+        dataList = listParser.valueDateSeriesToValueSeries(nestedDataList)
 
         if self.selectedSite == 'All sites':
-            siteNames = self.siteNames
+            siteNames = self.dataContainer.getSiteNames()
         else:
             siteNames = [self.selectedSite]
             subListIndex = self.selectSiteComboBox.findText(self.selectedSite)
             dataList = [dataList[subListIndex - 1]] # must be nested list and first item is 'All sites'
         
-        generatePlot[plotType](dataList, self.plotName, self.limits, self.isLogScale, siteNames, isMergeDataList)
+        generatePlot[plotType](dataList, plotName, limits, self.isLogScale, siteNames, isMergeDataList)
     
     def setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)
@@ -136,10 +129,8 @@ class PlotWrapper:
         self.changePlotButton.setEnabled(status)
     
     def updateNumOfSites(self):
-        numOfTests = len(self.siteNames)
-
-        if numOfTests > 1: 
-            for siteName in self.siteNames:
+        if self.dataContainer.getNumOfSites() > 1: 
+            for siteName in self.dataContainer.getSiteNames():
                 self.selectSiteComboBox.addItem(siteName)
     
     def resetSelectSitesComboBox(self):

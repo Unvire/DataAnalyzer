@@ -3,20 +3,18 @@ from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5 import uic
 
 from displayPlotWrapper import PlotWrapper
+from dataContainer import DataContainer
 
 class PlotDialog(QDialog):
-    def __init__(self, dataList:list[list[float, str]], plotName:str, limits:list[float, float], siteNames:list[str]):
+    def __init__(self, dataContainer:DataContainer):
         super().__init__()
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'plotDialog.ui')
         uic.loadUi(uiFilePath, self)
-        self.setWindowTitle(plotName)
+        self.setWindowTitle(dataContainer.name)
 
         self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
                                       self.changePlotButton)
-        self.plotWidget.setDataList(dataList)
-        self.plotWidget.setPlotName(plotName)
-        self.plotWidget.setLimits(limits)
-        self.plotWidget.setSiteNames(siteNames)
+        self.plotWidget.setDataContainer(dataContainer)
         self.plotWidget.updateNumOfSites()
         self.plotWidget.generatePlot()
 

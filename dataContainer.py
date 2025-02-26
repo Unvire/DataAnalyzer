@@ -40,3 +40,11 @@ class DataContainer():
     
     def getSiteNames(self) -> list[str]:
         return list(self.data.keys())
+    
+    @staticmethod
+    def generateDataList(dataContainer:'DataContainer', orderBy:str, selectedSite:str) -> list[tuple[float, str]]:
+        if selectedSite == 'All sites':
+            dataList = dataContainer.getDataFromAllSites(orderBy)
+        else:
+            dataList = dataContainer.getDataFromSite(selectedSite)
+        return dataList
