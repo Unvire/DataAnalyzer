@@ -63,17 +63,19 @@ class CxCyDataContainer(AbstractDataContainer):
         self.boundaryXYList = []
 
     def addBoundaryXY(self, xy:tuple[float, float]):
-        self.boundaryXYList.append(xy)
+        x, y = xy
+        self.boundaryXYList.append((float(x), float(y)))
     
     def getBoundaryXYs(self) -> list[tuple[float, float]]:
         return self.boundaryXYList
     
     def addData(self, site:str, valueTuple:tuple[tuple[float, float], str]):
-        valueX, valueY, date = valueTuple
+        valueXY, date = valueTuple
         if site not in self.data:
             self.data[site] = []
             self.data = {key:self.data[key] for key in sorted(self.data)}
-        processedTuple = (float(valueX), float(valueY)), date
+        x, y = valueXY
+        processedTuple = (float(x), float(y)), date
         self.data[site].append(processedTuple)
 
     def getDataFromSite(self, site:str) -> list[list[tuple[tuple[float, float], str]]]:
