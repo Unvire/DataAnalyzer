@@ -46,7 +46,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
                                       self.changePlotButton)
         self.plotWidget.setErrorMessegeHandle(self.showErrorMessage)
-        self.plotWidget.setUpdateProcessParametersHandle(self.updateProcessParametersFromPlotWidget)
+        self.plotWidget.setUpdateProcessParametersHandle(self.updateProcessParameters)
         
         self.openLogsFolderButton.setEnabled(False)  
         self.plotWidget.setStatusPlotHandlingWidgets(False)
@@ -173,8 +173,12 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         
         dataContainer = self._getSelectedMeasurementDataContainer()
         dialogWindow = PlotDialog(dataContainer)
+        dialogWindow.setCloseEventHandle(self.closePlotWindow)
         dialogWindow.show()
         self.plotWindowsDict[self.selectedTest] = dialogWindow
+    
+    def closePlotWindow(self, windowTitle:str):
+        self.plotWindowsDict.pop(windowTitle, None) 
     
     def processLogsInFolder(self, folderPath:str, isAppendTests:bool):
         def runProcessLogs():
@@ -218,6 +222,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             firstMeasurement = self.measurements[testsList[0]]
             self.plotWidget.setDataContainer(firstMeasurement)
             self.plotWidget.updateNumOfSites()
+            self.plotWidget.generatePlot()
         
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
@@ -233,6 +238,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             dataContainer = self._getSelectedMeasurementDataContainer()
             self.plotWidget.setDataContainer(dataContainer)
             self.plotWidget.generatePlot()
+            self.updateProcessParameters()
             self.plotWidget.setStatusPlotHandlingWidgets(True)
         except AttributeError:
             pass
@@ -240,17 +246,13 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             message = 'Error with selected measurement'
             self.showErrorMessage('Error', message)
     
-    def updateProcessParametersFromPlotWidget(self):
-        dataContainer = self._getSelectedMeasurementDataContainer()
+    def updateProcessParameters(self):
+        dataContainer = self._getSelectedMeasurementDataContainer()        
         orderBy = self.plotWidget.getPlotOrderBy()
         site = self.plotWidget.getSelectedSite()
-        dataList = AbstractDataContainer.generateDataList(dataContainer, orderBy, site)
 
-        self._updateProcessParameters(dataList)
-    
-    def _updateProcessParameters(self, dataList:list[tuple[float, str]]):
-        data = self._getSelectedMeasurementDataContainer()
-        lowerLimit, upperLimit = data.getLimits()
+        dataList = AbstractDataContainer.generateDataList(dataContainer, orderBy, site)
+        lowerLimit, upperLimit = dataContainer.getLimits()
 
         dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
 
