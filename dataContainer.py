@@ -15,13 +15,13 @@ class AbstractDataContainer:
         self.data[site].append(processedTuple)
 
     def getDataFromSite(self, site:str) -> list[list[tuple[float, str]]]:
-        return [sorted(self.data[site], key=lambda item: item[1])]
+        return [sorted(self.data[site], key=lambda item: item[-1])]
     
     def getDataFromAllSites(self, sortBy:str) -> list[list[tuple[float, str]]]:
         result = []
         if sortBy == 'Date':
             for _, values in self.data.items():
-                values = sorted(values, key=lambda item: item[1])
+                values = sorted(values, key=lambda item: item[-1])
                 result.append(values)
         else:
             for site in self.data:
@@ -55,3 +55,29 @@ class DataContainer(AbstractDataContainer):
     
     def getLimits(self) -> list[float, float]:
         return [self.lowerLimit, self.upperLimit]
+
+
+class CxCyDataContainer(AbstractDataContainer):
+    def __init__(self, name:str):
+        super().__init__(name)
+        self.boundaryXYList = []
+
+    def addBoundaryXY(self, xy:tuple[float, float]):
+        self.boundaryXYList.append(xy)
+    
+    def getBoundaryXYs(self) -> list[tuple[float, float]]:
+        return self.boundaryXYList
+    
+    def addData(self, site:str, valueTuple:tuple[tuple[float, float], str]):
+        valueX, valueY, date = valueTuple
+        if site not in self.data:
+            self.data[site] = []
+            self.data = {key:self.data[key] for key in sorted(self.data)}
+        processedTuple = (float(valueX), float(valueY)), date
+        self.data[site].append(processedTuple)
+
+    def getDataFromSite(self, site:str) -> list[list[tuple[tuple[float, float], str]]]:
+        return super().getDataFromSite(site)
+    
+    def getDataFromAllSites(self, sortBy:str) -> list[list[tuple[tuple[float, float], str]]]:
+        return super().getDataFromAllSites(sortBy)
