@@ -13,7 +13,7 @@ from displayPlotWrapper import PlotWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from htmlReportGenerator import HtmlReportGenerator
-from dataContainer import DataContainer
+from dataContainer import DataContainer, AbstractDataContainer
 import listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
@@ -244,7 +244,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         dataContainer = self._getSelectedMeasurementDataContainer()
         orderBy = self.plotWidget.getPlotOrderBy()
         site = self.plotWidget.getSelectedSite()
-        dataList = DataContainer.generateDataList(dataContainer, orderBy, site)
+        dataList = AbstractDataContainer.generateDataList(dataContainer, orderBy, site)
 
         self._updateProcessParameters(dataList)
     

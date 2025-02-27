@@ -6,7 +6,7 @@ from matplotlib.backend_bases import PickEvent
 
 from mplCanvas import MplCanvas
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
-from dataContainer import DataContainer
+from dataContainer import DataContainer, AbstractDataContainer
 import listParser
 
 
@@ -110,7 +110,7 @@ class PlotWrapper:
         plotType = self.selectedPlotType             
         isMergeDataList = self.plotOrderBy == 'Date'
         
-        nestedDataList = DataContainer.generateDataList(self.dataContainer, self.plotOrderBy, 'All sites')
+        nestedDataList = AbstractDataContainer.generateDataList(self.dataContainer, self.plotOrderBy, 'All sites')
         dataList = listParser.valueDateSeriesToValueSeries(nestedDataList)
 
         if self.selectedSite == 'All sites':

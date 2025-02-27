@@ -1,20 +1,11 @@
-class DataContainer():
+class AbstractDataContainer:
     def __init__(self, name:str):
         self.name = name
         self.data = {}
-        self.lowerLimit = None
-        self.upperLimit = None
     
     def getName(self) -> str:
         return self.name
     
-    def setLimits(self, lowerLimit:float|int|str, upperLimit:float|int|str):
-        self.lowerLimit = float(lowerLimit)
-        self.upperLimit = float(upperLimit)
-    
-    def getLimits(self) -> list[float, float]:
-        return [self.lowerLimit, self.upperLimit]
-
     def addData(self, site:str, valueTuple:tuple[float|int|str, str]):
         value, date = valueTuple
         if site not in self.data:
@@ -23,7 +14,6 @@ class DataContainer():
         processedTuple = float(value), date
         self.data[site].append(processedTuple)
 
-    
     def getDataFromSite(self, site:str) -> list[list[tuple[float, str]]]:
         return [sorted(self.data[site], key=lambda item: item[1])]
     
@@ -51,3 +41,17 @@ class DataContainer():
         else:
             dataList = dataContainer.getDataFromSite(selectedSite)
         return dataList
+
+
+class DataContainer(AbstractDataContainer):
+    def __init__(self, name:str):
+        super().__init__(name)
+        self.lowerLimit = None
+        self.upperLimit = None
+    
+    def setLimits(self, lowerLimit:float|int|str, upperLimit:float|int|str):
+        self.lowerLimit = float(lowerLimit)
+        self.upperLimit = float(upperLimit)
+    
+    def getLimits(self) -> list[float, float]:
+        return [self.lowerLimit, self.upperLimit]
