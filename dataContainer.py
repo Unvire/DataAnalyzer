@@ -62,7 +62,7 @@ class CxCyDataContainer(AbstractDataContainer):
         super().__init__(name)
         self.boundaryXYList = []
 
-    def addBoundaryXY(self, xy:tuple[float, float]):
+    def addBoundaryXY(self, xy:tuple[float|str, float|str]):
         x, y = xy
         self.boundaryXYList.append((float(x), float(y)))
     
