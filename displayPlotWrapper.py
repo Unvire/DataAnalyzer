@@ -6,7 +6,7 @@ from matplotlib.backend_bases import PickEvent
 
 from mplCanvas import MplCanvas
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
-from dataContainer import DataContainer, AbstractDataContainer
+from dataContainer import DataContainer, AbstractDataContainer, CxCyDataContainer
 import listParser
 
 
@@ -101,6 +101,12 @@ class PlotWrapper:
         self.generatePlot()
 
     def generatePlot(self):
+        if isinstance(self.dataContainer, CxCyDataContainer):
+            print('chuj')
+        else:
+            self._generateCapabilityOrSequencePlot()        
+    
+    def _generateCapabilityOrSequencePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
@@ -121,7 +127,8 @@ class PlotWrapper:
             dataList = [dataList[subListIndex - 1]] # must be nested list and first item is 'All sites'
         
         generatePlot[plotType](dataList, plotName, limits, self.isLogScale, siteNames, isMergeDataList)
-    
+
+
     def setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)
         self.plotOrderByComboBox.setEnabled(status)

@@ -21,7 +21,7 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
         if testName not in self.measurements:
             testContainer = dataContainer.CxCyDataContainer(testName)
             for boundaryXY in boundaryXYs:
-                self.measurements[testName].addBoundaryXY(boundaryXY)
+                testContainer.addBoundaryXY(boundaryXY)
             self.measurements[testName] = testContainer
 
     @abc.abstractmethod
