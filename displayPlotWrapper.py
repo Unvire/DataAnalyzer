@@ -5,7 +5,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.backend_bases import PickEvent
 
 from mplCanvas import MplCanvas
-from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
+from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
 from dataContainer import DataContainer, AbstractDataContainer, CxCyDataContainer
 import listParser
 
@@ -35,6 +35,7 @@ class PlotWrapper:
         self._bindEvents()
         self.sequencePlotGenerator = SequencePlotGenerator(self.canvas)
         self.capabilityPlotGenerator = CapabilityPlotGenerator(self.canvas)
+        self.cxCyPlotGenerator = CxCyPlotGenerator(self.canvas)
 
     def _initCanvas(self):
         self.canvas = MplCanvas(self.plotFrame)
@@ -53,7 +54,7 @@ class PlotWrapper:
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
         self.changePlotButton.clicked.connect(self._changePlotType)
     
-    def setDataContainer(self, dataContainer:DataContainer):
+    def setDataContainer(self, dataContainer:DataContainer|CxCyDataContainer):
         self.dataContainer = dataContainer
     
     def setErrorMessegeHandle(self, functionHandle):
@@ -102,7 +103,7 @@ class PlotWrapper:
 
     def generatePlot(self):
         if isinstance(self.dataContainer, CxCyDataContainer):
-            print('chuj')
+            self._generateCXCYPlot()
         else:
             self._generateCapabilityOrSequencePlot()        
     
@@ -110,24 +111,37 @@ class PlotWrapper:
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
-        plotName = self.dataContainer.name
+        plotName, dataList, siteNames = self._commonPlotData()   
         limits = self.dataContainer.getLimits()
         
         plotType = self.selectedPlotType             
         isMergeDataList = self.plotOrderBy == 'Date'
+        generatePlot[plotType](dataList, plotName, limits, self.isLogScale, siteNames, isMergeDataList)
+    
+    def _generateCXCYPlot(self):
+        plotName, dataList, siteNames = self._commonPlotData()        
+        binBoundaryXYs = self.dataContainer.getBoundaryXYs()
+        boundaryXs, boundaryYs = [], []
+        for x, y in binBoundaryXYs:
+            boundaryXs.append(x)
+            boundaryYs.append(y)
         
+        # duplicate first point so that the boundary is closed curve
+        boundaryXs.append(boundaryXs[0])
+        boundaryYs.append(boundaryYs[0])
+        self.cxCyPlotGenerator.generatePlot(dataList, plotName, boundaryXs, boundaryYs, siteNames)
+
+    def _commonPlotData(self) -> tuple[str, list[list[float]], list[str]]:
+        plotName = self.dataContainer.name
         nestedDataList = AbstractDataContainer.generateDataList(self.dataContainer, self.plotOrderBy, 'All sites')
         dataList = listParser.valueDateSeriesToValueSeries(nestedDataList)
-
         if self.selectedSite == 'All sites':
             siteNames = self.dataContainer.getSiteNames()
         else:
             siteNames = [self.selectedSite]
             subListIndex = self.selectSiteComboBox.findText(self.selectedSite)
             dataList = [dataList[subListIndex - 1]] # must be nested list and first item is 'All sites'
-        
-        generatePlot[plotType](dataList, plotName, limits, self.isLogScale, siteNames, isMergeDataList)
-
+        return plotName, dataList, siteNames
 
     def setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)
