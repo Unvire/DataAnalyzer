@@ -72,9 +72,17 @@ class PlotWrapper:
     def clear(self):
         self.canvas.clear()
 
-    def _getDateFromDataList(self, seriesIndex:int, pointIndex:int) -> str:
-        _, date = self.dataList[seriesIndex][pointIndex]
-        return date  
+    def _getClickedPointData(self, seriesIndex:int, pointIndex:int) -> tuple[str, str]:
+        dataList = AbstractDataContainer.generateDataList(self.dataContainer, 'Date', 'All sites')
+        value, date = dataList[seriesIndex][pointIndex]        
+        if isinstance(self.dataContainer, CxCyDataContainer):
+            cx, cy = value
+            cx = format(cx, '.3E')
+            cy = format(cy, '.3E')
+            formattedValue = f'({cx}, {cy})'
+        else:
+            formattedValue = format(value, '.3E')
+        return formattedValue, date  
     
     def _changePlotType(self):
         plotTypeInverterMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
@@ -191,8 +199,7 @@ class PlotWrapper:
         x = event.artist.get_xdata()[index]
         y = event.artist.get_ydata()[index]        
         
-        date = self._getDateFromDataList(seriesID, index)
-        formattedValue = format(y, '.3E')
+        formattedValue, date = self._getClickedPointData(seriesID, index)
         self.annotation = self.canvas.ax.annotate(
             f'{formattedValue}\n{date}',
             (x, y),

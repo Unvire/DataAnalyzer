@@ -64,14 +64,13 @@ class CapabilityPlotGenerator(PlotGenerator):
 class CxCyPlotGenerator(PlotGenerator):
     def generatePlot(self, dataList:list[list[float]], title:str, boundaryXs:list[float], boundaryYs:list[float], siteNames:list[str]):
         self.canvas.ax.cla()
-        self.canvas.ax.plot(boundaryXs, boundaryYs, linewidth=2, color='red', label=f'Bin boundary', picker=5)
-
         for siteName, dataSeries in zip(siteNames, dataList):
             x = [point[0] for point in dataSeries]
             y = [point[1] for point in dataSeries]
             seriesLength = len(dataSeries)
             self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
-
+        self.canvas.ax.plot(boundaryXs, boundaryYs, linewidth=2, color='red', label=f'Bin boundary', picker=5)
+        
         self.canvas.ax.grid()
         self._addPlotText(title, 'CX', 'CY')
 
