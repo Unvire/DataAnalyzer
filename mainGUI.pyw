@@ -239,7 +239,6 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.plotWidget.setDataContainer(dataContainer)
             self.plotWidget.generatePlot()
             self.updateProcessParameters()
-            self.plotWidget.setStatusPlotHandlingWidgets(True)
         except AttributeError:
             pass
         except Exception:

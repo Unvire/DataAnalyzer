@@ -92,7 +92,8 @@ class PlotWrapper:
 
         try:
             self.generatePlot()
-            self.updateProcessParameters()
+            if not isinstance(self.dataContainer, CxCyDataContainer):
+                self.updateProcessParameters()
         except Exception:
             message = 'Error with selected measurement'
             self.errorMessageHandle('Error', message)
@@ -103,9 +104,12 @@ class PlotWrapper:
 
     def generatePlot(self):
         if isinstance(self.dataContainer, CxCyDataContainer):
-            self._generateCXCYPlot()
+            self._generateCXCYPlot()                        
+            self.setStatusPlotHandlingWidgets(False)
+            self.selectSiteComboBox.setEnabled(True)
         else:
-            self._generateCapabilityOrSequencePlot()        
+            self._generateCapabilityOrSequencePlot()            
+            self.setStatusPlotHandlingWidgets(True)       
     
     def _generateCapabilityOrSequencePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
