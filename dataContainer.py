@@ -28,7 +28,7 @@ class AbstractDataContainer:
         result = []
         if sortBy == 'Date':
             for _, values in self.data.items():
-                values = sorted(values, key=lambda dataPointInstance: dataPointInstance.getValue())
+                values = sorted(values, key=lambda dataPointInstance: dataPointInstance.getDate())
                 result.append(values)
         else:
             for site in self.data:
