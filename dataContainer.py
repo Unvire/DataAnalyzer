@@ -1,27 +1,34 @@
+from dataPoint import DataPoint
+
 class AbstractDataContainer:
     def __init__(self, name:str):
+        self.limits = []
         self.name = name
         self.data = {}
     
     def getName(self) -> str:
         return self.name
     
-    def addData(self, site:str, valueTuple:tuple[float|int|str, str]):
-        value, date = valueTuple
+    def addData(self, site:str, value:float|int|str, testDate:str):
+        if isinstance(value, tuple) or isinstance(value, list):
+            value = [float(val) for val in list(value)]
+        else:
+            value = float(value)
+            
+        dataPointInstance = DataPoint(value, testDate)
         if site not in self.data:
             self.data[site] = []
             self.data = {key:self.data[key] for key in sorted(self.data)}
-        processedTuple = float(value), date
-        self.data[site].append(processedTuple)
+        self.data[site].append(dataPointInstance)
 
-    def getDataFromSite(self, site:str) -> list[list[tuple[float, str]]]:
-        return [sorted(self.data[site], key=lambda item: item[-1])]
+    def getDataFromSite(self, site:str) -> list[list[DataPoint]]:
+        return [sorted(self.data[site], key=lambda dataPointInstance: dataPointInstance.getValue())]
     
-    def getDataFromAllSites(self, sortBy:str) -> list[list[tuple[float, str]]]:
+    def getDataFromAllSites(self, sortBy:str) -> list[list[DataPoint]]:
         result = []
         if sortBy == 'Date':
             for _, values in self.data.items():
-                values = sorted(values, key=lambda item: item[-1])
+                values = sorted(values, key=lambda dataPointInstance: dataPointInstance.getValue())
                 result.append(values)
         else:
             for site in self.data:
@@ -35,7 +42,7 @@ class AbstractDataContainer:
         return list(self.data.keys())
     
     @staticmethod
-    def generateDataList(dataContainer:'DataContainer', orderBy:str, selectedSite:str) -> list[tuple[float, str]]:
+    def generateDataList(dataContainer:'DataContainer', orderBy:str, selectedSite:str) -> list[DataPoint]:
         if selectedSite == 'All sites':
             dataList = dataContainer.getDataFromAllSites(orderBy)
         else:
@@ -44,42 +51,19 @@ class AbstractDataContainer:
 
 
 class DataContainer(AbstractDataContainer):
-    def __init__(self, name:str):
-        super().__init__(name)
-        self.lowerLimit = None
-        self.upperLimit = None
+    def addLimits(self, lowerLimit:float|int|str, upperLimit:float|int|str, testDate:str):
+        lowerLimit = DataPoint(float(lowerLimit), testDate)
+        upperLimit = DataPoint(float(upperLimit), testDate)
+        self.limits.append([lowerLimit, upperLimit])
     
-    def setLimits(self, lowerLimit:float|int|str, upperLimit:float|int|str):
-        self.lowerLimit = float(lowerLimit)
-        self.upperLimit = float(upperLimit)
-    
-    def getLimits(self) -> list[float, float]:
-        return [self.lowerLimit, self.upperLimit]
+    def getLimits(self) -> list[list[DataPoint, DataPoint]]:
+        return self.limits
 
 
 class CxCyDataContainer(AbstractDataContainer):
-    def __init__(self, name:str):
-        super().__init__(name)
-        self.boundaryXYList = []
-
-    def addBoundaryXY(self, xy:tuple[float|str, float|str]):
-        x, y = xy
-        self.boundaryXYList.append((float(x), float(y)))
+    def addLimits(self, boundaryXYsString:str, testDate:str):
+        limitString = DataPoint(boundaryXYsString, testDate)
+        self.limits.append(limitString)
     
-    def getBoundaryXYs(self) -> list[tuple[float, float]]:
-        return self.boundaryXYList
-    
-    def addData(self, site:str, valueTuple:tuple[tuple[float, float], str]):
-        valueXY, date = valueTuple
-        if site not in self.data:
-            self.data[site] = []
-            self.data = {key:self.data[key] for key in sorted(self.data)}
-        x, y = valueXY
-        processedTuple = (float(x), float(y)), date
-        self.data[site].append(processedTuple)
-
-    def getDataFromSite(self, site:str) -> list[list[tuple[tuple[float, float], str]]]:
-        return super().getDataFromSite(site)
-    
-    def getDataFromAllSites(self, sortBy:str) -> list[list[tuple[tuple[float, float], str]]]:
-        return super().getDataFromAllSites(sortBy)
+    def getLimits(self) -> list[DataPoint]:
+        return self.limits
