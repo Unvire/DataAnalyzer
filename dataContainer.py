@@ -2,7 +2,7 @@ from dataPoint import DataPoint
 
 class AbstractDataContainer:
     def __init__(self, name:str):
-        self.limits = []
+        self.limits = {}
         self.name = name
         self.data = {}
     
@@ -52,8 +52,12 @@ class AbstractDataContainer:
 
 class DataContainer(AbstractDataContainer):
     def addLimits(self, lowerLimit:float|int|str, upperLimit:float|int|str, testDate:str):
+        if self.limits:
+            lastLowerLimitInstance, lastUpperLimitInstance = self.limits[-1]
+
         lowerLimit = DataPoint(float(lowerLimit), testDate)
         upperLimit = DataPoint(float(upperLimit), testDate)
+
         self.limits.append([lowerLimit, upperLimit])
     
     def getLimits(self) -> list[list[DataPoint, DataPoint]]:
