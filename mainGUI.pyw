@@ -306,6 +306,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             subWindowHandle.close()
         super().close()
 
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = DataAnalyzerGUI()
