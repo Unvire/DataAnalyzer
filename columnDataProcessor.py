@@ -10,17 +10,17 @@ class ColumnDataProcessor(AbstractDataProcessor):
         
         fileLines = [line.replace('\n', '') for line in fileLines]
         testName, lowerLimit, upperLimit = self._getSiteLimitsFromHeader(fileLines)
-        self.createDataContainer(testName, lowerLimit, upperLimit)
+        self.createDataContainer(testName)
             
         for line in fileLines:
             try:
-                self._processFileLine(line, testName, testDate)
+                self._processFileLine(line, testName, (float(lowerLimit), float(upperLimit)), testDate)
             except ValueError:
                 pass
     
-    def _processFileLine(self, fileLine:str, testName:str, testDate:str):
+    def _processFileLine(self, fileLine:str, testName:str, limits:tuple[float, float], testDate:str):
         measuredValue, *_ = fileLine.split(';')
-        self.measurements[testName].addData('1', (measuredValue, testDate))
+        self.measurements[testName].addData('1', measuredValue, limits, testDate)
     
     def _getSiteLimitsFromHeader(self, fileLines:list[str]) -> tuple[str, str, str]:
         testName, lowerLimit, upperLimit, *_ = fileLines.pop(0).split(';')
