@@ -25,8 +25,8 @@ class FwkDataProcessor(AbstractDataProcessor):
     def _processFileLine(self, fileLine:str, site:str, testTime:str):
         _, testName, *_, measuredValue, _, lowerLimit, upperLimit, _ = fileLine.split(';')
         
-        if  not lowerLimit and not upperLimit:
+        if not float(lowerLimit) and not float(upperLimit):
             return
         
-        self.createDataContainer(testName, lowerLimit, upperLimit)
-        self.measurements[testName].addData(site, (measuredValue, testTime))
+        self.createDataContainer(testName)
+        self.measurements[testName].addData(site, measuredValue, (float(lowerLimit), float(upperLimit)), testTime)
