@@ -6,7 +6,8 @@ from matplotlib.backend_bases import PickEvent
 
 from mplCanvas import MplCanvas
 from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
-from dataContainer import DataContainer, AbstractDataContainer, CxCyDataContainer
+from dataContainer import DataContainer
+from dataPoint import DataPoint
 import listParser
 
 
@@ -54,7 +55,7 @@ class PlotWrapper:
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
         self.changePlotButton.clicked.connect(self._changePlotType)
     
-    def setDataContainer(self, dataContainer:DataContainer|CxCyDataContainer):
+    def setDataContainer(self, dataContainer:DataContainer):
         self.dataContainer = dataContainer
     
     def setErrorMessegeHandle(self, functionHandle):
@@ -73,9 +74,9 @@ class PlotWrapper:
         self.canvas.clear()
 
     def _getClickedPointData(self, seriesIndex:int, pointIndex:int) -> tuple[str, str]:
-        dataList = AbstractDataContainer.generateDataList(self.dataContainer, 'Date', 'All sites')
+        dataList = DataContainer.generateDataList(self.dataContainer, 'Date', 'All sites')
         value, date = dataList[seriesIndex][pointIndex]        
-        if isinstance(self.dataContainer, CxCyDataContainer):
+        if 1==0:#isinstance(self.dataContainer, CxCyDataContainer):
             cx, cy = value
             cx = format(cx, '.3E')
             cy = format(cy, '.3E')
@@ -100,7 +101,7 @@ class PlotWrapper:
 
         try:
             self.generatePlot()
-            if not isinstance(self.dataContainer, CxCyDataContainer):
+            if 1==0:#not isinstance(self.dataContainer, CxCyDataContainer):
                 self.updateProcessParameters()
         except Exception:
             message = 'Error with selected measurement'
@@ -111,7 +112,7 @@ class PlotWrapper:
         self.generatePlot()
 
     def generatePlot(self):
-        if isinstance(self.dataContainer, CxCyDataContainer):
+        if 1==0:#isinstance(self.dataContainer, CxCyDataContainer):
             self._generateCXCYPlot()                        
             self.setStatusPlotHandlingWidgets(False)
             self.selectSiteComboBox.setEnabled(True)
@@ -123,12 +124,15 @@ class PlotWrapper:
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
-        plotName, dataList, siteNames = self._commonPlotData()   
-        limits = self.dataContainer.getLimits()
-        
+        plotName = self.dataContainer.name
+        dataPointsList, siteNames = self._getDataPointsList(self.selectedSite)
+
+        valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+
         plotType = self.selectedPlotType             
         isMergeDataList = self.plotOrderBy == 'Date'
-        generatePlot[plotType](dataList, plotName, limits, self.isLogScale, siteNames, isMergeDataList)
+        generatePlot[plotType](valuesList, plotName, limitsList, self.isLogScale, siteNames, isMergeDataList)
     
     def _generateCXCYPlot(self):
         plotName, dataList, siteNames = self._commonPlotData()        
@@ -143,17 +147,19 @@ class PlotWrapper:
         boundaryYs.append(boundaryYs[0])
         self.cxCyPlotGenerator.generatePlot(dataList, plotName, boundaryXs, boundaryYs, siteNames)
 
-    def _commonPlotData(self) -> tuple[str, list[list[float]], list[str]]:
+    def _commonPlotData(self) -> tuple[str, list[str]]:
         plotName = self.dataContainer.name
-        nestedDataList = AbstractDataContainer.generateDataList(self.dataContainer, self.plotOrderBy, 'All sites')
-        dataList = listParser.valueDateSeriesToValueSeries(nestedDataList)
-        if self.selectedSite == 'All sites':
+        siteNames = self.dataContainer.getSiteNames()
+        return plotName, siteNames
+
+    def _getDataPointsList(self, selectedSite:str) -> tuple[list[list[DataPoint]], list[str]]:
+        if selectedSite == 'All sites':
+            dataPointsList = self.dataContainer.getDataFromAllSites()
             siteNames = self.dataContainer.getSiteNames()
         else:
-            siteNames = [self.selectedSite]
-            subListIndex = self.selectSiteComboBox.findText(self.selectedSite)
-            dataList = [dataList[subListIndex - 1]] # must be nested list and first item is 'All sites'
-        return plotName, dataList, siteNames
+            siteNames = [selectedSite]
+            dataPointsList = self.dataContainer.getDataFromSite(selectedSite)
+        return dataPointsList, siteNames
 
     def setStatusPlotHandlingWidgets(self, status:bool):        
         self.selectSiteComboBox.setEnabled(status)

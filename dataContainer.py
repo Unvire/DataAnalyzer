@@ -23,17 +23,13 @@ class DataContainer:
         self.data[site].append(dataPointInstance)
 
     def getDataFromSite(self, site:str) -> list[list[DataPoint]]:
-        return [sorted(self.data[site], key=lambda dataPointInstance: dataPointInstance.getValue())]
+        return [sorted(self.data[site], key=lambda dataPointInstance: dataPointInstance.getDate())]
     
-    def getDataFromAllSites(self, sortBy:str) -> list[list[DataPoint]]:
+    def getDataFromAllSites(self) -> list[list[DataPoint]]:
         result = []
-        if sortBy == 'Date':
-            for _, values in self.data.items():
-                values = sorted(values, key=lambda dataPointInstance: dataPointInstance.getDate())
-                result.append(values)
-        else:
-            for site in self.data:
-                result += self.getDataFromSite(site)
+        for siteName, values in self.data.items():
+            values = self.getDataFromSite(siteName)
+            result += values
         return result
 
     def getNumOfSites(self) -> int:
@@ -48,13 +44,25 @@ class DataContainer:
     
     def _addSiteAndSortInPlace(self, siteName:str):
         self.data[siteName] = []
-        self.data = {key:self.data[key] for key in sorted(self.data)}
-    
+        self.data = {key:self.data[key] for key in sorted(self.data)}    
     
     @staticmethod
-    def generateDataList(dataContainer:'DataContainer', orderBy:str, selectedSite:str) -> list[DataPoint]:
-        if selectedSite == 'All sites':
-            dataList = dataContainer.getDataFromAllSites(orderBy)
-        else:
-            dataList = dataContainer.getDataFromSite(selectedSite)
-        return dataList
+    def getValuesFromDataPointsList(dataPointsList:list[list[DataPoint]]) -> list[list[float | tuple[float, float]]]:
+        result = []
+        for siteDataPointsList in dataPointsList:
+            result.append([dataPointInstance.getValue() for dataPointInstance in siteDataPointsList])
+        return result
+    
+    @staticmethod
+    def getLimitsFromDataPointsList(dataPointsList:list[list[DataPoint]]) -> list[list[str | tuple[float, float]]]:
+        result = []
+        for siteDataPointsList in dataPointsList:
+            result.append([dataPointInstance.getLimits() for dataPointInstance in siteDataPointsList])
+        return result
+    
+    @staticmethod
+    def getDateStringsFromDataPointsList(dataPointsList:list[list[DataPoint]]) -> list[list[str]]:
+        result = []
+        for siteDataPointsList in dataPointsList:
+            result.append([dataPointInstance.getDate() for dataPointInstance in siteDataPointsList])
+        return result
