@@ -2,7 +2,6 @@ from dataPoint import DataPoint
 
 class DataContainer:
     def __init__(self, name:str):
-        self.limits = {}
         self.name = name
         self.data = {}
     

@@ -15,11 +15,6 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
         if testName not in self.measurements:
             testContainer = dataContainer.DataContainer(testName)
             self.measurements[testName] = testContainer
-    
-    def createCXCYDataContainer(self, testName:str):
-        if testName not in self.measurements:
-            testContainer = dataContainer.CxCyDataContainer(testName)
-            self.measurements[testName] = testContainer
 
     @abc.abstractmethod
     def processLogFile(self, filePath:str, testDate:str):
