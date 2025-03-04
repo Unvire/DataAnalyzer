@@ -29,12 +29,8 @@ class XylemDataProcessor(AbstractDataProcessor):
         #Sequence	StepName	Status	Date	Time	Duration	Value	Units	Limit	LimitLow	LimitHigh	ReportText	ErrorCode	ErrorMsg	StepType
         _, testName, _, _, _, _, _, measuredValue, _, _, lowerLimit, upperLimit, *_ = fileLine.split(',')
         
-        if  not lowerLimit and not upperLimit:
+        if  not float(lowerLimit) and not float(upperLimit):
             return
         
-        # throws ValueError when not number
-        float(lowerLimit)
-        float(upperLimit)
-        
-        self.createDataContainer(testName, lowerLimit, upperLimit)
-        self.measurements[testName].addData(site, (measuredValue, testTime))
+        self.createDataContainer(testName)
+        self.measurements[testName].addData(site, measuredValue, (float(lowerLimit), float(upperLimit)), testTime)

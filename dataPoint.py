@@ -17,7 +17,7 @@ class DataPoint:
         return isValueEqual
     
     def __repr__(self) -> str:
-        return f'DataPoint: {self.value=}, {self.date=}'
+        return f'DataPoint: {self.value=}, {self.date=}, {self.limits=}'
     
     def getValue(self) -> float|tuple[float]:
         return self.value
