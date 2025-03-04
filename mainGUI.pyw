@@ -13,7 +13,7 @@ from displayPlotWrapper import PlotWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from htmlReportGenerator import HtmlReportGenerator
-from dataContainer import DataContainer, AbstractDataContainer
+from dataContainer import DataContainer
 import listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
@@ -250,7 +250,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         orderBy = self.plotWidget.getPlotOrderBy()
         site = self.plotWidget.getSelectedSite()
 
-        dataList = AbstractDataContainer.generateDataList(dataContainer, orderBy, site)
+        dataList = DataContainer.generateDataList(dataContainer, orderBy, site)
         lowerLimit, upperLimit = dataContainer.getLimits()
 
         dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
