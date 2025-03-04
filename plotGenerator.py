@@ -23,6 +23,7 @@ class PlotGenerator:
         self._addPlotText(title, xLabel, yLabel)
     
     def _addPlotText(self, title:str, xLabel:str, yLabel:str):
+        title = title.replace('$', '\\$')
         self.canvas.ax.set_title(title)
         self.canvas.ax.set_xlabel(xLabel)
         self.canvas.ax.set_ylabel(yLabel)
