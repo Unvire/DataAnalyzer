@@ -11,17 +11,15 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
     def getMeasurements(self) -> dict[str:dataContainer.DataContainer]:
         return self.measurements
 
-    def createDataContainer(self, testName:str, lowerLimit:str|float, upperLimit:str|float, testTime:str):
+    def createDataContainer(self, testName:str):
         if testName not in self.measurements:
             testContainer = dataContainer.DataContainer(testName)
             self.measurements[testName] = testContainer
-        self.measurements[testName].addLimits(lowerLimit, upperLimit, testTime)
     
-    def createCXCYDataContainer(self, testName:str, boundaryXYsString:str, testTime:str):
+    def createCXCYDataContainer(self, testName:str):
         if testName not in self.measurements:
             testContainer = dataContainer.CxCyDataContainer(testName)
             self.measurements[testName] = testContainer
-        self.measurements[testName].addLimits(boundaryXYsString, testTime)
 
     @abc.abstractmethod
     def processLogFile(self, filePath:str, testDate:str):

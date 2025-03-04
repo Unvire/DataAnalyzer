@@ -1,6 +1,6 @@
 from dataPoint import DataPoint
 
-class AbstractDataContainer:
+class DataContainer:
     def __init__(self, name:str):
         self.limits = {}
         self.name = name
@@ -9,16 +9,18 @@ class AbstractDataContainer:
     def getName(self) -> str:
         return self.name
     
-    def addData(self, site:str, value:float|int|str, testDate:str):
-        if isinstance(value, tuple) or isinstance(value, list):
-            value = [float(val) for val in list(value)]
-        else:
-            value = float(value)
-            
-        dataPointInstance = DataPoint(value, testDate)
+    def addData(self, site:str, value:float|int|str, limits:tuple[float, float]|str, testDate:str):
+        def valueToFloats(value):
+            if isinstance(value, tuple) or isinstance(value, list):
+                value = [float(val) for val in list(value)]
+            else:
+                value = float(value)
+            return value
+        
+        value = valueToFloats(value)
+        dataPointInstance = DataPoint(value, limits, testDate)
         if site not in self.data:
-            self.data[site] = []
-            self.data = {key:self.data[key] for key in sorted(self.data)}
+            self._addSiteAndSortInPlace(site)
         self.data[site].append(dataPointInstance)
 
     def getDataFromSite(self, site:str) -> list[list[DataPoint]]:
@@ -40,6 +42,15 @@ class AbstractDataContainer:
     
     def getSiteNames(self) -> list[str]:
         return list(self.data.keys())
+
+    def getLimits(self, site:str) -> list[list[tuple[float, float]|str]]:
+        dataPointsList = self.data[site]
+        return [dataPoint.getLimits() for dataPoint in dataPointsList]
+    
+    def _addSiteAndSortInPlace(self, siteName:str):
+        self.data[siteName] = []
+        self.data = {key:self.data[key] for key in sorted(self.data)}
+    
     
     @staticmethod
     def generateDataList(dataContainer:'DataContainer', orderBy:str, selectedSite:str) -> list[DataPoint]:
@@ -48,26 +59,3 @@ class AbstractDataContainer:
         else:
             dataList = dataContainer.getDataFromSite(selectedSite)
         return dataList
-
-
-class DataContainer(AbstractDataContainer):
-    def addLimits(self, lowerLimit:float|int|str, upperLimit:float|int|str, testDate:str):
-        if self.limits:
-            lastLowerLimitInstance, lastUpperLimitInstance = self.limits[-1]
-
-        lowerLimit = DataPoint(float(lowerLimit), testDate)
-        upperLimit = DataPoint(float(upperLimit), testDate)
-
-        self.limits.append([lowerLimit, upperLimit])
-    
-    def getLimits(self) -> list[list[DataPoint, DataPoint]]:
-        return self.limits
-
-
-class CxCyDataContainer(AbstractDataContainer):
-    def addLimits(self, boundaryXYsString:str, testDate:str):
-        limitString = DataPoint(boundaryXYsString, testDate)
-        self.limits.append(limitString)
-    
-    def getLimits(self) -> list[DataPoint]:
-        return self.limits
