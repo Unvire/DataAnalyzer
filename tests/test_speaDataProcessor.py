@@ -29,29 +29,29 @@ def test__processFileLine(fileLinesProcessingTest):
     dataInstance = measurements['R261 | RESR261 150K 1%']
     assert list(dataInstance.data.keys()) == ['1']
     assert dataInstance.getDataFromSite('1') == [
-            [DataPoint(float('1.499953e+05'), '2024/01/01 14:23:14')]
+            [DataPoint(float('1.499953e+05'), (float('1.454955e+05'), float('1.544952e+05')), '2024/01/01 14:23:14')]
         ]
 
     dataInstance = measurements['R262 | RESR262 10K 5%']
     assert list(dataInstance.data.keys()) == ['1']
     assert dataInstance.getDataFromSite('1') == [
-            [DataPoint(float('9.968847e+03'), '2024/01/01 14:23:14')]
+            [DataPoint(float('9.968847e+03'), (float('9.300000e+03'), float('1.070000e+04')),'2024/01/01 14:23:14')]
         ]
 
     dataInstance = measurements['R265 | RESR265 1K 1%']
-    print(dataInstance.getLimits())
     assert list(dataInstance.data.keys()) == ['1', '2']
     assert dataInstance.getDataFromSite('1') == [
-            [DataPoint(float('9.960000e+02'), '2024/01/01 14:23:14'), DataPoint(float('9.970000e+02'), '2024/01/01 14:23:14')]
+            [DataPoint(float('9.960000e+02'), (float('9.300000e+02'), float('1.070000e+03')), '2024/01/01 14:23:14'), 
+             DataPoint(float('9.970000e+02'), (float('9.300000e+02'), float('1.070000e+03')), '2024/01/01 14:23:14')]
         ]
     assert dataInstance.getDataFromSite('2') == [
-            [DataPoint(float('9.980000e+02'), '2024/01/01 14:23:14'), DataPoint(float('9.990000e+02'), '2024/01/01 14:23:14')]
+            [DataPoint(float('9.980000e+02'), (float('9.300000e+02'), float('1.070000e+03')), '2024/01/01 14:23:14'), 
+             DataPoint(float('9.990000e+02'), (float('9.300000e+02'), float('1.070000e+03')), '2024/01/01 14:23:14')]
         ]
     assert 1==0
     
     dataInstance = measurements['LED4 | LED_WHITE_15704401_SW57P19D22K72_CXCY']
-    assert dataInstance.getLimits() == [DataPoint('0.3196_0.3462_0.3396_0.3616_0.3386_0.3369_0.3196_0.3198', '2024/01/01 14:23:14')]
     assert list(dataInstance.data.keys()) == ['2']
     assert dataInstance.getDataFromSite('2') == [
-            [DataPoint((float('0.329'), float('0.34')), '2024/01/01 14:23:14')]
+            [DataPoint((float('0.329'), float('0.34')), '0.3196_0.3462_0.3396_0.3616_0.3386_0.3369_0.3196_0.3198', '2024/01/01 14:23:14')]
         ]

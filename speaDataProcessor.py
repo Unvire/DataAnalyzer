@@ -20,19 +20,14 @@ class SpeaDataProcessor(AbstractDataProcessor):
             ledBin, valuesString = testName2.split('(')
             testName = f'{testName1} | {ledBin}'
             x, y, *boundaryXYs = valuesString[:-1].split('_')
-            boundaryXYsString = '_'.join(boundaryXYs)
-            self._processCXCYFileLine(testName, boundaryXYsString, site, (x, y), testTime)
-        else:
+            limits = '_'.join(boundaryXYs)
+            value = x, y
+        else:            
+            if float(lowerLimit) == 0.0 and float(upperLimit) == 0.0:
+                return
+            
             testName = f'{testName1} | {testName2}'
-            self._processMeasurementFileLine(testName, lowerLimit, upperLimit, site, measuredValue, testTime)        
-    
-    def _processMeasurementFileLine(self, testName:str, lowerLimit:str, upperLimit:str, site:str, measuredValue:str, testTime:str):
-        if float(lowerLimit) == 0.0 and float(upperLimit) == 0.0:
-            return
-
-        self.createDataContainer(testName, lowerLimit, upperLimit, testTime)
-        self.measurements[testName].addData(site, measuredValue, testTime)
-    
-    def _processCXCYFileLine(self, testName:str, boundaryXYsString:str, site:str, xy:tuple[str, str], testTime:str):
-        self.createCXCYDataContainer(testName, boundaryXYsString, testTime)
-        self.measurements[testName].addData(site, xy, testTime)
+            value = measuredValue
+            limits = float(lowerLimit), float(upperLimit)
+        self.createDataContainer(testName)
+        self.measurements[testName].addData(site, value, limits, testTime)
