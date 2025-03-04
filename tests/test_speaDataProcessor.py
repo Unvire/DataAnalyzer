@@ -48,7 +48,6 @@ def test__processFileLine(fileLinesProcessingTest):
             [DataPoint(float('9.980000e+02'), (float('9.300000e+02'), float('1.070000e+03')), '2024/01/01 14:23:14'), 
              DataPoint(float('9.990000e+02'), (float('9.300000e+02'), float('1.070000e+03')), '2024/01/01 14:23:14')]
         ]
-    assert 1==0
     
     dataInstance = measurements['LED4 | LED_WHITE_15704401_SW57P19D22K72_CXCY']
     assert list(dataInstance.data.keys()) == ['2']
