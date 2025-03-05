@@ -246,17 +246,18 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.showErrorMessage('Error', message)
     
     def updateProcessParameters(self):
-        dataContainer = self._getSelectedMeasurementDataContainer()        
-        orderBy = self.plotWidget.getPlotOrderBy()
+        dataContainer = self._getSelectedMeasurementDataContainer()
         site = self.plotWidget.getSelectedSite()
 
-        dataList = DataContainer.generateDataList(dataContainer, orderBy, site)
-        lowerLimit, upperLimit = dataContainer.getLimits()
+        dataPointsList = dataContainer.getDataFromAllSites() if site == 'All sites' else dataContainer.getDataFromSite(site)
+        nestedValuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
 
-        dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
+        valuesList = listParser.nestedValuesListToFlatValueList(nestedValuesList)
+        lowerLimit, upperLimit = limitsList[0][-1]
 
-        mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
-        self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
+        mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(valuesList, lowerLimit, upperLimit)
+        self._updateStatisticalEdits(numOfSamples=len(valuesList), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
                                      sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk, stability=stability)
 
     def _getSelectedMeasurementDataContainer(self) -> DataContainer:

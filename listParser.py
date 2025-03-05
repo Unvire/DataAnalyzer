@@ -23,5 +23,5 @@ def flattenDataSeries(data:list[list[float]]) -> tuple[list[float], int]:
 def valueDateSeriesToValueSeries(data:list[list[float, str]]) -> list[list[float]]:
     return [[value for value, _ in siteData] for siteData in data]
 
-def valueDateSeriesToFlatValueList(data:list[list[float, str]]) -> list[float]:
-    return [value for siteData in data for value, _ in siteData]
+def nestedValuesListToFlatValueList(data:list[list[float]]) -> list[float]:
+    return [value for siteData in data for value in siteData]
