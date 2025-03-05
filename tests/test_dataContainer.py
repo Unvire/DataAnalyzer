@@ -33,7 +33,7 @@ def test_getDataFromSite():
         ]
 
     assert list(instance.data.keys()) == ['1', '2']
-    assert instance.getDataFromAllSites(sortBy='Date') == [
+    assert instance.getDataFromAllSites() == [
             [DataPoint(1, (0, 10), mockDate), DataPoint(2, (0, 10), mockDate), DataPoint(3, (0, 10), mockDate), 
                 DataPoint(4, (0, 10), mockDate), DataPoint(5, (0, 10), mockDate)],
             [DataPoint(10, (0, 20), mockDate), DataPoint(20, (0, 20), mockDate), DataPoint(30, (0, 20), mockDate), 
@@ -78,7 +78,7 @@ def test_getDataFromSite_CxCyMeasurement():
         ]
 
     assert list(instance.data.keys()) == ['1', '2']
-    assert instance.getDataFromAllSites(sortBy='Date') == [
+    assert instance.getDataFromAllSites() == [
         [
             DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate), 
             DataPoint((2.1, 0), '1_1_2_2_1_1_2_2', mockDate), 

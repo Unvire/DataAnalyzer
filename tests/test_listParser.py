@@ -19,6 +19,14 @@ def mockValueDateSeries():
     ]
     return mockList
 
+@pytest.fixture
+def mockValueSeries():
+    mockList = [
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12]        
+    ]
+    return mockList
 
 def test_mergedDataSeries(mockDataSeries):
     result = listParser.mergedDataSeries(mockDataSeries)
@@ -55,7 +63,7 @@ def test_valueDateSeriesToValueSeries(mockValueDateSeries):
     ]
     assert result == expected
 
-def test_valueDateSeriesToFlatValueList(mockValueDateSeries):
-    result = listParser.valueDateSeriesToFlatValueList(mockValueDateSeries)
+def test_nestedValuesListToFlatValueList(mockValueSeries):
+    result = listParser.nestedValuesListToFlatValueList(mockValueSeries)
     expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ,11, 12]
     assert result == expected
