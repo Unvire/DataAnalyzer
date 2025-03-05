@@ -1,6 +1,7 @@
 import sys, os
 from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5 import uic
+from PyQt5.QtCore import Qt
 
 from displayPlotWrapper import PlotWrapper
 from dataContainer import DataContainer
@@ -11,6 +12,8 @@ class PlotDialog(QDialog):
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'plotDialog.ui')
         uic.loadUi(uiFilePath, self)
         self.setWindowTitle(dataContainer.name)
+        self.setWindowFlag(Qt.WindowMinimizeButtonHint, True)
+        self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
 
         self.closeCallbackHandle = lambda: None
 
@@ -26,10 +29,3 @@ class PlotDialog(QDialog):
     def closeEvent(self, event):
         self.closeCallbackHandle(self.windowTitle())
         return super().closeEvent(event)
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = PlotDialog()
-    window.show()
-    sys.exit(app.exec_())
