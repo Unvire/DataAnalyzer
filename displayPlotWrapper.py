@@ -112,7 +112,9 @@ class PlotWrapper:
         self.generatePlot()
 
     def generatePlot(self):
-        if 1==0:#isinstance(self.dataContainer, CxCyDataContainer):
+        siteNames = self.dataContainer.getSiteNames()
+        limits = self.dataContainer.getLimits(siteNames[0])
+        if isinstance(limits[0], str):
             self._generateCXCYPlot()                        
             self.setStatusPlotHandlingWidgets(False)
             self.selectSiteComboBox.setEnabled(True)
@@ -124,33 +126,39 @@ class PlotWrapper:
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
-        plotName = self.dataContainer.name
-        dataPointsList, siteNames = self._getDataPointsList(self.selectedSite)
-
-        valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
-        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+        plotName, siteNames, valuesList, limitsList = self._commonPlotData()
 
         plotType = self.selectedPlotType             
         isMergeDataList = self.plotOrderBy == 'Date'
         generatePlot[plotType](valuesList, plotName, limitsList, self.isLogScale, siteNames, isMergeDataList)
     
     def _generateCXCYPlot(self):
-        plotName, dataList, siteNames = self._commonPlotData()        
-        binBoundaryXYs = self.dataContainer.getBoundaryXYs()
-        boundaryXs, boundaryYs = [], []
-        for x, y in binBoundaryXYs:
-            boundaryXs.append(x)
-            boundaryYs.append(y)
+        def uniqueBoundaryStrings(siteBoundariesList:list[list[str]]) -> list[str]:
+            uniqueBoundaries = set()
+            for siteBoundaries in siteBoundariesList:
+                for boundaryString in siteBoundaries:
+                    uniqueBoundaries.add(boundaryString)
+            return list(uniqueBoundaries)
         
-        # duplicate first point so that the boundary is closed curve
-        boundaryXs.append(boundaryXs[0])
-        boundaryYs.append(boundaryYs[0])
-        self.cxCyPlotGenerator.generatePlot(dataList, plotName, boundaryXs, boundaryYs, siteNames)
+        def processBoundaryStrings(uniqueBoundariesList:list[str]) -> list[list[tuple[float, float]]]:
+            result = []
+            for boundaryString in uniqueBoundariesList:
+                x1, y1, x2, y2, x3, y3, x4, y4 = boundaryString.split('_')
+                boundaryXYs = [(float(x1), float(y1)), (float(x2), float(y2)), (float(x3), float(y3)), (float(x4), float(y4)), (float(x1), float(y1))]
+                result.append(boundaryXYs) 
+            return result
 
-    def _commonPlotData(self) -> tuple[str, list[str]]:
+        plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()
+        siteBoundaries = uniqueBoundaryStrings(siteBoundariesList)
+        boundaryXYs = processBoundaryStrings(siteBoundaries)
+        self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
+
+    def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]]:
         plotName = self.dataContainer.name
-        siteNames = self.dataContainer.getSiteNames()
-        return plotName, siteNames
+        dataPointsList, siteNames = self._getDataPointsList(self.selectedSite)        
+        valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+        return plotName, siteNames, valuesList, limitsList
 
     def _getDataPointsList(self, selectedSite:str) -> tuple[list[list[DataPoint]], list[str]]:
         if selectedSite == 'All sites':

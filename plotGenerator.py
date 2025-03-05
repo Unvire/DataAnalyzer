@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+
 import seaborn as sns
 import numpy as np
 
@@ -87,18 +89,21 @@ class CapabilityPlotGenerator(PlotGenerator):
         self._addLegendAndScale(title, ['Value', 'Probability density'], isLogScale)
 
 class CxCyPlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[list[float]], title:str, boundaryXs:list[float], boundaryYs:list[float], siteNames:list[str]):
+    def generatePlot(self, dataList:list[list[float]], title:str, boundaryXYsList:list[list[float]], siteNames:list[str]):
         self.canvas.ax.cla()
         for siteName, dataSeries in zip(siteNames, dataList):
             x = [point[0] for point in dataSeries]
             y = [point[1] for point in dataSeries]
             seriesLength = len(dataSeries)
             self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
-        self.canvas.ax.plot(boundaryXs, boundaryYs, linewidth=2, color='red', label=f'Bin boundary', picker=5)
+        
+        for i, boundaryXYs in enumerate(boundaryXYsList):
+            x = [point[0] for point in boundaryXYs]
+            y = [point[1] for point in boundaryXYs]
+            self.canvas.ax.plot(x, y, linewidth=2, label=f'Bin boundary{i + 1}', picker=1)
         
         self.canvas.ax.grid()
         self._addPlotText(title, 'CX', 'CY')
-
 
 def _calculateNumberOfHistogramBins(data:list[float]) -> int:
     numberOfSamples = len(data)
