@@ -223,7 +223,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.plotWidget.setDataContainer(firstMeasurement)
             self.plotWidget.updateNumOfSites()
             self.plotWidget.generatePlot()
-        
+            self.selectedTest = firstMeasurement.name
+
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
             self.openLogsFolderButton.setEnabled(True)
@@ -238,7 +239,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             dataContainer = self._getSelectedMeasurementDataContainer()
             self.plotWidget.setDataContainer(dataContainer)
             self.plotWidget.generatePlot()
-            self.updateProcessParameters()
+            if not dataContainer.isCxCyMeasurement():
+                self.updateProcessParameters()
         except AttributeError:
             pass
         except Exception:

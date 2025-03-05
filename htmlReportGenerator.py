@@ -9,8 +9,9 @@ os.environ['PYDEVD_DISABLE_FILE_VALIDATION'] = '1'
 
 from mplCanvas import MplCanvas
 from processCalculator import ProcessParameterCalculator
-from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator
+from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
 from dataContainer import DataContainer
+from dataPoint import DataPoint
 
 import listParser
 
@@ -126,74 +127,114 @@ class HtmlReportGenerator:
         return buffer
     
     @staticmethod
-    def _generateTable(data:DataContainer, site:int, orderBy:str) -> str:
+    def _generateTable(data:DataContainer, site:str, orderBy:str) -> str:
         if site == 'All sites':        
-            dataSeriesList = data.getDataFromAllSites(orderBy)
+            dataPointsList = data.getDataFromAllSites()
             siteNames = data.getSiteNames()
         else:
-            dataSeriesList = data.getDataFromSite(site)
+            dataPointsList = data.getDataFromSite(site)
             siteNames = [site]
 
-        plotSeriesList = listParser.valueDateSeriesToValueSeries(dataSeriesList)
-        flatValuesList = listParser.valueDateSeriesToFlatValueList(dataSeriesList)
+        if data.isCxCyMeasurement():
+            htmlSubtable = HtmlReportGenerator._generateCxCYTable(dataPointsList, data.name, siteNames)
+        else:
+            htmlSubtable = HtmlReportGenerator._generateSequenceCapabilityTable(dataPointsList, data.name, siteNames, orderBy)
+        return htmlSubtable
+    
+    @staticmethod
+    def _generateSequenceCapabilityTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], plotOrderBy:str) -> str:
+        valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+        
+        lowerLimit, upperLimit = limitsList[0][-1]
+        isLogScale = upperLimit - lowerLimit > 10000
+        isMergeDataList = plotOrderBy == 'Date'
 
-        lowerLimit, upperLimit = data.getLimits()        
-        processParameterCalculator = ProcessParameterCalculator()
+        sequenceCanvas = MplCanvas()
+        sequencePlotGenerator = SequencePlotGenerator(sequenceCanvas)
+        sequencePlotGenerator.generatePlot(valuesList, plotName, limitsList, isLogScale, siteNames, isMergeDataList)
+        sequencePlotBytes = HtmlReportGenerator._canvasToBytes(sequenceCanvas)
+
+        capabilityCanvas = MplCanvas()
+        capabilityPlotGenerator = CapabilityPlotGenerator(capabilityCanvas)
+        capabilityPlotGenerator.generatePlot(valuesList, plotName, limitsList, False)
+        capabilityPlotBytes = HtmlReportGenerator._canvasToBytes(capabilityCanvas)
+
+        processParameterCalculator = ProcessParameterCalculator()        
+        flatValuesList = listParser.nestedValuesListToFlatValueList(valuesList)
         mean, sigmaOverall, pp, ppk, cp, cpk, stability = processParameterCalculator.calculate(flatValuesList, lowerLimit, upperLimit) 
         stability *= 100
-        
-        isLogScale = upperLimit - lowerLimit > 10000  
-        isMergeDataSublist = orderBy == 'Date'
-        sequencePlotBase64 = HtmlReportGenerator._generatePlot('Sequence', plotSeriesList, lowerLimit, upperLimit, isLogScale, siteNames, isMergeDataSublist)
-        capabilityPlotBase64 = HtmlReportGenerator._generatePlot('Capability', plotSeriesList, lowerLimit, upperLimit, isLogScale, siteNames, isMergeDataSublist)
-          
-        title = data.name
+
+        plotsHtmls = f'<td colspan="2"><img src="data:image/png;base64,{sequencePlotBytes}" width="400"></td>\n<td colspan="2"><img src="data:image/png;base64,{capabilityPlotBytes}" width="400"></td>'
+        htmlSubtable = HtmlReportGenerator._fillHtmlSubtableWithData(plotName=plotName, siteNames=siteNames, plotTableHtmls=plotsHtmls, 
+            lowerLimit=f'{lowerLimit:.5e}', upperLimit=f'{upperLimit:.5e}', 
+            mean=f'{mean:.5e}',sigmaOverall=f'{sigmaOverall:.5e}', 
+            pp=f'{pp:.5e}', ppk=f'{ppk:.5e}', 
+            cp=f'{cp:.5e}', cpk=f'{cpk:.5e}', 
+            stability=f'{stability:.5e}')
+        return htmlSubtable
+    
+    @staticmethod
+    def _generateCxCYTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str]):
+        valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
+        siteBoundariesList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+
+        siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
+        boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
+
+        cxCyCanvas = MplCanvas()
+        cxCyPlotGenerator = CxCyPlotGenerator(cxCyCanvas)
+        cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
+        cxCyPlotBytes = HtmlReportGenerator._canvasToBytes(cxCyCanvas)
+        cxcyPlotHtml = f'<td colspan="4"><img src="data:image/png;base64,{cxCyPlotBytes}" width="400"></td>'
+
+        htmlSubtable = HtmlReportGenerator._fillHtmlSubtableWithData(plotName=plotName, siteNames=siteNames, plotTableHtmls=cxcyPlotHtml, 
+            lowerLimit='N/A', upperLimit='N/A', 
+            mean='N/A', sigmaOverall='N/A', 
+            pp='N/A', ppk='N/A', 
+            cp='N/A', cpk='N/A', 
+            stability='N/A')
+        return htmlSubtable
+
+    @staticmethod
+    def _canvasToBytes(canvas:MplCanvas) -> bytes:
+        buffer = io.BytesIO()
+        canvas.savefig(buffer, format='png', bbox_inches='tight')    
+        canvas.close()        
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
+    
+    @staticmethod
+    def _fillHtmlSubtableWithData(plotName:str, siteNames:list[str], plotTableHtmls:str, lowerLimit:str, upperLimit:str, mean:str, sigmaOverall:str,
+                                  pp:str, ppk:str, cp:str, cpk:str, stability:str) -> str:
         siteStr = ', '.join(siteNames)
         htmlSubtable = f'''
         <div class="table-container">
             <table>
                 <tr>
-                    <th colspan="3">{title}</th>
+                    <th colspan="3">{plotName}</th>
                     <th>Site: {siteStr}</th>
                 </tr>
                 <tr>
-                    <td colspan="2"><img src="data:image/png;base64,{sequencePlotBase64}" width="400"></td>
-                    <td colspan="2"><img src="data:image/png;base64,{capabilityPlotBase64}" width="400"></td>
+                    {plotTableHtmls}
                 </tr>
                 <tr>
-                    <td>LSL = {lowerLimit:.5e}</td>
-                    <td>x̄ = {mean:.5e}</td>
-                    <td>pp = {pp:.5e}</td>
-                    <td>cp = {cp:.5e}</td>
+                    <td>LSL = {lowerLimit}</td>
+                    <td>x̄ = {mean}</td>
+                    <td>pp = {pp}</td>
+                    <td>cp = {cp}</td>
                 </tr>
                 <tr>
-                    <td>USL = {upperLimit:.5e}</td>
-                    <td>σ = {sigmaOverall:.5e}</td>
-                    <td>ppk = {ppk:.5e}</td>
-                    <td>cpk = {cpk:.5e}</td>
+                    <td>USL = {upperLimit}</td>
+                    <td>σ = {sigmaOverall}</td>
+                    <td>ppk = {ppk}</td>
+                    <td>cpk = {cpk}</td>
                 </tr>
                 <tr>
-                    <td colspan="4">Max / Min - 1 = {stability:.5e}%</td>
+                    <td colspan="4">Max / Min - 1 = {stability}%</td>
                 </tr>
             </table>
         </div>
         </br>
         '''
         return htmlSubtable
-    
-    @staticmethod
-    def _generatePlot(plotType:str, dataList:list[list[float]], lowerLimit:float, upperLimit:float, isLogScale:bool, siteNames:list[str], 
-                      isMergeDataSublists:bool=False) -> bytes:
-        plotTypeDict = {
-            'Sequence': SequencePlotGenerator,
-            'Capability': CapabilityPlotGenerator
-        }
-
-        canvas = MplCanvas()
-        plotGenerator = plotTypeDict[plotType](canvas)
-        plotGenerator.generatePlot(dataList, '', (lowerLimit, upperLimit), isLogScale, siteNames, isMergeDataSublists)
         
-        buffer = io.BytesIO()
-        canvas.savefig(buffer, format='png', bbox_inches='tight')    
-        canvas.close()        
-        return base64.b64encode(buffer.getvalue()).decode('utf-8')

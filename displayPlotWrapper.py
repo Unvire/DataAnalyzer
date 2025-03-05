@@ -10,7 +10,6 @@ from dataContainer import DataContainer
 from dataPoint import DataPoint
 import listParser
 
-
 class PlotWrapper:
     def __init__(self, plotFrame:QFrame, selectSiteComboBox:QComboBox, plotOrderByComboBox:QComboBox, _changeYScaleButton:QPushButton, 
                  changePlotButton:QPushButton):
@@ -132,24 +131,9 @@ class PlotWrapper:
         generatePlot[plotType](valuesList, plotName, limitsList, self.isLogScale, siteNames, isMergeDataList)
     
     def _generateCXCYPlot(self):
-        def uniqueBoundaryStrings(siteBoundariesList:list[list[str]]) -> list[str]:
-            uniqueBoundaries = set()
-            for siteBoundaries in siteBoundariesList:
-                for boundaryString in siteBoundaries:
-                    uniqueBoundaries.add(boundaryString)
-            return list(uniqueBoundaries)
-        
-        def processBoundaryStrings(uniqueBoundariesList:list[str]) -> list[list[tuple[float, float]]]:
-            result = []
-            for boundaryString in uniqueBoundariesList:
-                x1, y1, x2, y2, x3, y3, x4, y4 = boundaryString.split('_')
-                boundaryXYs = [(float(x1), float(y1)), (float(x2), float(y2)), (float(x3), float(y3)), (float(x4), float(y4)), (float(x1), float(y1))]
-                result.append(boundaryXYs) 
-            return result
-
         plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()
-        siteBoundaries = uniqueBoundaryStrings(siteBoundariesList)
-        boundaryXYs = processBoundaryStrings(siteBoundaries)
+        siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
+        boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
         self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
 
     def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]]:
