@@ -1,5 +1,6 @@
 import pytest
 import columnDataProcessor
+from dataPoint import DataPoint
 
 @pytest.fixture
 def file1LinesProcessingTest():
@@ -43,17 +44,21 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, fi
     loader = columnDataProcessor.ColumnDataProcessor()
     for mockFile in [file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest]:
         testName, lowerLimit, upperLimit = loader._getSiteLimitsFromHeader(mockFile)
-        loader.createDataContainer(testName, lowerLimit, upperLimit)
+        loader.createDataContainer(testName)
         for line in mockFile:
-            loader._processFileLine(line, testName, mockDate)
+            loader._processFileLine(line, testName, (float(lowerLimit), float(upperLimit)), mockDate)
     
     measurements = loader.getMeasurements()
     assert list(measurements.keys()) == ['test1', 'test2']
 
     dataInstance = measurements['test1']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [[(float('1'), mockDate), (float('2'), mockDate), (float('3'), mockDate), (float('4'), mockDate)]]
+    assert dataInstance.getDataFromSite('1') == [[DataPoint(float('1'), (0, 10), mockDate), 
+                                                  DataPoint(float('2'), (0, 10), mockDate), 
+                                                  DataPoint(float('3'), (0, 10), mockDate), 
+                                                  DataPoint(float('4'), (0, 10), mockDate)]]
 
     dataInstance = measurements['test2']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getDataFromSite('1') == [[(float('15'), mockDate), (float('16'), mockDate)]]
+    assert dataInstance.getDataFromSite('1') == [[DataPoint(float('15'), (10, 20), mockDate), 
+                                                  DataPoint(float('16'), (10, 20), mockDate)]]

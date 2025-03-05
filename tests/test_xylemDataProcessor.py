@@ -1,5 +1,6 @@
 import pytest
 import xylemDataProcessor
+from dataPoint import DataPoint
 
 @pytest.fixture
 def file1LinesProcessingTest():
@@ -43,7 +44,6 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     for line in mockFile[siteIndex + 1:]:
         try:
-            print(site, type(site))
             loader._processFileLine(line, site, mockDate)
         except ValueError:
             pass
@@ -51,12 +51,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
     measurements = loader.getMeasurements()
     assert list(measurements.keys()) == ['P04.004: Vdd_ISO', 'P08.002: NTC1 Value']
 
-    dataInstance = measurements['P04.004: Vdd_ISO']
-    assert list(dataInstance.data.keys()) == ['0']
-    assert dataInstance.getDataFromSite('0') == [[(float('5.032810'), mockDate), (float('5.062810'), mockDate)]]
-    assert dataInstance.getLimits() == [float('4.800000'), float('5.100000')]
+    dataContainer = measurements['P04.004: Vdd_ISO']
+    assert list(dataContainer.data.keys()) == ['0']
+    assert dataContainer.getDataFromSite('0') == [[DataPoint(float('5.032810'), (4.8, 5.1), mockDate), DataPoint(float('5.062810'), (4.8, 5.1), mockDate)]]
 
-    dataInstance = measurements['P08.002: NTC1 Value']
-    assert list(dataInstance.data.keys()) == ['0']
-    assert dataInstance.getDataFromSite('0') == [[(float('891.000000'), mockDate), (float('921.000000'), mockDate)]]
-    assert dataInstance.getLimits() == [float('853.00000'), float('930.00000')]
+    dataContainer = measurements['P08.002: NTC1 Value']
+    assert list(dataContainer.data.keys()) == ['0']
+    assert dataContainer.getDataFromSite('0') == [[DataPoint(float('891.000000'), (853, 930), mockDate), DataPoint(float('921.000000'), (853, 930), mockDate)]]

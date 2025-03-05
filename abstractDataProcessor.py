@@ -11,17 +11,9 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
     def getMeasurements(self) -> dict[str:dataContainer.DataContainer]:
         return self.measurements
 
-    def createDataContainer(self, testName:str, lowerLimit:str|float, upperLimit:str|float):
+    def createDataContainer(self, testName:str):
         if testName not in self.measurements:
             testContainer = dataContainer.DataContainer(testName)
-            testContainer.setLimits(lowerLimit, upperLimit)
-            self.measurements[testName] = testContainer
-    
-    def createCXCYDataContainer(self, testName:str, boundaryXYs:list[tuple[str, str]]):
-        if testName not in self.measurements:
-            testContainer = dataContainer.CxCyDataContainer(testName)
-            for boundaryXY in boundaryXYs:
-                testContainer.addBoundaryXY(boundaryXY)
             self.measurements[testName] = testContainer
 
     @abc.abstractmethod

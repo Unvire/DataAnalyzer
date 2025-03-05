@@ -23,5 +23,20 @@ def flattenDataSeries(data:list[list[float]]) -> tuple[list[float], int]:
 def valueDateSeriesToValueSeries(data:list[list[float, str]]) -> list[list[float]]:
     return [[value for value, _ in siteData] for siteData in data]
 
-def valueDateSeriesToFlatValueList(data:list[list[float, str]]) -> list[float]:
-    return [value for siteData in data for value, _ in siteData]
+def nestedValuesListToFlatValueList(data:list[list[float]]) -> list[float]:
+    return [value for siteData in data for value in siteData]
+
+def uniqueBoundaryStrings(siteBoundariesList:list[list[str]]) -> list[str]:
+    uniqueBoundaries = set()
+    for siteBoundaries in siteBoundariesList:
+        for boundaryString in siteBoundaries:
+            uniqueBoundaries.add(boundaryString)
+    return list(uniqueBoundaries)
+        
+def processBoundaryStrings(uniqueBoundariesList:list[str]) -> list[list[tuple[float, float]]]:
+    result = []
+    for boundaryString in uniqueBoundariesList:
+        x1, y1, x2, y2, x3, y3, x4, y4 = boundaryString.split('_')
+        boundaryXYs = [(float(x1), float(y1)), (float(x2), float(y2)), (float(x3), float(y3)), (float(x4), float(y4)), (float(x1), float(y1))]
+        result.append(boundaryXYs) 
+    return result

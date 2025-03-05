@@ -13,7 +13,7 @@ from displayPlotWrapper import PlotWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from htmlReportGenerator import HtmlReportGenerator
-from dataContainer import DataContainer, AbstractDataContainer
+from dataContainer import DataContainer
 import listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
@@ -223,7 +223,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.plotWidget.setDataContainer(firstMeasurement)
             self.plotWidget.updateNumOfSites()
             self.plotWidget.generatePlot()
-        
+            self.selectedTest = firstMeasurement.name
+
         except IndexError:
             self.showErrorMessage('Error', 'Error after processing files. Check if correct log type is selected')
             self.openLogsFolderButton.setEnabled(True)
@@ -238,7 +239,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             dataContainer = self._getSelectedMeasurementDataContainer()
             self.plotWidget.setDataContainer(dataContainer)
             self.plotWidget.generatePlot()
-            self.updateProcessParameters()
+            if not dataContainer.isCxCyMeasurement():
+                self.updateProcessParameters()
         except AttributeError:
             pass
         except Exception:
@@ -246,17 +248,18 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.showErrorMessage('Error', message)
     
     def updateProcessParameters(self):
-        dataContainer = self._getSelectedMeasurementDataContainer()        
-        orderBy = self.plotWidget.getPlotOrderBy()
+        dataContainer = self._getSelectedMeasurementDataContainer()
         site = self.plotWidget.getSelectedSite()
 
-        dataList = AbstractDataContainer.generateDataList(dataContainer, orderBy, site)
-        lowerLimit, upperLimit = dataContainer.getLimits()
+        dataPointsList = dataContainer.getDataFromAllSites() if site == 'All sites' else dataContainer.getDataFromSite(site)
+        nestedValuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
 
-        dataListValues = listParser.valueDateSeriesToFlatValueList(dataList)
+        valuesList = listParser.nestedValuesListToFlatValueList(nestedValuesList)
+        lowerLimit, upperLimit = limitsList[0][-1]
 
-        mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(dataListValues, lowerLimit, upperLimit)
-        self._updateStatisticalEdits(numOfSamples=len(dataListValues), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
+        mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(valuesList, lowerLimit, upperLimit)
+        self._updateStatisticalEdits(numOfSamples=len(valuesList), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
                                      sigma=sigma, pp=pp, ppk=ppk, cp=cp, cpk=cpk, stability=stability)
 
     def _getSelectedMeasurementDataContainer(self) -> DataContainer:
@@ -305,6 +308,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         for _, subWindowHandle in self.plotWindowsDict.items():
             subWindowHandle.close()
         super().close()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
