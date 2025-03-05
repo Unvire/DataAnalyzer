@@ -63,17 +63,28 @@ class SequencePlotGenerator(PlotGenerator):
         self._addLegendAndScale(title, ['Samples sorted by date', 'Value'], isLogScale)
 
 class CapabilityPlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[list[float]], title:str, limits:list[float], isLogScale:bool, *args):
-        dataList, numberOfSamples = listParser.flattenDataSeries(dataList)
+    def generatePlot(self, valuesList:list[list[float]], title:str, limitsList:list[list[float]], isLogScale:bool, *args):
+        dataList, numberOfSamples = listParser.flattenDataSeries(valuesList)
+        limitsList, _ = listParser.flattenDataSeries(limitsList)
+
+        allLowerLimits = set(); allUpperLimits = set()
+        for lsl, usl in limitsList:
+            allLowerLimits.add(lsl)
+            allUpperLimits.add(usl)
+        allLowerLimits = list(allLowerLimits)
+        allUpperLimits = list(allUpperLimits)
 
         self.canvas.ax.cla()
         mean = np.mean(dataList)
         numOfBins = _calculateNumberOfHistogramBins(dataList)
 
         self.canvas.ax.hist(dataList, bins=numOfBins, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
-        sns.kdeplot(dataList, color='blue', label='Density ST')
-        self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')
-        self._addLegendAndScale(title, limits, True, ['Value', 'Probability density'], isLogScale)
+        sns.kdeplot(dataList, color='blue', label='Density ST') 
+
+        self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')        
+        self.canvas.ax.axvline(allLowerLimits[-1], linestyle='--', label=f'LSL', color='red')
+        self.canvas.ax.axvline(allUpperLimits[-1], linestyle='--', label=f'USL', color='orange')
+        self._addLegendAndScale(title, ['Value', 'Probability density'], isLogScale)
 
 class CxCyPlotGenerator(PlotGenerator):
     def generatePlot(self, dataList:list[list[float]], title:str, boundaryXs:list[float], boundaryYs:list[float], siteNames:list[str]):
