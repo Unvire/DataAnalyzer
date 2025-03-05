@@ -42,6 +42,12 @@ class DataContainer:
         dataPointsList = self.data[site]
         return [dataPoint.getLimits() for dataPoint in dataPointsList]
     
+    def isCxCyMeasurement(self) -> bool:
+        firstSite = self.getSiteNames()[0]
+        dataPoint = self.data[firstSite][0]
+        limits = dataPoint.getLimits()
+        return isinstance(limits, str)
+    
     def _addSiteAndSortInPlace(self, siteName:str):
         self.data[siteName] = []
         self.data = {key:self.data[key] for key in sorted(self.data)}    

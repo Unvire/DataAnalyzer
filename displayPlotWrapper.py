@@ -111,10 +111,8 @@ class PlotWrapper:
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
         self.generatePlot()
 
-    def generatePlot(self):
-        siteNames = self.dataContainer.getSiteNames()
-        limits = self.dataContainer.getLimits(siteNames[0])
-        if isinstance(limits[0], str):
+    def generatePlot(self):        
+        if self.dataContainer.isCxCyMeasurement():
             self._generateCXCYPlot()                        
             self.setStatusPlotHandlingWidgets(False)
             self.selectSiteComboBox.setEnabled(True)
