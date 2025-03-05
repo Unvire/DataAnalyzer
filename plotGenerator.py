@@ -49,7 +49,12 @@ class SequencePlotGenerator(PlotGenerator):
         self.canvas.ax.cla()        
         self.canvas.ax.set_xlim([0, longestSeriesLength])
 
-        for siteName, dataSeries, limitSeries in zip(siteNames, dataSeriesList, limitSeriesList):
+        for siteName, dataSeries in zip(siteNames, dataSeriesList):
+            xVal, yVal = [point[0] for point in dataSeries], [point[1] for point in dataSeries]
+            seriesLength = len(dataSeries)
+            self.canvas.ax.plot(xVal, yVal, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
+        
+        for siteName, limitSeries in zip(siteNames, limitSeriesList):
             xLim = [point[0] for point in limitSeries]
             yLowerLim =  [point[1][0] for point in limitSeries]
             self.canvas.ax.plot(xLim, yLowerLim, '-.', linewidth=1, label=f'LSL', picker=1, color='red')
@@ -57,9 +62,6 @@ class SequencePlotGenerator(PlotGenerator):
             yUpperLim =  [point[1][1] for point in limitSeries]
             self.canvas.ax.plot(xLim, yUpperLim, '-.', linewidth=1, label=f'USL', picker=1, color='orange')
             
-            xVal, yVal = [point[0] for point in dataSeries], [point[1] for point in dataSeries]
-            seriesLength = len(dataSeries)
-            self.canvas.ax.plot(xVal, yVal, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
         
         self.canvas.ax.grid()
         self._addLegendAndScale(title, ['Samples sorted by date', 'Value'], isLogScale)

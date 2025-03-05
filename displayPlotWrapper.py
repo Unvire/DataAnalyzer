@@ -74,9 +74,10 @@ class PlotWrapper:
         self.canvas.clear()
 
     def _getClickedPointData(self, seriesIndex:int, pointIndex:int) -> tuple[str, str]:
-        dataList = DataContainer.generateDataList(self.dataContainer, 'Date', 'All sites')
-        value, date = dataList[seriesIndex][pointIndex]        
-        if 1==0:#isinstance(self.dataContainer, CxCyDataContainer):
+        dataPointsList, _ = self._getDataPointsList(self.selectedSite)
+        value = DataContainer.getValuesFromDataPointsList(dataPointsList)[seriesIndex][pointIndex]
+        date = DataContainer.getDateStringsFromDataPointsList(dataPointsList)[seriesIndex][pointIndex]
+        if self.dataContainer.isCxCyMeasurement():
             cx, cy = value
             cx = format(cx, '.3E')
             cy = format(cy, '.3E')
@@ -101,7 +102,7 @@ class PlotWrapper:
 
         try:
             self.generatePlot()
-            if 1==0:#not isinstance(self.dataContainer, CxCyDataContainer):
+            if not self.dataContainer.isCxCyMeasurement():
                 self.updateProcessParameters()
         except Exception:
             message = 'Error with selected measurement'
@@ -190,19 +191,17 @@ class PlotWrapper:
             self.isPickedPoint = False
             return
         
-        if self.annotation:
-            self.annotation.remove()
-            self.annotation = None
-            self.canvas.draw_idle() 
+        self._removeAnnotation()        
+        self.canvas.draw_idle()
 
     def _canvasOnPick(self, event: PickEvent):
         def getSeriesID(artist):
             for i, line in enumerate(self.canvas.ax.lines):
                 if line == artist:
                     return i
-
-        if self.annotation:
-            self.annotation.remove()
+        
+        self._removeAnnotation()        
+        self.canvas.draw_idle()
         
         self.isPickedPoint = True
 
@@ -211,22 +210,32 @@ class PlotWrapper:
         x = event.artist.get_xdata()[index]
         y = event.artist.get_ydata()[index]        
         
-        formattedValue, date = self._getClickedPointData(seriesID, index)
-        self.annotation = self.canvas.ax.annotate(
-            f'{formattedValue}\n{date}',
-            (x, y),
-            xytext=(0, 10),
-            textcoords='offset points',
-            ha='center',
-            bbox=dict(
-                boxstyle='round,pad=0.5',
-                fc='lightblue',
-                ec='black',
-                lw=1
-            ),
-            arrowprops=dict(arrowstyle='->')
-        )
+        try:
+            formattedValue, date = self._getClickedPointData(seriesID, index)
+            self.annotation = self.canvas.ax.annotate(
+                f'{formattedValue}\n{date}',
+                (x, y),
+                xytext=(0, 10),
+                textcoords='offset points',
+                ha='center',
+                bbox=dict(
+                    boxstyle='round,pad=0.5',
+                    fc='lightblue',
+                    ec='black',
+                    lw=1
+                ),
+                arrowprops=dict(arrowstyle='->')
+            )
+            
+        except IndexError:
+            pass
+
         self.canvas.draw_idle()
+    
+    def _removeAnnotation(self):
+        if self.annotation:
+            self.annotation.remove()
+            self.annotation = None
 
     
 
