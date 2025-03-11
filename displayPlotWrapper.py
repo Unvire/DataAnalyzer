@@ -12,19 +12,21 @@ import listParser
 
 class PlotWrapper:
     def __init__(self, plotFrame:QFrame, selectSiteComboBox:QComboBox, plotOrderByComboBox:QComboBox, _changeYScaleButton:QPushButton, 
-                 changePlotButton:QPushButton):
+                 changePlotButton:QPushButton, selectLimitsComboBox:QComboBox):
         
         self.plotFrame = plotFrame
         self.selectSiteComboBox = selectSiteComboBox
         self.plotOrderByComboBox = plotOrderByComboBox
         self.changeYScaleButton = _changeYScaleButton
         self.changePlotButton = changePlotButton
+        self.selectLimitsComboBox = selectLimitsComboBox
         
         self.dataContainer = None 
 
         self.selectedSite = 'All sites'
         self.selectedPlotType = 'Sequence plot'
         self.plotOrderBy = 'Date'
+        self.selectedLimits = 'All'
         self.isLogScale = False        
         self.isPickedPoint = False 
 
@@ -53,6 +55,7 @@ class PlotWrapper:
         self.plotOrderByComboBox.activated.connect(self._plotOrderByComboBoxClickedEvent)        
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
         self.changePlotButton.clicked.connect(self._changePlotType)
+        self.selectLimitsComboBox.activated.connect(lambda value: self._selectLimitsComboBoxClickedEvent(value))
     
     def setDataContainer(self, dataContainer:DataContainer):
         self.dataContainer = dataContainer
@@ -88,10 +91,28 @@ class PlotWrapper:
     def _changePlotType(self):
         plotTypeInverterMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
         self.selectedPlotType = plotTypeInverterMap[self.selectedPlotType]
+        self._updateSelectLimitsComboBox(self.selectedPlotType)
         self.generatePlot()
     
+    def _updateSelectLimitsComboBox(self, selectedPlotType:str):
+        isCapabilityPlot = selectedPlotType == 'Capability plot'
+        limitsOptions = ['All'] * int(not isCapabilityPlot) + ['Oldest', 'Newest']
+        
+        self.selectLimitsComboBox.clear()
+        for option in limitsOptions:
+            self.selectLimitsComboBox.addItem(option)
+        
+        if isCapabilityPlot and self.selectedLimits == 'All':
+            self.selectedLimits = 'Oldest'
+        elif not isCapabilityPlot:
+            self.selectedLimits = 'All'
+
     def _changeYScale(self):        
         self.isLogScale = not self.isLogScale
+        self.generatePlot()
+    
+    def _selectLimitsComboBoxClickedEvent(self, value:str|int):
+        self.selectedLimits = self.selectLimitsComboBox.itemText(value)
         self.generatePlot()
     
     def _selectSiteComboBoxClickedEvent(self, value:str|int):
@@ -116,6 +137,7 @@ class PlotWrapper:
             self._generateCXCYPlot()                        
             self.setStatusPlotHandlingWidgets(False)
             self.selectSiteComboBox.setEnabled(True)
+            self.selectLimitsComboBox.setEnabled(True)
         else:
             self._generateCapabilityOrSequencePlot()            
             self.setStatusPlotHandlingWidgets(True)       
@@ -136,11 +158,16 @@ class PlotWrapper:
         boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
         self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
 
-    def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]]:
+    def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]]|list[float|str]:
         plotName = self.dataContainer.name
         dataPointsList, siteNames = self._getDataPointsList(self.selectedSite)        
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
-        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)        
+        if self.selectedLimits == 'Oldest':
+            limitsList = limitsList[0][0]
+        elif self.selectedLimits == 'Newest':
+            limitsList = limitsList[0][-1]
         return plotName, siteNames, valuesList, limitsList
 
     def _getDataPointsList(self, selectedSite:str) -> tuple[list[list[DataPoint]], list[str]]:
