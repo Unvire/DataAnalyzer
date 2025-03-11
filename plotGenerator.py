@@ -66,8 +66,8 @@ class SequencePlotGenerator(PlotGenerator):
                 self.canvas.ax.plot(xLim, yUpperLim, '-.', linewidth=1, label=f'USL', picker=1, color='orange')
         else:
             lowerLimitValue, upperLimitValue = limitsList
-            self.canvas.ax.axvline(lowerLimitValue, linestyle='--', color='red', label='LSL')
-            self.canvas.ax.axvline(upperLimitValue, linestyle='--', color='orange', label='USL')
+            self.canvas.ax.axhline(lowerLimitValue, linestyle='--', color='red', label='LSL')
+            self.canvas.ax.axhline(upperLimitValue, linestyle='--', color='orange', label='USL')
             
         
         self.canvas.ax.grid()
