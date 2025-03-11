@@ -39,14 +39,13 @@ class PlotGenerator:
         self.canvas.ax.legend(handles=uniqueHandles, labels=uniqueLabels, loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
 
 class SequencePlotGenerator(PlotGenerator):
-    def generatePlot(self, valuesList:list[list[float]], title:str, limitsList:list[list[float]], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
+    def generatePlot(self, valuesList:list[list[float]], title:str, limitsList:list[list[float]]|list[float, float], isLogScale:bool, siteNames:list[str], isMergeDataSublists:bool):
         listParserHandlesDict = {
             True: listParser.mergedDataSeries,
             False: listParser.continuousDataSeries
         }
 
         dataSeriesList, longestSeriesLength = listParserHandlesDict[isMergeDataSublists](valuesList)
-        limitSeriesList, _ = listParserHandlesDict[isMergeDataSublists](limitsList)
         self.canvas.ax.cla()        
         self.canvas.ax.set_xlim([0, longestSeriesLength])
 
@@ -55,29 +54,29 @@ class SequencePlotGenerator(PlotGenerator):
             seriesLength = len(dataSeries)
             self.canvas.ax.plot(xVal, yVal, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
         
-        for siteName, limitSeries in zip(siteNames, limitSeriesList):
-            xLim = [point[0] for point in limitSeries]
-            yLowerLim =  [point[1][0] for point in limitSeries]
-            self.canvas.ax.plot(xLim, yLowerLim, '-.', linewidth=1, label=f'LSL', picker=1, color='red')
+        
+        if isinstance(limitsList[0], list):
+            limitSeriesList, _ = listParserHandlesDict[isMergeDataSublists](limitsList)
+            for siteName, limitSeries in zip(siteNames, limitSeriesList):
+                xLim = [point[0] for point in limitSeries]
+                yLowerLim =  [point[1][0] for point in limitSeries]
+                self.canvas.ax.plot(xLim, yLowerLim, '-.', linewidth=1, label=f'LSL', picker=1, color='red')
 
-            yUpperLim =  [point[1][1] for point in limitSeries]
-            self.canvas.ax.plot(xLim, yUpperLim, '-.', linewidth=1, label=f'USL', picker=1, color='orange')
+                yUpperLim =  [point[1][1] for point in limitSeries]
+                self.canvas.ax.plot(xLim, yUpperLim, '-.', linewidth=1, label=f'USL', picker=1, color='orange')
+        else:
+            lowerLimitValue, upperLimitValue = limitsList
+            self.canvas.ax.axvline(lowerLimitValue, linestyle='--', color='red', label='LSL')
+            self.canvas.ax.axvline(upperLimitValue, linestyle='--', color='orange', label='USL')
             
         
         self.canvas.ax.grid()
         self._addLegendAndScale(title, ['Samples sorted by date', 'Value'], isLogScale)
 
 class CapabilityPlotGenerator(PlotGenerator):
-    def generatePlot(self, valuesList:list[list[float]], title:str, limitsList:list[list[float]], isLogScale:bool, *args):
+    def generatePlot(self, valuesList:list[list[float]], title:str, limitsList:list[float, float], isLogScale:bool, *args):
         dataList, numberOfSamples = listParser.flattenDataSeries(valuesList)
         limitsList, _ = listParser.flattenDataSeries(limitsList)
-
-        allLowerLimits = set(); allUpperLimits = set()
-        for lsl, usl in limitsList:
-            allLowerLimits.add(lsl)
-            allUpperLimits.add(usl)
-        allLowerLimits = list(allLowerLimits)
-        allUpperLimits = list(allUpperLimits)
 
         self.canvas.ax.cla()
         mean = np.mean(dataList)
@@ -86,9 +85,10 @@ class CapabilityPlotGenerator(PlotGenerator):
         self.canvas.ax.hist(dataList, bins=numOfBins, density=True, edgecolor='black', alpha=0.7, label=f'Measurements ({numberOfSamples} samples)')
         sns.kdeplot(dataList, color='blue', label='Density ST') 
 
+        lowerLimitValue, upperLimitValue = limitsList
         self.canvas.ax.axvline(mean, linestyle='--', color='green', label='Mean')        
-        self.canvas.ax.axvline(allLowerLimits[-1], linestyle='--', label=f'LSL', color='red')
-        self.canvas.ax.axvline(allUpperLimits[-1], linestyle='--', label=f'USL', color='orange')
+        self.canvas.ax.axvline(lowerLimitValue, linestyle='--', label=f'LSL', color='red')
+        self.canvas.ax.axvline(upperLimitValue, linestyle='--', label=f'USL', color='orange')
         self._addLegendAndScale(title, ['Value', 'Probability density'], isLogScale)
 
 class CxCyPlotGenerator(PlotGenerator):

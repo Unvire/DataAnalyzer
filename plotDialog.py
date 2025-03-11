@@ -1,5 +1,5 @@
-import sys, os
-from PyQt5.QtWidgets import QApplication, QDialog
+import os
+from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 
@@ -18,7 +18,7 @@ class PlotDialog(QDialog):
         self.closeCallbackHandle = lambda: None
 
         self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
-                                      self.changePlotButton)
+                                      self.changePlotButton, self.selectLimitsComboBox)
         self.plotWidget.setDataContainer(dataContainer)
         self.plotWidget.updateNumOfSites()
         self.plotWidget.generatePlot()
