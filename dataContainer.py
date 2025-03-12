@@ -60,10 +60,15 @@ class DataContainer:
         return result
     
     @staticmethod
-    def getLimitsFromDataPointsList(dataPointsList:list[list[DataPoint]]) -> list[list[str | tuple[float, float]]]:
+    def getLimitsFromDataPointsList(dataPointsList:list[list[DataPoint]], selectedLimits:str) -> list[list[str | tuple[float, float]]] | list[str|float, str|float]:
         result = []
         for siteDataPointsList in dataPointsList:
             result.append([dataPointInstance.getLimits() for dataPointInstance in siteDataPointsList])
+            
+        if selectedLimits == 'Oldest':
+            return result[0][0]
+        elif selectedLimits == 'Newest':
+            return result[0][-1]
         return result
     
     @staticmethod

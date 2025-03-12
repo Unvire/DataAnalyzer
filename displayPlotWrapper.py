@@ -162,12 +162,7 @@ class PlotWrapper:
         plotName = self.dataContainer.name
         dataPointsList, siteNames = self._getDataPointsList(self.selectedSite)        
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
-
-        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)        
-        if self.selectedLimits == 'Oldest':
-            limitsList = limitsList[0][0]
-        elif self.selectedLimits == 'Newest':
-            limitsList = limitsList[0][-1]
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList, self.selectedLimits)   
         return plotName, siteNames, valuesList, limitsList
 
     def _getDataPointsList(self, selectedSite:str) -> tuple[list[list[DataPoint]], list[str]]:

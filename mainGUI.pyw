@@ -252,11 +252,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         site = self.plotWidget.getSelectedSite()
 
         dataPointsList = dataContainer.getDataFromAllSites() if site == 'All sites' else dataContainer.getDataFromSite(site)
-        nestedValuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
-        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
-
+        nestedValuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)        
         valuesList = listParser.nestedValuesListToFlatValueList(nestedValuesList)
-        lowerLimit, upperLimit = limitsList[0][-1]
+
+        lowerLimit, upperLimit = DataContainer.getLimitsFromDataPointsList(dataPointsList, 'Newest')
 
         mean, sigma, pp, ppk, cp, cpk, stability = self.processParameterCalculator.calculate(valuesList, lowerLimit, upperLimit)
         self._updateStatisticalEdits(numOfSamples=len(valuesList), lowerLimit=lowerLimit, upperLimit=upperLimit, mean=mean, 
