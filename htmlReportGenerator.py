@@ -64,7 +64,7 @@ class HtmlReportGenerator:
         </html>
         '''
 
-    def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int, orderBy:str) -> str:
+    def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int, orderBy:str, selectedLimits:str) -> str:
         def dequeAndUpdateProgressBar(queue):
             processedTables = 0
             while processedTables < numOfTables:
@@ -79,11 +79,11 @@ class HtmlReportGenerator:
         
         with multiprocessing.Manager() as manager:
             queue = manager.Queue()
-            poolArgs = [(chunk, site, orderBy, queue) for chunk in chunks]            
+            poolArgs = [(chunk, site, orderBy, selectedLimits, queue) for chunk in chunks]            
             numOfTables = len(measurementsDict)
             
             with multiprocessing.Pool(processes=maxProcesses) as pool:
-                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)   
+                results = pool.starmap_async(HtmlReportGenerator._processChunk, poolArgs)  
                 dequeAndUpdateProgressBar(queue)
     
                 results = results.get()
@@ -116,18 +116,18 @@ class HtmlReportGenerator:
         return chunks
     
     @staticmethod
-    def _processChunk(chunk:list[dict], site:str, orderBy:str, queue:multiprocessing.Queue) -> list[str]:
+    def _processChunk(chunk:list[dict], site:str, orderBy:str, selectedLimits:str, queue:multiprocessing.Queue) -> list[str]:
         buffer = ''
         for _, data in chunk.items():    
             queue.put(1)
             try:
-                buffer += HtmlReportGenerator._generateTable(data, site, orderBy)
+                buffer += HtmlReportGenerator._generateTable(data, site, orderBy, selectedLimits)
             except Exception as e:
                 print(data.name, e.__repr__())
         return buffer
     
     @staticmethod
-    def _generateTable(data:DataContainer, site:str, orderBy:str) -> str:
+    def _generateTable(data:DataContainer, site:str, orderBy:str, selectedLimits:str) -> str:
         if site == 'All sites':        
             dataPointsList = data.getDataFromAllSites()
             siteNames = data.getSiteNames()
@@ -136,17 +136,17 @@ class HtmlReportGenerator:
             siteNames = [site]
 
         if data.isCxCyMeasurement():
-            htmlSubtable = HtmlReportGenerator._generateCxCYTable(dataPointsList, data.name, siteNames)
+            htmlSubtable = HtmlReportGenerator._generateCxCYTable(dataPointsList, data.name, siteNames, selectedLimits)
         else:
-            htmlSubtable = HtmlReportGenerator._generateSequenceCapabilityTable(dataPointsList, data.name, siteNames, orderBy)
+            htmlSubtable = HtmlReportGenerator._generateSequenceCapabilityTable(dataPointsList, data.name, siteNames, orderBy, selectedLimits)
         return htmlSubtable
     
     @staticmethod
-    def _generateSequenceCapabilityTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], plotOrderBy:str) -> str:
+    def _generateSequenceCapabilityTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], plotOrderBy:str, selectedLimits:str) -> str:
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
-        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
-        
-        lowerLimit, upperLimit = limitsList[0][-1]
+        limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList, selectedLimits)
+
+        lowerLimit, upperLimit = limitsList[0][-1] if isinstance(limitsList, list) else limitsList
         isLogScale = upperLimit - lowerLimit > 10000
         isMergeDataList = plotOrderBy == 'Date'
 
@@ -157,7 +157,7 @@ class HtmlReportGenerator:
 
         capabilityCanvas = MplCanvas()
         capabilityPlotGenerator = CapabilityPlotGenerator(capabilityCanvas)
-        capabilityPlotGenerator.generatePlot(valuesList, plotName, limitsList, False)
+        capabilityPlotGenerator.generatePlot(valuesList, plotName, [lowerLimit, upperLimit], False)
         capabilityPlotBytes = HtmlReportGenerator._canvasToBytes(capabilityCanvas)
 
         processParameterCalculator = ProcessParameterCalculator()        
@@ -175,9 +175,9 @@ class HtmlReportGenerator:
         return htmlSubtable
     
     @staticmethod
-    def _generateCxCYTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str]):
+    def _generateCxCYTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], selectedLimits:str):
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
-        siteBoundariesList = DataContainer.getLimitsFromDataPointsList(dataPointsList)
+        siteBoundariesList = DataContainer.getLimitsFromDataPointsList(dataPointsList, selectedLimits)
 
         siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
         boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
