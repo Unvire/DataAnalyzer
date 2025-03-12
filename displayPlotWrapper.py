@@ -153,12 +153,12 @@ class PlotWrapper:
         generatePlot[plotType](valuesList, plotName, limitsList, self.isLogScale, siteNames, isMergeDataList)
     
     def _generateCXCYPlot(self):
-        plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()
-        siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
+        plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()        
+        siteBoundaries = [siteBoundariesList] if isinstance(siteBoundariesList, str) else listParser.uniqueBoundaryStrings(siteBoundariesList)
         boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
         self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
 
-    def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]]|list[float|str]:
+    def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]] | list[float|str]:
         plotName = self.dataContainer.name
         dataPointsList, siteNames = self._getDataPointsList(self.selectedSite)        
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
