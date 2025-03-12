@@ -31,7 +31,8 @@ class GenerateReportDialog(QDialog):
         selectedTests = self.testNames if self.allTestsCheckBox.isChecked() else self.testListWrapper.getSelectedItems()
         orderBy = self.plotOrderByComboBox.currentText()
         siteName = self.selectSiteComboBox.currentText()
-        return selectedTests, siteName, orderBy
+        selectedLimits = self.selectLimitsComboBox.currentText()
+        return selectedTests, siteName, orderBy, selectedLimits
     
     def listWidgetClickedEvent(self, *args):
         pass
