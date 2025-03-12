@@ -15,6 +15,7 @@ class TestListWrapper:
         self.resetFilterButton.clicked.connect(self.resetFilterMeasurements)        
         self.listWidget.itemClicked.connect(lambda item: self.listWidgetClickedEvent(item))
         self.listWidget.currentRowChanged.connect(lambda rowID: self.listWidgetArrowKeyEvent(rowID))
+        self.regexPatternEdit.returnPressed.connect(self.filterMeasurementsWithRegex)
     
     def setTestNames(self, testNames:list[str]):
         self.testNames = testNames
