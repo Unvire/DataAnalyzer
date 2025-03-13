@@ -26,7 +26,10 @@ def valueDateSeriesToValueSeries(data:list[list[float, str]]) -> list[list[float
 def nestedValuesListToFlatValueList(data:list[list[float]]) -> list[float]:
     return [value for siteData in data for value in siteData]
 
-def uniqueBoundaryStrings(siteBoundariesList:list[list[str]]) -> list[str]:
+def uniqueBoundaryStrings(siteBoundariesList:list[list[str]]|str) -> list[str]:
+    if isinstance(siteBoundariesList, str):
+        return [siteBoundariesList]
+    
     uniqueBoundaries = set()
     for siteBoundaries in siteBoundariesList:
         for boundaryString in siteBoundaries:

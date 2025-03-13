@@ -154,7 +154,7 @@ class PlotWrapper:
     
     def _generateCXCYPlot(self):
         plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()        
-        siteBoundaries = [siteBoundariesList] if isinstance(siteBoundariesList, str) else listParser.uniqueBoundaryStrings(siteBoundariesList)
+        siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
         boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
         self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
 

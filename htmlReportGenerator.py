@@ -178,7 +178,6 @@ class HtmlReportGenerator:
     def _generateCxCYTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], selectedLimits:str):
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
         siteBoundariesList = DataContainer.getLimitsFromDataPointsList(dataPointsList, selectedLimits)
-
         siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
         boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
 
