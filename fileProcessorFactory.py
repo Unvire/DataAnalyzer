@@ -2,17 +2,17 @@ import os
 from datetime import datetime
 
 import dataContainer
-import speaDataProcessor, fwkDataProcessor, columnDataProcessor, xylemDataProcessor
+import dataProcessorSpea, dataProcessorFwk, dataProcessorColumn, dataProcessorXylem
 
 from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
 
 class FileProcessorsFactory:
     def __init__(self):
         self.dataProcessorsDict = {
-            'SPEA': speaDataProcessor.SpeaDataProcessor,
-            'FWK': fwkDataProcessor.FwkDataProcessor,
-            'TestStand XYLEM': xylemDataProcessor.XylemDataProcessor,
-            'Column file': columnDataProcessor.ColumnDataProcessor
+            'SPEA': dataProcessorSpea.SpeaDataProcessor,
+            'FWK': dataProcessorFwk.FwkDataProcessor,
+            'TestStand XYLEM': dataProcessorXylem.XylemDataProcessor,
+            'Column file': dataProcessorColumn.ColumnDataProcessor
         }
         self.observersList = []
         self.progressPercent = -1

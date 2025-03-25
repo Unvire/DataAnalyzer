@@ -1,4 +1,4 @@
-from abstractDataProcessor import AbstractDataProcessor
+from dataProcessorAbstract import AbstractDataProcessor
 
 class ColumnDataProcessor(AbstractDataProcessor):
     def __init__(self):

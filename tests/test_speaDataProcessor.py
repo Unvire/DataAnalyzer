@@ -1,5 +1,5 @@
 import pytest
-import speaDataProcessor
+import dataProcessorSpea
 from dataPoint import DataPoint
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def fileLinesProcessingTest():
 
 def test__processFileLine(fileLinesProcessingTest):
     fileLines, testTime = fileLinesProcessingTest
-    loader = speaDataProcessor.SpeaDataProcessor()
+    loader = dataProcessorSpea.SpeaDataProcessor()
     for line in fileLines:
         loader._processFileLine(line, testTime)
     

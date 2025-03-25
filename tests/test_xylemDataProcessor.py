@@ -1,5 +1,5 @@
 import pytest
-import xylemDataProcessor
+import dataProcessorXylem
 from dataPoint import DataPoint
 
 @pytest.fixture
@@ -33,12 +33,12 @@ def mockDate():
     return '2024/01/01 14:52:30'
 
 def test__getSiteFromHeader(file1LinesProcessingTest):
-    loader = xylemDataProcessor.XylemDataProcessor()
+    loader = dataProcessorXylem.XylemDataProcessor()
     assert loader._getSiteFromHeader(file1LinesProcessingTest) == (5, '0')
 
 
 def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mockDate):
-    loader = xylemDataProcessor.XylemDataProcessor()
+    loader = dataProcessorXylem.XylemDataProcessor()
     mockFile = file1LinesProcessingTest + file2LinesProcessingTest
     siteIndex, site = loader._getSiteFromHeader(mockFile)
 

@@ -1,5 +1,5 @@
 import pytest
-import fwkDataProcessor
+import dataProcessorFwk
 from dataPoint import DataPoint
 
 @pytest.fixture
@@ -32,13 +32,13 @@ def mockDate():
     return '2024/01/01 14:52:30'
 
 def test__getSiteFromHeader(file1LinesProcessingTest, file2LinesProcessingTest):
-    loader = fwkDataProcessor.FwkDataProcessor()
+    loader = dataProcessorFwk.FwkDataProcessor()
     assert loader._getSiteFromHeader(file1LinesProcessingTest) == '1'
     assert loader._getSiteFromHeader(file2LinesProcessingTest) == '2'
 
 
 def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mockDate):
-    loader = fwkDataProcessor.FwkDataProcessor()
+    loader = dataProcessorFwk.FwkDataProcessor()
     for mockfile in [file1LinesProcessingTest, file2LinesProcessingTest]:
         site = loader._getSiteFromHeader(mockfile)
         for line in mockfile:

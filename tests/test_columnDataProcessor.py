@@ -1,5 +1,5 @@
 import pytest
-import columnDataProcessor
+import dataProcessorColumn
 from dataPoint import DataPoint
 
 @pytest.fixture
@@ -34,14 +34,14 @@ def mockDate():
     return '2024/01/01 14:52:30'
 
 def test__getSiteLimitsFromHeader(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest):    
-    loader = columnDataProcessor.ColumnDataProcessor()
+    loader = dataProcessorColumn.ColumnDataProcessor()
     assert loader._getSiteLimitsFromHeader(file1LinesProcessingTest) == ('test1', '0', '10')
     assert loader._getSiteLimitsFromHeader(file2LinesProcessingTest) == ('test1', '0', '10')
     assert loader._getSiteLimitsFromHeader(file3LinesProcessingTest) == ('test2', '10', '20')
     
 
 def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest, mockDate):
-    loader = columnDataProcessor.ColumnDataProcessor()
+    loader = dataProcessorColumn.ColumnDataProcessor()
     for mockFile in [file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest]:
         testName, lowerLimit, upperLimit = loader._getSiteLimitsFromHeader(mockFile)
         loader.createDataContainer(testName)

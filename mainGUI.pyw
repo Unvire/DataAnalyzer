@@ -5,11 +5,11 @@ from PyQt5 import QtWidgets, uic
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QMessageBox
 
-from generateReportDialog import GenerateReportDialog
-from plotDialog import PlotDialog
+from dialogGenerateReport import GenerateReportDialog
+from dialogPlot import PlotDialog
 
-from testListWrapper import TestListWrapper
-from displayPlotWrapper import PlotWrapper
+from wrapperTestList import TestListWrapper
+from wrapperDisplayPlot import PlotWrapper
 from fileProcessorFactory import FileProcessorsFactory
 from processCalculator import ProcessParameterCalculator
 from htmlReportGenerator import HtmlReportGenerator
