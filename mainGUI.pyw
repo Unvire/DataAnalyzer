@@ -251,7 +251,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         dataContainer = self._getSelectedMeasurementDataContainer()
         site = self.plotWidget.getSelectedSite()
 
-        dataPointsList = dataContainer.getDataFromAllSites() if site == 'All sites' else dataContainer.getDataFromSite(site)
+        dataPointsList = dataContainer.getData(site)
         nestedValuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)        
         valuesList = listParser.nestedValuesListToFlatValueList(nestedValuesList)
 

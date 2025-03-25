@@ -166,12 +166,8 @@ class PlotWrapper:
         return plotName, siteNames, valuesList, limitsList
 
     def _getDataPointsList(self, selectedSite:str) -> tuple[list[list[DataPoint]], list[str]]:
-        if selectedSite == 'All sites':
-            dataPointsList = self.dataContainer.getDataFromAllSites()
-            siteNames = self.dataContainer.getSiteNames()
-        else:
-            siteNames = [selectedSite]
-            dataPointsList = self.dataContainer.getDataFromSite(selectedSite)
+        dataPointsList = self.dataContainer.getData(selectedSite)
+        siteNames = self.dataContainer.getSiteNames() if selectedSite == 'All sites' else [selectedSite]
         return dataPointsList, siteNames
 
     def setStatusPlotHandlingWidgets(self, status:bool):        

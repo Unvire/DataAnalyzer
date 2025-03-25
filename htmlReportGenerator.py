@@ -128,12 +128,8 @@ class HtmlReportGenerator:
     
     @staticmethod
     def _generateTable(data:DataContainer, site:str, orderBy:str, selectedLimits:str) -> str:
-        if site == 'All sites':        
-            dataPointsList = data.getDataFromAllSites()
-            siteNames = data.getSiteNames()
-        else:
-            dataPointsList = data.getDataFromSite(site)
-            siteNames = [site]
+        dataPointsList = data.getData(site)
+        siteNames = data.getSiteNames() if site == 'All sites' else [site]
 
         if data.isCxCyMeasurement():
             htmlSubtable = HtmlReportGenerator._generateCxCYTable(dataPointsList, data.name, siteNames, selectedLimits)

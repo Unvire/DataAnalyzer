@@ -52,12 +52,12 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     dataInstance = measurements['SW1 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [[DataPoint(float('2.660224'), (2.340, 2.860), mockDate), 
+    assert dataInstance.getData('1') == [[DataPoint(float('2.660224'), (2.340, 2.860), mockDate), 
                                                   DataPoint(float('2.660224'), (2.340, 2.860), mockDate)]]    
-    assert dataInstance.getDataFromSite('2') == [[DataPoint(float('2.560224'), (2.340, 2.860), mockDate), 
+    assert dataInstance.getData('2') == [[DataPoint(float('2.560224'), (2.340, 2.860), mockDate), 
                                                   DataPoint(float('2.560224'), (2.340, 2.860), mockDate)]]
 
     dataInstance = measurements['SW2 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getDataFromSite('1') == [[DataPoint(float('2.652450'), (2.340, 2.860), mockDate)]]    
-    assert dataInstance.getDataFromSite('2') == [[DataPoint(float('2.552450'), (2.340, 2.860), mockDate)]]
+    assert dataInstance.getData('1') == [[DataPoint(float('2.652450'), (2.340, 2.860), mockDate)]]    
+    assert dataInstance.getData('2') == [[DataPoint(float('2.552450'), (2.340, 2.860), mockDate)]]
