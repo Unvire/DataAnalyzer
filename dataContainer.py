@@ -26,10 +26,7 @@ class DataContainer(AbstractDataContainer):
         self.data[site].append(dataPointInstance)
 
     def getData(self, site:str) -> list[list[DataPoint]]:
-        if site == 'All sites':
-            return self._getDataFromAllSites()
-        else:
-            return self._getDataFromSite(site)
+        return self._getDataFromAllSites() if site == 'All sites' else self._getDataFromSite(site)            
 
     def getNumOfSites(self) -> int:
         return len(self.data)
