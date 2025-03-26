@@ -91,9 +91,3 @@ class DataContainer(AbstractDataContainer):
         for siteDataPointsList in dataPointsList:
             result.append([dataPointInstance.getDate() for dataPointInstance in siteDataPointsList])
         return result
-
-class LedDataContainer(AbstractDataContainer):
-    pass
-
-if __name__ == '__main__':
-    a = LedDataContainer()
