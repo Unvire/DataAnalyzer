@@ -1,6 +1,8 @@
 from dataProcessorAbstract import AbstractDataProcessor
 
 class XylemDataProcessor(AbstractDataProcessor):
+    FILE_EXTENSIONS = ['txt']
+    
     def __init__(self):
         super().__init__()
 

@@ -31,6 +31,9 @@ class FileProcessorsFactory:
         logFiles = os.listdir(folderPath)
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
+            fileExtension = file.split('.')[-1]
+            if fileExtension not in self.loaderInstance.FILE_EXTENSIONS:
+                continue
             logPath = os.path.join(folderPath, file)
 
             modificationDate = os.path.getmtime(logPath)

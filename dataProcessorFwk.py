@@ -1,6 +1,8 @@
 from dataProcessorAbstract import AbstractDataProcessor
 
 class FwkDataProcessor(AbstractDataProcessor):
+    FILE_EXTENSIONS = ['csv']
+
     def __init__(self):
         super().__init__()
 
