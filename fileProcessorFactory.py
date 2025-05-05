@@ -1,7 +1,7 @@
 import os
 
 import dataContainer
-import dataProcessorSpea, dataProcessorFwk, dataProcessorColumn, dataProcessorXylem
+import dataProcessorSpea, dataProcessorFwk, dataProcessorColumn, dataProcessorGrugliasco
 
 from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
 
@@ -9,8 +9,8 @@ class FileProcessorsFactory:
     def __init__(self):
         self.dataProcessorsDict = {
             'SPEA': dataProcessorSpea.SpeaDataProcessor,
-            'FWK': dataProcessorFwk.FwkDataProcessor,
-            'TestStand XYLEM': dataProcessorXylem.XylemDataProcessor,
+            'FWK / Ipses': dataProcessorFwk.FwkDataProcessor,
+            'TestStand Grugliasco': dataProcessorGrugliasco.GrugliascoDataProcessor,
             'Column file': dataProcessorColumn.ColumnDataProcessor
         }
         self.observersList = []

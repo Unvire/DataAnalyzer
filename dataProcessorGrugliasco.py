@@ -1,10 +1,15 @@
 from dataProcessorAbstract import AbstractDataProcessor
 
-class XylemDataProcessor(AbstractDataProcessor):
+class GrugliascoDataProcessor(AbstractDataProcessor):
     FILE_EXTENSIONS = ['txt']
     
     def __init__(self):
         super().__init__()
+    
+    def getLogDateTime(self, fileNameNoExtension: str) -> str:
+        _, _, date, time, *_ = fileNameNoExtension.split('][')
+        datetimeString = date.replace('-', '') + time.replace('-', '')
+        return super().getLogDateTime(datetimeString)
 
     def processLogFile(self, filePath:str, testTime:str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
