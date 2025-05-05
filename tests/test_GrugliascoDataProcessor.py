@@ -29,22 +29,30 @@ def file2LinesProcessingTest():
     return mockFileLines
 
 @pytest.fixture
-def mockDate():
-    return '2024/01/01 14:52:30'
+def mockFileName():
+    return '[U62P-FCT-049][XYLEM LITE LWRC.seq][2024-09-13][18-37-10][TSOI][2024_XYLEM_042331][0]'
+
+def test_getLogDateTime(mockFileName):
+    loader = dataProcessorGrugliasco.GrugliascoDataProcessor()
+
+    expected = '2024/09/13 18:37:10'
+    assert loader.getLogDateTime(mockFileName) == expected
 
 def test__getSiteFromHeader(file1LinesProcessingTest):
-    loader = dataProcessorGrugliasco.XylemDataProcessor()
+    loader = dataProcessorGrugliasco.GrugliascoDataProcessor()
     assert loader._getSiteFromHeader(file1LinesProcessingTest) == (5, '0')
 
 
-def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mockDate):
-    loader = dataProcessorGrugliasco.XylemDataProcessor()
+def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mockFileName):
+    loader = dataProcessorGrugliasco.GrugliascoDataProcessor()
+    testTime = loader.getLogDateTime(mockFileName)
+
     mockFile = file1LinesProcessingTest + file2LinesProcessingTest
     siteIndex, site = loader._getSiteFromHeader(mockFile)
 
     for line in mockFile[siteIndex + 1:]:
         try:
-            loader._processFileLine(line, site, mockDate)
+            loader._processFileLine(line, site, testTime)
         except ValueError:
             pass
     
@@ -53,8 +61,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     dataContainer = measurements['P04.004: Vdd_ISO']
     assert list(dataContainer.data.keys()) == ['0']
-    assert dataContainer.getData('0') == [[DataPoint(float('5.032810'), (4.8, 5.1), mockDate), DataPoint(float('5.062810'), (4.8, 5.1), mockDate)]]
+    assert dataContainer.getData('0') == [[DataPoint(float('5.032810'), (4.8, 5.1), '2024/09/13 18:37:10'), 
+                                           DataPoint(float('5.062810'), (4.8, 5.1), '2024/09/13 18:37:10')]]
 
     dataContainer = measurements['P08.002: NTC1 Value']
     assert list(dataContainer.data.keys()) == ['0']
-    assert dataContainer.getData('0') == [[DataPoint(float('891.000000'), (853, 930), mockDate), DataPoint(float('921.000000'), (853, 930), mockDate)]]
+    assert dataContainer.getData('0') == [[DataPoint(float('891.000000'), (853, 930), '2024/09/13 18:37:10'), 
+                                           DataPoint(float('921.000000'), (853, 930), '2024/09/13 18:37:10')]]
