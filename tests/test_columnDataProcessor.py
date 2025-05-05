@@ -29,10 +29,6 @@ def file3LinesProcessingTest():
     ]
     return mockFileLines
 
-@pytest.fixture
-def mockDate():
-    return '2024/01/01 14:52:30'
-
 def test__getSiteLimitsFromHeader(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest):    
     loader = dataProcessorColumn.ColumnDataProcessor()
     assert loader._getSiteLimitsFromHeader(file1LinesProcessingTest) == ('test1', '0', '10')
@@ -40,25 +36,25 @@ def test__getSiteLimitsFromHeader(file1LinesProcessingTest, file2LinesProcessing
     assert loader._getSiteLimitsFromHeader(file3LinesProcessingTest) == ('test2', '10', '20')
     
 
-def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest, mockDate):
+def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest):
     loader = dataProcessorColumn.ColumnDataProcessor()
     for mockFile in [file1LinesProcessingTest, file2LinesProcessingTest, file3LinesProcessingTest]:
         testName, lowerLimit, upperLimit = loader._getSiteLimitsFromHeader(mockFile)
         loader.createDataContainer(testName)
         for line in mockFile:
-            loader._processFileLine(line, testName, (float(lowerLimit), float(upperLimit)), mockDate)
+            loader._processFileLine(line, testName, (float(lowerLimit), float(upperLimit)), '-')
     
     measurements = loader.getMeasurements()
     assert list(measurements.keys()) == ['test1', 'test2']
 
     dataInstance = measurements['test1']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getData('1') == [[DataPoint(float('1'), (0, 10), mockDate), 
-                                                  DataPoint(float('2'), (0, 10), mockDate), 
-                                                  DataPoint(float('3'), (0, 10), mockDate), 
-                                                  DataPoint(float('4'), (0, 10), mockDate)]]
+    assert dataInstance.getData('1') == [[DataPoint(float('1'), (0, 10), '-'), 
+                                                  DataPoint(float('2'), (0, 10), '-'), 
+                                                  DataPoint(float('3'), (0, 10), '-'), 
+                                                  DataPoint(float('4'), (0, 10), '-')]]
 
     dataInstance = measurements['test2']
     assert list(dataInstance.data.keys()) == ['1']
-    assert dataInstance.getData('1') == [[DataPoint(float('15'), (10, 20), mockDate), 
-                                                  DataPoint(float('16'), (10, 20), mockDate)]]
+    assert dataInstance.getData('1') == [[DataPoint(float('15'), (10, 20), '-'), 
+                                                  DataPoint(float('16'), (10, 20), '-')]]

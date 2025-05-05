@@ -20,6 +20,9 @@ class ColumnDataProcessor(AbstractDataProcessor):
             except ValueError:
                 pass
     
+    def getLogDateTime(self, datetimeString: str):
+        return '-'
+    
     def _processFileLine(self, fileLine:str, testName:str, limits:tuple[float, float], testDate:str):
         measuredValue, *_ = fileLine.split(';')
         self.measurements[testName].addData('1', measuredValue, limits, testDate)
