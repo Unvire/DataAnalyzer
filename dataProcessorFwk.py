@@ -1,3 +1,6 @@
+import re
+from datetime import datetime
+
 from dataProcessorAbstract import AbstractDataProcessor
 
 class FwkDataProcessor(AbstractDataProcessor):
@@ -17,6 +20,19 @@ class FwkDataProcessor(AbstractDataProcessor):
                 self._processFileLine(line, site, testTime)
             except ValueError:
                 pass
+
+    def getLogDateTime(self, fileNameNoExtension:str) -> str:
+        fwkNamePattern = '^\d{8}_\d{6}_BF'
+        testStandIpsesNamePattern = '^.+_\w+_\d{6}_\d{8}_'
+
+        if re.match(fwkNamePattern, fileNameNoExtension):
+            date, time, *_ = fileNameNoExtension.split('_')
+        elif re.match(testStandIpsesNamePattern, fileNameNoExtension):
+            *_, time, date, _ = fileNameNoExtension.split('_')
+        else:
+            raise ValueError
+        
+        return super().getLogDateTime(date + time)
     
     def _getSiteFromHeader(self, fileLines:list[str]) -> str:
         for line in fileLines:
