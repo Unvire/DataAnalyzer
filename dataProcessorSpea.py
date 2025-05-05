@@ -1,4 +1,4 @@
-from datetime import datetime
+import re
 
 from dataProcessorAbstract import AbstractDataProcessor
 
@@ -19,6 +19,11 @@ class SpeaDataProcessor(AbstractDataProcessor):
                 pass
     
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
+        speaNamePattern = '.+_\d{14}'
+        
+        if not re.match(speaNamePattern, fileNameNoExtension):
+            raise ValueError
+        
         datetimeString = fileNameNoExtension.split('_')[-1]
         return super().getLogDateTime(datetimeString)
     
