@@ -19,9 +19,8 @@ class SpeaDataProcessor(AbstractDataProcessor):
                 pass
     
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
-        dateTimeStr = fileNameNoExtension.split('_')[-1]
-        dateTimeObject = datetime.strptime(dateTimeStr, "%Y%m%d%H%M%S")
-        return dateTimeObject.strftime("%Y/%m/%d %H:%M:%S")
+        datetimeString = fileNameNoExtension.split('_')[-1]
+        return super().getLogDateTime(datetimeString)
     
     def _processFileLine(self, fileLine:str, testTime:str):
         _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')

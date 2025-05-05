@@ -1,4 +1,6 @@
 import abc
+from datetime import datetime
+
 import dataContainer
 
 class AbstractDataProcessor(metaclass=abc.ABCMeta):
@@ -21,5 +23,6 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def getLogDateTime(self, fileName:str):
-        pass
+    def getLogDateTime(self, datetimeString:str):
+        dateTimeObject = datetime.strptime(datetimeString, "%Y%m%d%H%M%S")
+        return dateTimeObject.strftime("%Y/%m/%d %H:%M:%S")
