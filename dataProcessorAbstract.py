@@ -19,3 +19,7 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def processLogFile(self, filePath:str, testDate:str):
         pass
+
+    @abc.abstractmethod
+    def getLogDateTime(self, fileName:str):
+        pass

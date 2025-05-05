@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 
 import dataContainer
 import dataProcessorSpea, dataProcessorFwk, dataProcessorColumn, dataProcessorXylem
@@ -31,15 +30,12 @@ class FileProcessorsFactory:
         logFiles = os.listdir(folderPath)
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
-            fileExtension = file.split('.')[-1]
+            *fileName, fileExtension = file.split('.')[-1]
             if fileExtension not in self.loaderInstance.FILE_EXTENSIONS:
                 continue
+
+            formatedTime = self.loaderInstance.getLogDateTime(fileName)
             logPath = os.path.join(folderPath, file)
-
-            modificationDate = os.path.getmtime(logPath)
-            modificationDateAsTimeStamp = datetime.fromtimestamp(modificationDate)
-            formatedTime = modificationDateAsTimeStamp.strftime('%Y/%m/%d %H:%M:%S')
-
             self.processLogFile(logPath, formatedTime)
 
             progressPercent = int((i + 1) / numOfFiles * 100)
