@@ -24,5 +24,5 @@ class AbstractDataProcessor(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def getLogDateTime(self, datetimeString:str):
-        dateTimeObject = datetime.strptime(datetimeString, "%Y%m%d%H%M%S")
-        return dateTimeObject.strftime("%Y/%m/%d %H:%M:%S")
+        dateTimeObject = datetime.strptime(datetimeString, '%Y%m%d%H%M%S')
+        return dateTimeObject.strftime('%Y/%m/%d %H:%M:%S')

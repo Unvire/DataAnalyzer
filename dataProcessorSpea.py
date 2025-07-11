@@ -19,13 +19,19 @@ class SpeaDataProcessor(AbstractDataProcessor):
                 pass
     
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
-        speaNamePattern = '.+_\d{14}'
+        speaNamePattern1 = r'.+_\d{14}$'
+        speaNamePattern2 = r'.+_\d{8}_\d{6}$'
         
-        if not re.match(speaNamePattern, fileNameNoExtension):
-            raise ValueError
+        if re.match(speaNamePattern1, fileNameNoExtension):
+            datetimeString = fileNameNoExtension.split('_')[-1]
+            return super().getLogDateTime(datetimeString)
         
-        datetimeString = fileNameNoExtension.split('_')[-1]
-        return super().getLogDateTime(datetimeString)
+        if re.match(speaNamePattern2, fileNameNoExtension):
+            datetimeItems = fileNameNoExtension.split('_')[-2:]
+            datetimeString = ''.join(datetimeItems)
+            return super().getLogDateTime(datetimeString)        
+        
+        raise ValueError
     
     def _processFileLine(self, fileLine:str, testTime:str):
         _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')
