@@ -27,8 +27,10 @@ class SpeaDataProcessor(AbstractDataProcessor):
             return super().getLogDateTime(datetimeString)
         
         if re.match(speaNamePattern2, fileNameNoExtension):
-            datetimeItems = fileNameNoExtension.split('_')[-2:]
-            datetimeString = ''.join(datetimeItems)
+            date, time = fileNameNoExtension.split('_')[-2:]
+            day, month, year = date[:2], date[2:4], date[4:]
+            hour, minutes, seconds = time[:2], time[2:4], time[4:]
+            datetimeString = f'{year}{month}{day}{hour}{minutes}{seconds}'
             return super().getLogDateTime(datetimeString)        
         
         raise ValueError
