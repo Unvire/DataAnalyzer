@@ -33,7 +33,7 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0,0,0,0,1,1,0,0,0,1,0,0,0,0,0,0,0">
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,0,0,0">
+         <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="1,0,0,0,0">
           <item>
            <widget class="QComboBox" name="logsTypeComboBox">
             <property name="statusTip">
@@ -65,7 +65,7 @@
            </widget>
           </item>
           <item>
-           <spacer name="horizontalSpacer_12">
+           <spacer name="horizontalSpacer_26">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -76,6 +76,16 @@
              </size>
             </property>
            </spacer>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox">
+            <property name="text">
+             <string>Search subfolders</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
