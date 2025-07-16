@@ -21,6 +21,7 @@ class SpeaDataProcessor(AbstractDataProcessor):
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
         speaNamePattern1 = r'.+_\d{14}$'
         speaNamePattern2 = r'.+_\d{8}_\d{6}$'
+        speaNamePattern3 = r'.+_\d{6}_\d{8}$'
         
         if re.match(speaNamePattern1, fileNameNoExtension):
             datetimeString = fileNameNoExtension.split('_')[-1]
@@ -31,7 +32,14 @@ class SpeaDataProcessor(AbstractDataProcessor):
             day, month, year = date[:2], date[2:4], date[4:]
             hour, minutes, seconds = time[:2], time[2:4], time[4:]
             datetimeString = f'{year}{month}{day}{hour}{minutes}{seconds}'
-            return super().getLogDateTime(datetimeString)        
+            return super().getLogDateTime(datetimeString)    
+
+        if re.match(speaNamePattern3, fileNameNoExtension):
+            time, date = fileNameNoExtension.split('_')[-2:]
+            year, month, day = date[:4], date[4:6], date[6:]
+            hour, minutes, seconds = time[:2], time[2:4], time[4:]
+            datetimeString = f'{year}{month}{day}{hour}{minutes}{seconds}'
+            return super().getLogDateTime(datetimeString)       
         
         raise ValueError
     
