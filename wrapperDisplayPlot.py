@@ -12,7 +12,7 @@ import listParser
 
 class PlotWrapper:
     def __init__(self, plotFrame:QFrame, selectSiteComboBox:QComboBox, plotOrderByComboBox:QComboBox, _changeYScaleButton:QPushButton, 
-                 changePlotButton:QPushButton, selectLimitsComboBox:QComboBox):
+                 changePlotButton:QPushButton, selectLimitsComboBox:QComboBox, valuesInLimitsButton:QPushButton):
         
         self.plotFrame = plotFrame
         self.selectSiteComboBox = selectSiteComboBox
@@ -20,6 +20,7 @@ class PlotWrapper:
         self.changeYScaleButton = _changeYScaleButton
         self.changePlotButton = changePlotButton
         self.selectLimitsComboBox = selectLimitsComboBox
+        self.valuesInLimitsButton = valuesInLimitsButton
         
         self.dataContainer = None 
 
@@ -28,7 +29,8 @@ class PlotWrapper:
         self.plotOrderBy = 'Date'
         self.selectedLimits = 'All'
         self.isLogScale = False        
-        self.isPickedPoint = False 
+        self.isPickedPoint = False
+        self.isValuesInLimitsEnabled = False
 
         self.errorMessageHandle = lambda: None
         self.updateProcessParameters = lambda: None
@@ -56,6 +58,7 @@ class PlotWrapper:
         self.changeYScaleButton.clicked.connect(self._changeYScale)        
         self.changePlotButton.clicked.connect(self._changePlotType)
         self.selectLimitsComboBox.activated.connect(lambda value: self._selectLimitsComboBoxClickedEvent(value))
+        self.valuesInLimitsButton.clicked.connect(self._valuesInLimitsButtonClicked)
     
     def setDataContainer(self, dataContainer:DataContainer):
         self.dataContainer = dataContainer
@@ -115,6 +118,10 @@ class PlotWrapper:
         self.selectedLimits = self.selectLimitsComboBox.itemText(value)
         self.generatePlot()
     
+    def _valuesInLimitsButtonClicked(self):
+        self.isValuesInLimitsEnabled = not self.isValuesInLimitsEnabled
+        self.generatePlot()
+    
     def _selectSiteComboBoxClickedEvent(self, value:str|int):
         self.selectedSite = self.selectSiteComboBox.itemText(value)
         sortByState = self.selectedSite == 'All sites'
@@ -147,10 +154,9 @@ class PlotWrapper:
                         'Capability plot': self.capabilityPlotGenerator.generatePlot}
         
         plotName, siteNames, valuesList, limitsList = self._commonPlotData()
-
-        plotType = self.selectedPlotType             
+            
         isMergeDataList = self.plotOrderBy == 'Date'
-        generatePlot[plotType](valuesList, plotName, limitsList, self.isLogScale, siteNames, isMergeDataList)
+        generatePlot[self.selectedPlotType ](valuesList, plotName, limitsList, self.isLogScale, siteNames, isMergeDataList, self.isValuesInLimitsEnabled)
     
     def _generateCXCYPlot(self):
         plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()        
@@ -175,6 +181,7 @@ class PlotWrapper:
         self.plotOrderByComboBox.setEnabled(status)
         self.changeYScaleButton.setEnabled(status)
         self.changePlotButton.setEnabled(status)
+        self.valuesInLimitsButton.setEnabled(status)
     
     def updateNumOfSites(self):
         if self.dataContainer.getNumOfSites() > 1: 

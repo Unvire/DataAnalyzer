@@ -45,7 +45,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             self.logsTypeComboBox.addItem(fileName)
         
         self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
-                                      self.changePlotButton, self.selectLimitsComboBox)
+                                      self.changePlotButton, self.selectLimitsComboBox, self.valuesInLimitsButton)
         self.plotWidget.setErrorMessegeHandle(self.showErrorMessage)
         self.plotWidget.setUpdateProcessParametersHandle(self.updateProcessParameters)
         
