@@ -18,7 +18,7 @@ class PlotDialog(QDialog):
         self.closeCallbackHandle = lambda: None
 
         self.plotWidget = PlotWrapper(self.plotFrame, self.selectSiteComboBox, self.plotOrderByComboBox, self.changeYScaleButton,
-                                      self.changePlotButton, self.selectLimitsComboBox)
+                                      self.changePlotButton, self.selectLimitsComboBox, self.valuesInLimitsButton)
         self.plotWidget.setDataContainer(dataContainer)
         self.plotWidget.updateNumOfSites()
         self.plotWidget.generatePlot()

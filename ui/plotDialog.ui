@@ -80,6 +80,29 @@
         </spacer>
        </item>
        <item>
+        <widget class="QPushButton" name="valuesInLimitsButton">
+         <property name="text">
+          <string>Values in limits</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_7">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
         <widget class="QLabel" name="plotOrderByLabel">
          <property name="text">
           <string>Order</string>
