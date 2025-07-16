@@ -23,11 +23,12 @@ class FileProcessorsFactory:
     def addObserver(self, instance:object):
         self.observersList.append(instance)
 
-    def processAllLogsInFolder(self, folderPath:str, isAppendTests:bool):
+    def processAllLogsInFolder(self, folderPath:str, isAppendTests:bool, isSearchInSubfolders:bool):
         if not isAppendTests:
             self.loaderInstance.clear()
 
-        logFiles = os.listdir(folderPath)
+        logFiles = self._getFilesFromSubfolders(folderPath) if isSearchInSubfolders else os.listdir(folderPath)
+
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
             fileName, fileExtension = file.rsplit('.', 1)
@@ -62,6 +63,16 @@ class FileProcessorsFactory:
     def getTestMeasurements(self, testName:str) -> dataContainer.DataContainer:
         allMeasurements = self.getAllMeasurements()
         return allMeasurements.get(testName, None)
+
+    def _getFilesFromSubfolders(self, folderPath:str) -> list[str]:
+        result = []
+    
+        for subFolderPath, _, files  in os.walk(folderPath):
+            for fileName in files:
+                pelna_sciezka = os.path.join(subFolderPath, fileName)
+                result.append(pelna_sciezka)
+        
+        return result
 
 
 if __name__ == '__main__':

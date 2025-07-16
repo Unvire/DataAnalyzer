@@ -78,7 +78,7 @@
            </spacer>
           </item>
           <item>
-           <widget class="QCheckBox" name="checkBox">
+           <widget class="QCheckBox" name="searchSubfoldersCheckBox">
             <property name="text">
              <string>Search subfolders</string>
             </property>
@@ -805,6 +805,26 @@
               <string>All sites</string>
              </property>
             </item>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_12">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="valuesInLimitsButton">
+            <property name="text">
+             <string>Values in limits</string>
+            </property>
            </widget>
           </item>
           <item>

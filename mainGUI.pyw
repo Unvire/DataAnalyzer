@@ -32,6 +32,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.logsProcessingSuccess = True
         self.currentFileType = ''
         self.plotWindowsDict = {}
+        self.isSearchInSubfolders = True
 
         self.threadTimer = QtCore.QTimer()
         self.threadFinished = False
@@ -57,6 +58,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.clearButton.clicked.connect(self.clear)
         self.generateReportButton.clicked.connect(self.openGenerateReportDialogWindow)
         self.plotNewWindowButton.clicked.connect(self.plotInNewWindow)
+        self.searchSubfoldersCheckBox.stateChanged.connect(self.enableSearchInSubfolders)
 
     def setMeasurements(self, measurementsDict:dict):
         self.measurements = measurementsDict
@@ -84,7 +86,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             folderPath = dialog.selectedFiles()[0]
 
             isAppendTests = self.currentFileType == self.logsTypeComboBox.currentText()
-            self.processLogsInFolder(folderPath, isAppendTests)
+            self.processLogsInFolder(folderPath, isAppendTests, self.isSearchInSubfolders)
             self.currentFileType = self.logsTypeComboBox.currentText()            
             self._updateOpenLogsFolderButtonText(False)
     
@@ -180,10 +182,10 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def closePlotWindow(self, windowTitle:str):
         self.plotWindowsDict.pop(windowTitle, None) 
     
-    def processLogsInFolder(self, folderPath:str, isAppendTests:bool):
+    def processLogsInFolder(self, folderPath:str, isAppendTests:bool, isSearchInSubfolders:bool):
         def runProcessLogs():
             try:
-                self.factory.processAllLogsInFolder(folderPath, isAppendTests)
+                self.factory.processAllLogsInFolder(folderPath, isAppendTests, isSearchInSubfolders)
             except Exception:         
                 self.logsProcessingSuccess = False
             self.threadFinished = True            
@@ -209,6 +211,9 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         else:
             self.showErrorMessage('Error', 'Error during processing files. Check if folder with logs is correct')            
             self.openLogsFolderButton.setEnabled(True)
+    
+    def enableSearchInSubfolders(self, state):
+        self.isSearchInSubfolders = state == 2
     
     def _finishProcessingLogs(self):
         measurements = self.factory.getAllMeasurements()
