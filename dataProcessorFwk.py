@@ -21,8 +21,8 @@ class FwkDataProcessor(AbstractDataProcessor):
                 pass
 
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
-        fwkNamePattern = '^\d{8}_\d{6}_BF'
-        testStandIpsesNamePattern = '^.+_\w+_\d{6}_\d{8}_'
+        fwkNamePattern = r'^\d{8}_\d{6}_BF'
+        testStandIpsesNamePattern = r'^.+\d{6}_\d{8}_[Pp|Ff]'
 
         if re.match(fwkNamePattern, fileNameNoExtension):
             date, time, *_ = fileNameNoExtension.split('_')

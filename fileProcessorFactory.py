@@ -31,7 +31,8 @@ class FileProcessorsFactory:
 
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
-            fileName, fileExtension = file.rsplit('.', 1)
+            fileNameWithPossiblePath, fileExtension = file.rsplit('.', 1)
+            _, fileName = fileNameWithPossiblePath.rsplit(os.sep, 1)
             if fileExtension not in self.loaderInstance.FILE_EXTENSIONS:
                 continue
             
