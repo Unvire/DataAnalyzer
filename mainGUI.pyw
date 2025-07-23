@@ -117,7 +117,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
     def openGenerateReportDialogWindow(self):    
         def runReportGeneration():
             nonlocal htmlCode
-            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite, orderBy, selectedLimits)
+            htmlCode = self.htmlReportGenerator.generateHtmlReport(testsForReport, selectedSite, orderBy, selectedLimits, isValuesInLimitsEnabled)
             self.threadFinished = True
             
         testNames = self._getMeasurementsList()
@@ -134,7 +134,7 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
             if not filePath.lower().endswith('.html'):
                 filePath += '.html'
 
-            selectedTestNames, selectedSite, orderBy, selectedLimits = dialogWindow.getData()
+            selectedTestNames, selectedSite, orderBy, selectedLimits, isValuesInLimitsEnabled = dialogWindow.getData()
             testsForReport = self.measurements if len(selectedTestNames) == len(testNames) else {testName:self.measurements[testName] for testName in selectedTestNames}
 
             self.htmlReportGenerator = HtmlReportGenerator()

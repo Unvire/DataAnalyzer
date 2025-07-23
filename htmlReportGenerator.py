@@ -64,7 +64,7 @@ class HtmlReportGenerator:
         </html>
         '''
 
-    def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int, orderBy:str, selectedLimits:str) -> str:
+    def generateHtmlReport(self, measurementsDict:dict[str:DataContainer], site:int, orderBy:str, selectedLimits:str, isValuesInLimitsEnabled:bool) -> str:
         def dequeAndUpdateProgressBar(queue):
             processedTables = 0
             while processedTables < numOfTables:
@@ -79,7 +79,7 @@ class HtmlReportGenerator:
         
         with multiprocessing.Manager() as manager:
             queue = manager.Queue()
-            poolArgs = [(chunk, site, orderBy, selectedLimits, queue) for chunk in chunks]            
+            poolArgs = [(chunk, site, orderBy, selectedLimits, isValuesInLimitsEnabled, queue) for chunk in chunks]            
             numOfTables = len(measurementsDict)
             
             with multiprocessing.Pool(processes=maxProcesses) as pool:
@@ -116,29 +116,30 @@ class HtmlReportGenerator:
         return chunks
     
     @staticmethod
-    def _processChunk(chunk:list[dict], site:str, orderBy:str, selectedLimits:str, queue:multiprocessing.Queue) -> list[str]:
+    def _processChunk(chunk:list[dict], site:str, orderBy:str, selectedLimits:str, isValuesInLimitsEnabled:bool, queue:multiprocessing.Queue) -> list[str]:
         buffer = ''
         for _, data in chunk.items():    
             queue.put(1)
             try:
-                buffer += HtmlReportGenerator._generateTable(data, site, orderBy, selectedLimits)
+                buffer += HtmlReportGenerator._generateTable(data, site, orderBy, selectedLimits, isValuesInLimitsEnabled)
             except Exception as e:
                 print(data.name, e.__repr__())
         return buffer
     
     @staticmethod
-    def _generateTable(data:DataContainer, site:str, orderBy:str, selectedLimits:str) -> str:
+    def _generateTable(data:DataContainer, site:str, orderBy:str, selectedLimits:str, isValuesInLimitsEnabled:str) -> str:
         dataPointsList = data.getData(site)
         siteNames = data.getSiteNames() if site == 'All sites' else [site]
 
         if data.isCxCyMeasurement():
             htmlSubtable = HtmlReportGenerator._generateCxCYTable(dataPointsList, data.name, siteNames, selectedLimits)
         else:
-            htmlSubtable = HtmlReportGenerator._generateSequenceCapabilityTable(dataPointsList, data.name, siteNames, orderBy, selectedLimits)
+            htmlSubtable = HtmlReportGenerator._generateSequenceCapabilityTable(dataPointsList, data.name, siteNames, orderBy, selectedLimits, isValuesInLimitsEnabled)
         return htmlSubtable
     
     @staticmethod
-    def _generateSequenceCapabilityTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], plotOrderBy:str, selectedLimits:str) -> str:
+    def _generateSequenceCapabilityTable(dataPointsList:list[list[DataPoint]], plotName:str, siteNames:list[str], 
+                                         plotOrderBy:str, selectedLimits:str, isValuesInLimitsEnabled:bool) -> str:
         valuesList = DataContainer.getValuesFromDataPointsList(dataPointsList)
         limitsList = DataContainer.getLimitsFromDataPointsList(dataPointsList, selectedLimits)
 
@@ -148,12 +149,12 @@ class HtmlReportGenerator:
 
         sequenceCanvas = MplCanvas()
         sequencePlotGenerator = SequencePlotGenerator(sequenceCanvas)
-        sequencePlotGenerator.generatePlot(valuesList, plotName, limitsList, isLogScale, siteNames, isMergeDataList)
+        sequencePlotGenerator.generatePlot(valuesList, plotName, limitsList, isLogScale, siteNames, isMergeDataList, isValuesInLimitsEnabled)
         sequencePlotBytes = HtmlReportGenerator._canvasToBytes(sequenceCanvas)
 
         capabilityCanvas = MplCanvas()
         capabilityPlotGenerator = CapabilityPlotGenerator(capabilityCanvas)
-        capabilityPlotGenerator.generatePlot(valuesList, plotName, [lowerLimit, upperLimit], False)
+        capabilityPlotGenerator.generatePlot(valuesList, plotName, [lowerLimit, upperLimit], False, isValuesInLimitsEnabled)
         capabilityPlotBytes = HtmlReportGenerator._canvasToBytes(capabilityCanvas)
 
         processParameterCalculator = ProcessParameterCalculator()        
