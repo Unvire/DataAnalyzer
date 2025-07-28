@@ -10,13 +10,20 @@ class SpeaDataProcessor(AbstractDataProcessor):
 
     def processLogFile(self, filePath:str, testTime:str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
-            fileLines = file.readlines()[3:-3]
+            fileLines = file.readlines()
+        
+        serialNumber = self._getSerialNumber(fileLines)
+        fileLines = fileLines[3:-3]
         
         for line in fileLines:
             try:
-                self._processFileLine(line, testTime)
+                self._processFileLine(line, testTime, serialNumber)
             except ValueError:
                 pass
+    
+    def _getSerialNumber(self, fileLines:list[str]) -> str:
+        _, serialNumber, *_ = fileLines[-3].split(';')
+        return serialNumber
     
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
         speaNamePattern1 = r'.+_\d{14}$'
@@ -43,7 +50,7 @@ class SpeaDataProcessor(AbstractDataProcessor):
         
         raise ValueError
     
-    def _processFileLine(self, fileLine:str, testTime:str):
+    def _processFileLine(self, fileLine:str, testTime:str, serialNumber:str):
         _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')
         if 'CXCY' in testName2:
             ledBin, valuesString = testName2.split('(')
@@ -59,4 +66,4 @@ class SpeaDataProcessor(AbstractDataProcessor):
             value = measuredValue
             limits = float(lowerLimit), float(upperLimit)
         self.createDataContainer(testName)
-        self.measurements[testName].addData(site, value, limits, testTime)
+        self.measurements[testName].addData(site, value, limits, testTime, serialNumber)

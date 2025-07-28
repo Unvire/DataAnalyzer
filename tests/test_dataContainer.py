@@ -10,34 +10,34 @@ def test_getData():
     instance = dataContainer.DataContainer('test')
 
     mockDate = '2025-02-28'
-    instance.addData('1', 1, (0, 10), mockDate)
-    assert instance.getData('1') == [[DataPoint(1, (0, 10), mockDate)]]
+    instance.addData('1', 1, (0, 10), mockDate, '1')
+    assert instance.getData('1') == [[DataPoint(1, (0, 10), mockDate, '1')]]
 
-    instance.addData('1', 2, (0, 10), mockDate)
-    instance.addData('1', 3, (0, 10), mockDate)
-    instance.addData('1', 4, (0, 10), mockDate)
-    instance.addData('1', 5, (0, 10), mockDate)
+    instance.addData('1', 2, (0, 10), mockDate, '2')
+    instance.addData('1', 3, (0, 10), mockDate, '3')
+    instance.addData('1', 4, (0, 10), mockDate, '4')
+    instance.addData('1', 5, (0, 10), mockDate, '5')
     assert instance.getData('1') == [
-            [DataPoint(1, (0, 10), mockDate), DataPoint(2, (0, 10), mockDate), DataPoint(3, (0, 10), mockDate), 
-                DataPoint(4, (0, 10), mockDate), DataPoint(5, (0, 10), mockDate)]
+            [DataPoint(1, (0, 10), mockDate, '1'), DataPoint(2, (0, 10), mockDate, '2'), DataPoint(3, (0, 10), mockDate, '3'), 
+                DataPoint(4, (0, 10), mockDate, '4'), DataPoint(5, (0, 10), mockDate, '5')]
         ]
 
-    instance.addData('2', 10, (0, 20), mockDate)
-    instance.addData('2', 20, (0, 20), mockDate)
-    instance.addData('2', 30, (0, 20), mockDate)
-    instance.addData('2', 40, (0, 20), mockDate)
-    instance.addData('2', 50, (0, 20), mockDate)
+    instance.addData('2', 10, (0, 20), mockDate, '6')
+    instance.addData('2', 20, (0, 20), mockDate, '7')
+    instance.addData('2', 30, (0, 20), mockDate, '8')
+    instance.addData('2', 40, (0, 20), mockDate, '9')
+    instance.addData('2', 50, (0, 20), mockDate, '10')
     assert instance.getData('2') == [
-            [DataPoint(10, (0, 20), mockDate), DataPoint(20, (0, 20), mockDate), DataPoint(30, (0, 20), mockDate), 
-                DataPoint(40, (0, 20), mockDate), DataPoint(50, (0, 20), mockDate)]
+            [DataPoint(10, (0, 20), mockDate, '6'), DataPoint(20, (0, 20), mockDate, '7'), DataPoint(30, (0, 20), mockDate, '8'), 
+                DataPoint(40, (0, 20), mockDate, '9'), DataPoint(50, (0, 20), mockDate, '10')]
         ]
 
     assert list(instance.data.keys()) == ['1', '2']
     assert instance.getData('All sites') == [
-            [DataPoint(1, (0, 10), mockDate), DataPoint(2, (0, 10), mockDate), DataPoint(3, (0, 10), mockDate), 
-                DataPoint(4, (0, 10), mockDate), DataPoint(5, (0, 10), mockDate)],
-            [DataPoint(10, (0, 20), mockDate), DataPoint(20, (0, 20), mockDate), DataPoint(30, (0, 20), mockDate), 
-                DataPoint(40, (0, 20), mockDate), DataPoint(50, (0, 20), mockDate)]
+            [DataPoint(1, (0, 10), mockDate, '1'), DataPoint(2, (0, 10), mockDate, '2'), DataPoint(3, (0, 10), mockDate, '3'), 
+                DataPoint(4, (0, 10), mockDate, '4'), DataPoint(5, (0, 10), mockDate, '5')],
+            [DataPoint(10, (0, 20), mockDate, '6'), DataPoint(20, (0, 20), mockDate, '7'), DataPoint(30, (0, 20), mockDate, '8'), 
+                DataPoint(40, (0, 20), mockDate, '9'), DataPoint(50, (0, 20), mockDate, '10')]
         ]
     
     assert instance.getLimits('1') == [(0, 10), (0, 10), (0, 10), (0, 10), (0, 10)]
@@ -47,51 +47,51 @@ def test_getData_CxCyMeasurement():
     instance = dataContainer.DataContainer('test')
     mockDate = '2023-05-01'
 
-    instance.addData('1', (1, 2), '1_1_2_2_1_1_2_2', mockDate)
-    assert instance.getData('1') == [[DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate)]]
+    instance.addData('1', (1, 2), '1_1_2_2_1_1_2_2', mockDate, '1')
+    assert instance.getData('1') == [[DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate, '1')]]
 
-    instance.addData('1', (2.1, 0), '1_1_2_2_1_1_2_2', mockDate)
-    instance.addData('1', (3.2, 1), '1_1_2_2_1_1_2_2', mockDate)
-    instance.addData('1', (4.3, 2), '1_1_2_2_1_1_2_2', mockDate)
-    instance.addData('1', (5.4, 3), '1_1_2_2_1_1_2_2', mockDate)
+    instance.addData('1', (2.1, 0), '1_1_2_2_1_1_2_2', mockDate, '2')
+    instance.addData('1', (3.2, 1), '1_1_2_2_1_1_2_2', mockDate, '3')
+    instance.addData('1', (4.3, 2), '1_1_2_2_1_1_2_2', mockDate, '4')
+    instance.addData('1', (5.4, 3), '1_1_2_2_1_1_2_2', mockDate, '5')
     assert instance.getData('1') == [
-            [DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate), 
-             DataPoint((2.1, 0), '1_1_2_2_1_1_2_2', mockDate), 
-             DataPoint((3.2, 1), '1_1_2_2_1_1_2_2', mockDate), 
-             DataPoint((4.3, 2), '1_1_2_2_1_1_2_2', mockDate), 
-             DataPoint((5.4, 3), '1_1_2_2_1_1_2_2', mockDate)]
+            [DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate, '1'), 
+             DataPoint((2.1, 0), '1_1_2_2_1_1_2_2', mockDate, '2'), 
+             DataPoint((3.2, 1), '1_1_2_2_1_1_2_2', mockDate, '3'), 
+             DataPoint((4.3, 2), '1_1_2_2_1_1_2_2', mockDate, '4'), 
+             DataPoint((5.4, 3), '1_1_2_2_1_1_2_2', mockDate, '5')]
         ]
 
-    instance.addData('2', (10, 0), '1_1_2_2_1_1_3_3', mockDate)
-    instance.addData('2', (20, 0), '1_1_2_2_1_1_3_3', mockDate)
-    instance.addData('2', (30, 0), '1_1_2_2_1_1_3_3', mockDate)
-    instance.addData('2', (40, 0), '1_1_2_2_1_1_3_3', mockDate)
-    instance.addData('2', (50, 0),  '1_1_2_2_1_1_3_3',mockDate)
+    instance.addData('2', (10, 0), '1_1_2_2_1_1_3_3', mockDate, '6')
+    instance.addData('2', (20, 0), '1_1_2_2_1_1_3_3', mockDate, '7')
+    instance.addData('2', (30, 0), '1_1_2_2_1_1_3_3', mockDate, '8')
+    instance.addData('2', (40, 0), '1_1_2_2_1_1_3_3', mockDate, '9')
+    instance.addData('2', (50, 0),  '1_1_2_2_1_1_3_3',mockDate, '10')
     assert instance.getData('2') == [
             [
-                DataPoint((10, 0), '1_1_2_2_1_1_3_3', mockDate), 
-                DataPoint((20, 0), '1_1_2_2_1_1_3_3', mockDate), 
-                DataPoint((30, 0), '1_1_2_2_1_1_3_3', mockDate),  
-                DataPoint((40, 0), '1_1_2_2_1_1_3_3', mockDate), 
-                DataPoint((50, 0), '1_1_2_2_1_1_3_3', mockDate)
+                DataPoint((10, 0), '1_1_2_2_1_1_3_3', mockDate, '6'), 
+                DataPoint((20, 0), '1_1_2_2_1_1_3_3', mockDate, '7'), 
+                DataPoint((30, 0), '1_1_2_2_1_1_3_3', mockDate, '8'),  
+                DataPoint((40, 0), '1_1_2_2_1_1_3_3', mockDate, '9'), 
+                DataPoint((50, 0), '1_1_2_2_1_1_3_3', mockDate, '10')
             ]
         ]
 
     assert list(instance.data.keys()) == ['1', '2']
     assert instance.getData('All sites') == [
         [
-            DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate), 
-            DataPoint((2.1, 0), '1_1_2_2_1_1_2_2', mockDate), 
-            DataPoint((3.2, 1), '1_1_2_2_1_1_2_2', mockDate), 
-            DataPoint((4.3, 2), '1_1_2_2_1_1_2_2', mockDate), 
-            DataPoint((5.4, 3), '1_1_2_2_1_1_2_2', mockDate)
+            DataPoint((1, 2), '1_1_2_2_1_1_2_2', mockDate, '1'), 
+            DataPoint((2.1, 0), '1_1_2_2_1_1_2_2', mockDate, '2'), 
+            DataPoint((3.2, 1), '1_1_2_2_1_1_2_2', mockDate, '3'), 
+            DataPoint((4.3, 2), '1_1_2_2_1_1_2_2', mockDate, '4'), 
+            DataPoint((5.4, 3), '1_1_2_2_1_1_2_2', mockDate, '5')
         ],
         [
-            DataPoint((10, 0), '1_1_2_2_1_1_3_3', mockDate), 
-            DataPoint((20, 0), '1_1_2_2_1_1_3_3', mockDate), 
-            DataPoint((30, 0), '1_1_2_2_1_1_3_3', mockDate),  
-            DataPoint((40, 0), '1_1_2_2_1_1_3_3', mockDate), 
-            DataPoint((50, 0), '1_1_2_2_1_1_3_3', mockDate)
+            DataPoint((10, 0), '1_1_2_2_1_1_3_3', mockDate, '6'), 
+            DataPoint((20, 0), '1_1_2_2_1_1_3_3', mockDate, '7'), 
+            DataPoint((30, 0), '1_1_2_2_1_1_3_3', mockDate, '8'),  
+            DataPoint((40, 0), '1_1_2_2_1_1_3_3', mockDate, '9'), 
+            DataPoint((50, 0), '1_1_2_2_1_1_3_3', mockDate, '10')
         ]
     ]
 

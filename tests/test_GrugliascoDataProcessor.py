@@ -48,11 +48,12 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
     testTime = loader.getLogDateTime(mockFileName)
 
     mockFile = file1LinesProcessingTest + file2LinesProcessingTest
-    siteIndex, site = loader._getSiteFromHeader(mockFile)
+    site = loader._getSiteFromHeader(mockFile)
+    serialNumber = loader._getSerialNumberFromHeader(mockFile)
 
-    for line in mockFile[siteIndex + 1:]:
+    for line in mockFile:
         try:
-            loader._processFileLine(line, site, testTime)
+            loader._processFileLine(line, site, testTime, serialNumber)
         except ValueError:
             pass
     
@@ -61,10 +62,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     dataContainer = measurements['P04.004: Vdd_ISO']
     assert list(dataContainer.data.keys()) == ['0']
-    assert dataContainer.getData('0') == [[DataPoint(float('5.032810'), (4.8, 5.1), '2024/09/13 18:37:10'), 
-                                           DataPoint(float('5.062810'), (4.8, 5.1), '2024/09/13 18:37:10')]]
+    assert dataContainer.getData('0') == [[DataPoint(float('5.032810'), (4.8, 5.1), '2024/09/13 18:37:10', '2024_XYLEM_042325'), 
+                                           DataPoint(float('5.062810'), (4.8, 5.1), '2024/09/13 18:37:10', '2024_XYLEM_042325')]]
 
     dataContainer = measurements['P08.002: NTC1 Value']
     assert list(dataContainer.data.keys()) == ['0']
-    assert dataContainer.getData('0') == [[DataPoint(float('891.000000'), (853, 930), '2024/09/13 18:37:10'), 
-                                           DataPoint(float('921.000000'), (853, 930), '2024/09/13 18:37:10')]]
+    assert dataContainer.getData('0') == [[DataPoint(float('891.000000'), (853, 930), '2024/09/13 18:37:10', '2024_XYLEM_042325'), 
+                                           DataPoint(float('921.000000'), (853, 930), '2024/09/13 18:37:10', '2024_XYLEM_042325')]]

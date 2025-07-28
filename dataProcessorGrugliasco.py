@@ -16,23 +16,31 @@ class GrugliascoDataProcessor(AbstractDataProcessor):
             fileLines = file.readlines()[:-3]
         
         try:
-            siteIndex, site = self._getSiteFromHeader(fileLines)
+            site = self._getSiteFromHeader(fileLines)
+            serialNumber = self._getSerialNumberFromHeader(fileLines)
         except TypeError:
             return
         
-        for line in fileLines[siteIndex + 1:]:
+        for line in fileLines:
             try:
-                self._processFileLine(line, site, testTime)
+                self._processFileLine(line, site, testTime, serialNumber)
             except ValueError:
                 pass
     
-    def _getSiteFromHeader(self, fileLines:list[str]) -> tuple[int, str]:
-        for i, line in enumerate(fileLines):
-            if line.startswith('Test Socket Index'):
-                *_, site = line.split(',')
-                return i, site.strip()
+    def _getSiteFromHeader(self, fileLines:list[str]) -> str:        
+        return self._getValueFromFileLine(fileLines, 'test socket index')
     
-    def _processFileLine(self, fileLine:str, site:str, testTime:str):        
+    def _getSerialNumberFromHeader(self, fileLines:list[str]) -> str:
+        return self._getValueFromFileLine(fileLines, 'uut serial number')
+    
+    def _getValueFromFileLine(self, fileLines:list[str], parameterName:str) -> str:
+        for line in fileLines:
+            lineLowerCase = line.lower()
+            if lineLowerCase.startswith(parameterName):
+                _, value, *_ = line.split(',')
+                return value.strip()
+    
+    def _processFileLine(self, fileLine:str, site:str, testTime:str, serialNumber:str):        
         #Sequence	StepName	Status	Date	Time	Duration	Value	Units	Limit	LimitLow	LimitHigh	ReportText	ErrorCode	ErrorMsg	StepType
         _, testName, _, _, _, _, _, measuredValue, _, _, lowerLimit, upperLimit, *_ = fileLine.split(',')
         
@@ -40,4 +48,4 @@ class GrugliascoDataProcessor(AbstractDataProcessor):
             return
         
         self.createDataContainer(testName)
-        self.measurements[testName].addData(site, measuredValue, (float(lowerLimit), float(upperLimit)), testTime)
+        self.measurements[testName].addData(site, measuredValue, (float(lowerLimit), float(upperLimit)), testTime, serialNumber)

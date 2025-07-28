@@ -25,7 +25,7 @@ class ColumnDataProcessor(AbstractDataProcessor):
     
     def _processFileLine(self, fileLine:str, testName:str, limits:tuple[float, float], testDate:str):
         measuredValue, *_ = fileLine.split(';')
-        self.measurements[testName].addData('1', measuredValue, limits, testDate)
+        self.measurements[testName].addData('1', measuredValue, limits, testDate, '-')
     
     def _getSiteLimitsFromHeader(self, fileLines:list[str]) -> tuple[str, str, str]:
         testName, lowerLimit, upperLimit, *_ = fileLines.pop(0).split(';')

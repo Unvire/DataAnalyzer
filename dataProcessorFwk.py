@@ -13,10 +13,11 @@ class FwkDataProcessor(AbstractDataProcessor):
             fileLines = file.readlines()[:-3]
         
         site = self._getSiteFromHeader(fileLines)
+        serialNumber = self._getSerialNumberFromHeader(fileLines)
         
         for line in fileLines:
             try:
-                self._processFileLine(line, site, testTime)
+                self._processFileLine(line, site, testTime, serialNumber)
             except ValueError:
                 pass
 
@@ -33,13 +34,20 @@ class FwkDataProcessor(AbstractDataProcessor):
         
         return super().getLogDateTime(date + time)
     
-    def _getSiteFromHeader(self, fileLines:list[str]) -> str:
-        for line in fileLines:
-            if line.startswith('Test Socket Index'):
-                _, site, *_ = line.split(';')
-                return site.strip()
+    def _getSiteFromHeader(self, fileLines:list[str]) -> str:        
+        return self._getValueFromFileLine(fileLines, 'test socket index')
     
-    def _processFileLine(self, fileLine:str, site:str, testTime:str):
+    def _getSerialNumberFromHeader(self, fileLines:list[str]) -> str:
+        return self._getValueFromFileLine(fileLines, 'uut serial number')
+    
+    def _getValueFromFileLine(self, fileLines:list[str], parameterName:str) -> str:
+        for line in fileLines:
+            lineLowerCase = line.lower()
+            if lineLowerCase.startswith(parameterName):
+                _, value, *_ = line.split(';')
+                return value.strip()
+    
+    def _processFileLine(self, fileLine:str, site:str, testTime:str, serialNumber:str):
         _, testName, *_, measuredValue, _, lowerLimit, upperLimit, _ = fileLine.split(';')
         
         float(lowerLimit); float(upperLimit)
@@ -47,4 +55,4 @@ class FwkDataProcessor(AbstractDataProcessor):
             return
         
         self.createDataContainer(testName)
-        self.measurements[testName].addData(site, measuredValue, (float(lowerLimit), float(upperLimit)), testTime)
+        self.measurements[testName].addData(site, measuredValue, (float(lowerLimit), float(upperLimit)), testTime, serialNumber)

@@ -1,8 +1,9 @@
 class DataPoint:
-    def __init__(self, value:float|tuple[float]|str, limits:tuple[float, float]|str, date:str):
+    def __init__(self, value:float|tuple[float]|str, limits:tuple[float, float]|str, date:str, serialNumber:str):
         self.value = value
         self.date = date
         self.limits = limits
+        self.serialNumber = serialNumber
     
     def __eq__(self, dataPointInstance:'DataPoint'):
         isLimitsEqual = self._isFloatOrSequenceEqual(self.limits, dataPointInstance.limits)
@@ -27,3 +28,6 @@ class DataPoint:
     
     def getLimits(self) -> tuple[float, float]|str:
         return self.limits
+    
+    def getSerialNumber(self) -> str:
+        return self.serialNumber

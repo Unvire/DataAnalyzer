@@ -6,6 +6,7 @@ from dataPoint import DataPoint
 def file1LinesProcessingTest():
     mockFileLines = [
         'Operator;administrator;;;;;;;;;',
+        'UUT Serial Number;014250302025804;;;;;;;;;',
         'Test Socket Index;1;;;;;;;;;',
         'Version_HW;1.1;;;;;;;;;',
         ';;;;;;;;;;',
@@ -20,6 +21,7 @@ def file1LinesProcessingTest():
 def file2LinesProcessingTest():
     mockFileLines = [
         'Test Socket Index;2;;;;;;;;;',
+        'UUT Serial Number;114250302025804;;;;;;;;;',
         ';;;;;;;;;;',
         '1;SW1 high[2.6V];Passed;06-08-2024;01:23:06;0.3196242;2.560224;[V];2.340;2.860;-',
         '2;SW2 high[2.6V];Passed;06-08-2024;01:23:06;0.3208613;2.552450;[V];2.340;2.860;-',        
@@ -49,6 +51,10 @@ def test__getSiteFromHeader(file1LinesProcessingTest, file2LinesProcessingTest):
     assert loader._getSiteFromHeader(file1LinesProcessingTest) == '1'
     assert loader._getSiteFromHeader(file2LinesProcessingTest) == '2'
 
+def test__getSerialNumberFromHeader(file1LinesProcessingTest, file2LinesProcessingTest):
+    loader = dataProcessorFwk.FwkDataProcessor()
+    assert loader._getSerialNumberFromHeader(file1LinesProcessingTest) == '014250302025804'
+    assert loader._getSerialNumberFromHeader(file2LinesProcessingTest) == '114250302025804'
 
 def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mockFileNameFwk):
     loader = dataProcessorFwk.FwkDataProcessor()
@@ -56,9 +62,10 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     for mockfile in [file1LinesProcessingTest, file2LinesProcessingTest]:
         site = loader._getSiteFromHeader(mockfile)
+        serialNumber = loader._getSerialNumberFromHeader(mockfile)
         for line in mockfile:
             try:
-                loader._processFileLine(line, site, testTime)
+                loader._processFileLine(line, site, testTime, serialNumber)
             except ValueError:
                 pass
     
@@ -67,12 +74,12 @@ def test__processFileLine(file1LinesProcessingTest, file2LinesProcessingTest, mo
 
     dataInstance = measurements['SW1 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getData('1') == [[DataPoint(float('2.660224'), (2.340, 2.860), '2025/02/11 06:27:07'), 
-                                                  DataPoint(float('2.660224'), (2.340, 2.860), '2025/02/11 06:27:07')]]    
-    assert dataInstance.getData('2') == [[DataPoint(float('2.560224'), (2.340, 2.860), '2025/02/11 06:27:07'), 
-                                                  DataPoint(float('2.560224'), (2.340, 2.860), '2025/02/11 06:27:07')]]
+    assert dataInstance.getData('1') == [[DataPoint(float('2.660224'), (2.340, 2.860), '2025/02/11 06:27:07', '014250302025804'), 
+                                                  DataPoint(float('2.660224'), (2.340, 2.860), '2025/02/11 06:27:07', '014250302025804')]]    
+    assert dataInstance.getData('2') == [[DataPoint(float('2.560224'), (2.340, 2.860), '2025/02/11 06:27:07', '114250302025804'), 
+                                                  DataPoint(float('2.560224'), (2.340, 2.860), '2025/02/11 06:27:07', '114250302025804')]]
 
     dataInstance = measurements['SW2 high[2.6V]']
     assert list(dataInstance.data.keys()) == ['1', '2']
-    assert dataInstance.getData('1') == [[DataPoint(float('2.652450'), (2.340, 2.860), '2025/02/11 06:27:07')]]    
-    assert dataInstance.getData('2') == [[DataPoint(float('2.552450'), (2.340, 2.860), '2025/02/11 06:27:07')]]
+    assert dataInstance.getData('1') == [[DataPoint(float('2.652450'), (2.340, 2.860), '2025/02/11 06:27:07', '014250302025804')]]    
+    assert dataInstance.getData('2') == [[DataPoint(float('2.552450'), (2.340, 2.860), '2025/02/11 06:27:07', '114250302025804')]]

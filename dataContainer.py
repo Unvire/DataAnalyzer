@@ -18,9 +18,9 @@ class AbstractDataContainer(metaclass=abc.ABCMeta):
         pass
 
 class DataContainer(AbstractDataContainer):    
-    def addData(self, site:str, value:float|int|str, limits:tuple[float, float]|str, testDate:str):        
+    def addData(self, site:str, value:float|int|str, limits:tuple[float, float]|str, testDate:str, serialNumber:str):        
         value = DataContainer.valueToFloats(value)
-        dataPointInstance = DataPoint(value, limits, testDate)
+        dataPointInstance = DataPoint(value, limits, testDate, serialNumber)
         if site not in self.data:
             self._addSiteAndSortInPlace(site)
         self.data[site].append(dataPointInstance)
@@ -90,4 +90,11 @@ class DataContainer(AbstractDataContainer):
         result = []
         for siteDataPointsList in dataPointsList:
             result.append([dataPointInstance.getDate() for dataPointInstance in siteDataPointsList])
+        return result
+    
+    @staticmethod
+    def getSerialNumbersFromDataPointsList(dataPointsList:list[list[DataPoint]]) -> list[list[str]]:
+        result = []
+        for siteDataPointsList in dataPointsList:
+            result.append([dataPointInstance.getSerialNumber() for dataPointInstance in siteDataPointsList])
         return result
