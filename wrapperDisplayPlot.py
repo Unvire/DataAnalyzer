@@ -78,10 +78,11 @@ class PlotWrapper:
     def clear(self):
         self.canvas.clear()
 
-    def _getClickedPointData(self, seriesIndex:int, pointIndex:int) -> tuple[str, str]:
+    def _getClickedPointData(self, seriesIndex:int, pointIndex:int) -> tuple[str, str, str]:
         dataPointsList, _ = self._getDataPointsList(self.selectedSite)
         value = DataContainer.getValuesFromDataPointsList(dataPointsList)[seriesIndex][pointIndex]
         date = DataContainer.getDateStringsFromDataPointsList(dataPointsList)[seriesIndex][pointIndex]
+        serialNumber = DataContainer.getSerialNumbersFromDataPointsList(dataPointsList)[seriesIndex][pointIndex]
         if self.dataContainer.isCxCyMeasurement():
             cx, cy = value
             cx = format(cx, '.3E')
@@ -89,7 +90,7 @@ class PlotWrapper:
             formattedValue = f'({cx}, {cy})'
         else:
             formattedValue = format(value, '.3E')
-        return formattedValue, date  
+        return formattedValue, date, serialNumber
     
     def _changePlotType(self):
         plotTypeInverterMap = {'Sequence plot':'Capability plot', 'Capability plot':'Sequence plot'}
@@ -220,9 +221,9 @@ class PlotWrapper:
         y = event.artist.get_ydata()[index]        
         
         try:
-            formattedValue, date = self._getClickedPointData(seriesID, index)
+            formattedValue, date, serialNumber = self._getClickedPointData(seriesID, index)
             self.annotation = self.canvas.ax.annotate(
-                f'{formattedValue}\n{date}',
+                f'{formattedValue}\n{date}\n{serialNumber}',
                 (x, y),
                 xytext=(0, 10),
                 textcoords='offset points',
