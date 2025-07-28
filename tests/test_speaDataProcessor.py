@@ -18,10 +18,17 @@ def fileLinesProcessingTest():
 
 def test_getLogDateTime(fileLinesProcessingTest):
     _, mockFileName = fileLinesProcessingTest
-    expected = '2025/01/25 17:35:59'
-
     loader = dataProcessorSpea.SpeaDataProcessor()
+    expected = '2025/01/25 17:35:59'
     assert expected == loader.getLogDateTime(mockFileName)
+
+    fileNamePattern2Example = 'NEXY-M-main_107250379025600_28072025_082428'
+    expected = '2025/07/28 08:24:28'
+    assert expected == loader.getLogDateTime(fileNamePattern2Example)
+
+    fileNamePattern3Example = 'LVMextension_170250254017870_001_162517_20250625'
+    expected = '2025/06/25 16:25:17'
+    assert expected == loader.getLogDateTime(fileNamePattern3Example)
 
 def test__processFileLine(fileLinesProcessingTest):
     fileLines, fileName = fileLinesProcessingTest
