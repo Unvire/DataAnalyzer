@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QFrame, QComboBox, QPushButton, QApplication
 
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -45,6 +45,7 @@ class PlotWrapper:
         self.canvas = MplCanvas(self.plotFrame)
         self.toolbar = NavigationToolbar(self.canvas)        
         self.annotation = None
+        self.copyNotification = None
 
         self.plotLayout = QtWidgets.QVBoxLayout(self.plotFrame)
         self.plotLayout.addWidget(self.toolbar)
@@ -210,7 +211,8 @@ class PlotWrapper:
                 if line == artist:
                     return i
         
-        self._removeAnnotation()        
+        self._removeAnnotation()   
+        self._removeCopyNotification()     
         self.canvas.draw_idle()
         
         self.isPickedPoint = True
@@ -238,15 +240,34 @@ class PlotWrapper:
                 arrowprops=dict(arrowstyle='->'),
                 zorder=100
             )
-            clipboard = QApplication.clipboard()
-            clipboard.setText(annotationContent)
+            self._annotationToClipboard(x, y, annotationContent)           
             
         except IndexError:
             pass
 
         self.canvas.draw_idle()
     
+    def _annotationToClipboard(self, x:int, y:int, annotationContent:str):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(annotationContent)
+
+        self.copyNotification = self.canvas.ax.text(
+            x, y,
+            'Copied to clipboard',
+            ha='center',
+            bbox=dict(facecolor='lightgreen', alpha=0.9, edgecolor='none'),
+            zorder=101
+        )
+        
+        QtCore.QTimer.singleShot(300, self._removeCopyNotification)
+    
     def _removeAnnotation(self):
         if self.annotation:
             self.annotation.remove()
             self.annotation = None
+    
+    def _removeCopyNotification(self):
+        if self.copyNotification:
+            self.copyNotification.remove()
+            self.copyNotification = None
+            self.canvas.draw_idle()
