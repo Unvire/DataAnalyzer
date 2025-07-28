@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QFrame, QComboBox, QPushButton
+from PyQt5.QtWidgets import QFrame, QComboBox, QPushButton, QApplication
 
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backend_bases import PickEvent
@@ -222,8 +222,9 @@ class PlotWrapper:
         
         try:
             formattedValue, date, serialNumber = self._getClickedPointData(seriesID, index)
+            annotationContent = f'{formattedValue}\n{date}\n{serialNumber}'
             self.annotation = self.canvas.ax.annotate(
-                f'{formattedValue}\n{date}\n{serialNumber}',
+                annotationContent,
                 (x, y),
                 xytext=(0, 10),
                 textcoords='offset points',
@@ -234,8 +235,11 @@ class PlotWrapper:
                     ec='black',
                     lw=1
                 ),
-                arrowprops=dict(arrowstyle='->')
+                arrowprops=dict(arrowstyle='->'),
+                zorder=100
             )
+            clipboard = QApplication.clipboard()
+            clipboard.setText(annotationContent)
             
         except IndexError:
             pass
@@ -246,7 +250,3 @@ class PlotWrapper:
         if self.annotation:
             self.annotation.remove()
             self.annotation = None
-
-    
-
-        
