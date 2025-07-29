@@ -70,8 +70,8 @@ class FileProcessorsFactory:
     
         for subFolderPath, _, files  in os.walk(folderPath):
             for fileName in files:
-                pelna_sciezka = os.path.join(subFolderPath, fileName)
-                result.append(pelna_sciezka)
+                fullFilePath = os.path.join(subFolderPath, fileName)
+                result.append(fullFilePath)
         
         return result
 
