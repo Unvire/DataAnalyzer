@@ -31,10 +31,14 @@ class FileProcessorsFactory:
 
         numOfFiles = len(logFiles)
         for i, file in enumerate(logFiles):
+            if not '.' in file:
+                continue
+            
             fileNameWithPossiblePath, fileExtension = file.rsplit('.', 1)
-            _, fileName = fileNameWithPossiblePath.rsplit(os.sep, 1)
             if fileExtension not in self.loaderInstance.FILE_EXTENSIONS:
                 continue
+            
+            fileName = fileNameWithPossiblePath if os.sep not in fileNameWithPossiblePath else fileNameWithPossiblePath.rsplit(os.sep, 1)[1]
             
             formatedTime = self.loaderInstance.getLogDateTime(fileName)
             logPath = os.path.join(folderPath, file)
