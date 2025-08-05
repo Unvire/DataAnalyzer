@@ -1,5 +1,5 @@
 ## About
-Data analyzer processes measurement log files in a folder and displays selected measurement in a sequence plot or normal distribution plot.
+Data analyzer processes measurement log files in a folder (or subfolders) and displays selected measurement in a sequence plot or normal distribution plot.
 
 ## How to use
 1. Select a log type in a combo box. Currently handled types are:
@@ -26,11 +26,17 @@ Data analyzer processes measurement log files in a folder and displays selected 
     ``1.664199e-02``
     First line is a header: testName;lowerLimit;upperLimit.
     Each line below header must contain 1 measurement value.
-2. Click button "Open logs folder" and select folder with result log files.
-3. After logs are processed, select a test from list. Statistical data will be displayed in the text fields and plot will be generated. Clicking on a point in a Sequence plot will show a label with value and date of the measurement
-4. Plot can be adjusted with the navbar above the plot and buttons below it.
-5. Tests can be filtered out with regex pattern.
-6. Click Generate Report button to generate a html report. User can parametrize select tests, sites and order of points on the sequence plot
+2. Click button "Open logs folder" and select folder with result log files. Untoggling *Search subfolders* will search logs only in given folder. It is highly advised to paste folder path into *Directory* input in the open folder modal and confrim it with *Enter* key.
+3. After logs are processed, select a test from list. Statistical data will be displayed in the text fields and plot will be generated. Clicking on a point in a Sequence plot will show a label with value, measurement and serial number of the sample. It will also be copied into clipboard.
+4. Plot can be adjusted with the navbar above the plot and buttons below it:
+- **Site** - draw all of the sites or one of them,
+- **Values in limits** - draw only values between limits,
+- **Order** - select *Date* to draw a plot with overlapping series, select *Sites* to draw series next to each other,
+- **Change Y scale** - toggle / untoggle semilog scale of Y axis,
+- **Change plot type** - switch between series plot and normal distribuition plot.
+5. Click *Open plot in new window* to open current plot in new window.
+6. Tests can be filtered out with regex pattern.
+7. Click Generate Report button to generate a html report. User can parametrize select tests, sites and order of points on the sequence plot
 
 ## Language
 Program is written with python (3.11). Used packages:
@@ -40,5 +46,5 @@ Program is written with python (3.11). Used packages:
 - seaborn
 
 ## How to run?
+Install python. Required version is at least 3.11. Preferable version is 3.12.10
 Install all required modules listed in requirements.txt and run mainGUI.pyw
-Compile for release version using nuitka or auto-py-to-exe
