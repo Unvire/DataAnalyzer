@@ -1,6 +1,6 @@
 import re
 
-from dataProcessorAbstract import AbstractDataProcessor
+from workers.dataProcessorAbstract import AbstractDataProcessor
 
 class FwkDataProcessor(AbstractDataProcessor):
     FILE_EXTENSIONS = ['csv']

@@ -4,11 +4,11 @@ from PyQt5.QtWidgets import QFrame, QComboBox, QPushButton, QApplication
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backend_bases import PickEvent
 
-from mplCanvas import MplCanvas
-from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
-from dataContainer import DataContainer
-from dataPoint import DataPoint
-import listParser
+from workers.mplCanvas import MplCanvas
+from workers.plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
+from workers.dataContainer import DataContainer
+from workers.dataPoint import DataPoint
+import workers.listParser as listParser
 
 class PlotWrapper:
     def __init__(self, plotFrame:QFrame, selectSiteComboBox:QComboBox, plotOrderByComboBox:QComboBox, _changeYScaleButton:QPushButton, 

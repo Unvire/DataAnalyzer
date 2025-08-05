@@ -1,17 +1,17 @@
 import os
 
-import dataContainer
-import dataProcessorSpea, dataProcessorFwk, dataProcessorColumn, dataProcessorGrugliasco
+import workers.dataContainer as dataContainer
+import workers.dataProcessorSpea, workers.dataProcessorFwk, workers.dataProcessorColumn, workers.dataProcessorGrugliasco
 
 from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
 
 class FileProcessorsFactory:
     def __init__(self):
         self.dataProcessorsDict = {
-            'SPEA': dataProcessorSpea.SpeaDataProcessor,
-            'FWK / Ipses': dataProcessorFwk.FwkDataProcessor,
-            'TestStand Grugliasco': dataProcessorGrugliasco.GrugliascoDataProcessor,
-            'Column file': dataProcessorColumn.ColumnDataProcessor
+            'SPEA': workers.dataProcessorSpea.SpeaDataProcessor,
+            'FWK / Ipses': workers.dataProcessorFwk.FwkDataProcessor,
+            'TestStand Grugliasco': workers.dataProcessorGrugliasco.GrugliascoDataProcessor,
+            'Column file': workers.dataProcessorColumn.ColumnDataProcessor
         }
         self.observersList = []
         self.progressPercent = -1

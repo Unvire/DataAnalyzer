@@ -1,4 +1,3 @@
-import math
 import numpy as np
 
 # https://datatab.net/statistics-calculator/process-capability

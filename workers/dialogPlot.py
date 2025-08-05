@@ -3,8 +3,8 @@ from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 
-from wrapperDisplayPlot import PlotWrapper
-from dataContainer import DataContainer
+from workers.wrapperDisplayPlot import PlotWrapper
+from workers.dataContainer import DataContainer
 
 class PlotDialog(QDialog):
     def __init__(self, dataContainer:DataContainer):

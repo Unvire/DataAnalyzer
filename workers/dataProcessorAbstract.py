@@ -1,7 +1,7 @@
 import abc
 from datetime import datetime
 
-import dataContainer
+import workers.dataContainer as dataContainer
 
 class AbstractDataProcessor(metaclass=abc.ABCMeta):
     def __init__(self):

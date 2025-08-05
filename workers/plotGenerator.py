@@ -1,10 +1,9 @@
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
 
 import seaborn as sns
 import numpy as np
 
-import listParser
+import workers.listParser as listParser
 
 class PlotGenerator:
     def __init__(self, canvas:plt.Figure):

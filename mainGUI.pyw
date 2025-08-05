@@ -5,16 +5,16 @@ from PyQt5 import QtWidgets, uic
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QMessageBox
 
-from dialogGenerateReport import GenerateReportDialog
-from dialogPlot import PlotDialog
+from workers.dialogGenerateReport import GenerateReportDialog
+from workers.dialogPlot import PlotDialog
 
-from wrapperTestList import TestListWrapper
-from wrapperDisplayPlot import PlotWrapper
-from fileProcessorFactory import FileProcessorsFactory
-from processCalculator import ProcessParameterCalculator
-from htmlReportGenerator import HtmlReportGenerator
-from dataContainer import DataContainer
-import listParser
+from workers.wrapperTestList import TestListWrapper
+from workers.wrapperDisplayPlot import PlotWrapper
+from workers.fileProcessorFactory import FileProcessorsFactory
+from workers.processCalculator import ProcessParameterCalculator
+from workers.htmlReportGenerator import HtmlReportGenerator
+from workers.dataContainer import DataContainer
+import workers.listParser as listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
     FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK / Ipses', 'TestStand Grugliasco', 'Column file']

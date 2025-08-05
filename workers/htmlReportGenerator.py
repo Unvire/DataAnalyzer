@@ -7,13 +7,13 @@ import matplotlib
 matplotlib.use('Agg')
 os.environ['PYDEVD_DISABLE_FILE_VALIDATION'] = '1'
 
-from mplCanvas import MplCanvas
-from processCalculator import ProcessParameterCalculator
-from plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
-from dataContainer import DataContainer
-from dataPoint import DataPoint
+from workers.mplCanvas import MplCanvas
+from workers.processCalculator import ProcessParameterCalculator
+from workers.plotGenerator import SequencePlotGenerator, CapabilityPlotGenerator, CxCyPlotGenerator
+from workers.dataContainer import DataContainer
+from workers.dataPoint import DataPoint
 
-import listParser
+import workers.listParser as listParser
 
 class HtmlReportGenerator:
     def __init__(self):

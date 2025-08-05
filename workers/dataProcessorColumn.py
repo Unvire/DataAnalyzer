@@ -1,4 +1,4 @@
-from dataProcessorAbstract import AbstractDataProcessor
+from workers.dataProcessorAbstract import AbstractDataProcessor
 
 class ColumnDataProcessor(AbstractDataProcessor):
     FILE_EXTENSIONS = ['txt']
