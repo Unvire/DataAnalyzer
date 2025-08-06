@@ -1,0 +1,12 @@
+FORMAT;mmdd
+START;;;;;ADMINISTRATOR;;
+LOT;
+ANL;1;Normal distribution;;;No offset;;;8313.8;7000;10000;;;
+ANL;1;Normal distribution;;;Sites offset;;;7492.4;7000;10000;;;
+ANL;1;Process changes;;;Linear trend;;;9243.0;7000;10000;;;
+ANL;1;Process changes;;;Variation changed;;;10930.0;7000;10000;;;
+ANL;1;Process changes;;;Limits adjusted;;;8918.4;7000;10000;;;
+FUNC;1;LED1;;;LED_WHITE_CXCY(0.3343_0.3540_0.3096_0.3562_0.3496_0.3716_0.3486_0.3269_0.3096_0.3098);;;;;;;
+SN;ExampleLog101
+BOARDRESULT;
+END;;

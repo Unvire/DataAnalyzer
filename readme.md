@@ -48,3 +48,4 @@ Program is written with python (3.11). Used packages:
 ## How to run?
 Install python. Required version is at least 3.11. Preferable version is 3.12.10
 Install all required modules listed in requirements.txt and run mainGUI.pyw
+You can check the program with example *SPEA* logs in the *exampleLogs_SPEA* folder
