@@ -55,7 +55,10 @@ class SpeaDataProcessor(AbstractDataProcessor):
         if 'CXCY' in testName2:
             ledBin, valuesString = testName2.split('(')
             testName = f'{testName1} | {ledBin}'
-            x, y, *boundaryXYs = valuesString[:-1].split('_')
+            valuesString = valuesString[:-1]
+            valuesString = valuesString.replace('-', '_')
+            
+            x, y, *boundaryXYs = valuesString.split('_')
             limits = '_'.join(boundaryXYs)
             value = x, y
         else:            
