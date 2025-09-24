@@ -1,6 +1,6 @@
 import re
 
-from workers.dataProcessorAbstract import AbstractDataProcessor
+from src.dataProcessorAbstract import AbstractDataProcessor
 
 class SpeaDataProcessor(AbstractDataProcessor):     
     FILE_EXTENSIONS = ['txt']

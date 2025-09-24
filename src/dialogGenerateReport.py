@@ -2,7 +2,7 @@ import sys, os
 from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5 import uic
 
-from workers.wrapperTestList import TestListWrapper
+from src.wrapperTestList import TestListWrapper
 
 class GenerateReportDialog(QDialog):
     def __init__(self, testNames:list[str], siteNames:list[str]):

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-import workers.listParser as listParser
+import src.listParser as listParser
 
 class PlotGenerator:
     def __init__(self, canvas:plt.Figure):

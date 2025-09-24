@@ -1,5 +1,5 @@
 import abc
-from workers.dataPoint import DataPoint
+from src.dataPoint import DataPoint
 
 class AbstractDataContainer(metaclass=abc.ABCMeta):
     def __init__(self, name:str):
