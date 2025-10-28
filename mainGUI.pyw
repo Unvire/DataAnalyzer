@@ -106,7 +106,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self._updateOpenLogsFolderButtonText(True)
         
         self._setStatusOfTestsHandlingWidgets(False)
-        self.plotWidget.setStatusPlotHandlingWidgets(False)   
+        self.plotWidget.setStatusCommonPlotHandlingWidgets(False)
+        self.plotWidget.setStatusSeriesPlotHandlingWidgets(False)
         self._setStatusOfThreadsCallingWidgets(False)        
     
     def _updateOpenLogsFolderButtonText(self, isFileTypeChanged:bool):
