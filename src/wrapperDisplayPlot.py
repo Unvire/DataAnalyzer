@@ -141,15 +141,15 @@ class PlotWrapper:
         self.plotOrderBy = self.plotOrderByComboBox.currentText()        
         self.generatePlot()
 
-    def generatePlot(self):        
+    def generatePlot(self):
+        self.setStatusCommonPlotHandlingWidgets(True)   
         if self.dataContainer.isCxCyMeasurement():
-            self._generateCXCYPlot()                        
-            self.setStatusPlotHandlingWidgets(False)
-            self.selectSiteComboBox.setEnabled(True)
-            self.selectLimitsComboBox.setEnabled(True)
+            self._generateCXCYPlot()
+            self.setStatusSeriesPlotHandlingWidgets(False)
+            
         else:
-            self._generateCapabilityOrSequencePlot()            
-            self.setStatusPlotHandlingWidgets(True)       
+            self._generateCapabilityOrSequencePlot()
+            self.setStatusSeriesPlotHandlingWidgets(True)
     
     def _generateCapabilityOrSequencePlot(self):
         generatePlot = {'Sequence plot':self.sequencePlotGenerator.generatePlot, 
@@ -164,7 +164,7 @@ class PlotWrapper:
         plotName, siteNames, valuesList, siteBoundariesList = self._commonPlotData()        
         siteBoundaries = listParser.uniqueBoundaryStrings(siteBoundariesList)
         boundaryXYs = listParser.processBoundaryStrings(siteBoundaries)
-        self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames)
+        self.cxCyPlotGenerator.generatePlot(valuesList, plotName, boundaryXYs, siteNames, self.isValuesInLimitsEnabled)
 
     def _commonPlotData(self) -> tuple[str, list[str], list[list[float | tuple[float, float]]], list[list[str | tuple[float, float]]]] | list[float|str]:
         plotName = self.dataContainer.name
@@ -177,12 +177,14 @@ class PlotWrapper:
         dataPointsList = self.dataContainer.getData(selectedSite)
         siteNames = self.dataContainer.getSiteNames() if selectedSite == 'All sites' else [selectedSite]
         return dataPointsList, siteNames
-
-    def setStatusPlotHandlingWidgets(self, status:bool):        
-        self.selectSiteComboBox.setEnabled(status)
+        
+    def setStatusSeriesPlotHandlingWidgets(self, status:bool):
         self.plotOrderByComboBox.setEnabled(status)
         self.changeYScaleButton.setEnabled(status)
         self.changePlotButton.setEnabled(status)
+    
+    def setStatusCommonPlotHandlingWidgets(self, status:bool):
+        self.selectSiteComboBox.setEnabled(status)
         self.valuesInLimitsButton.setEnabled(status)
     
     def updateNumOfSites(self):

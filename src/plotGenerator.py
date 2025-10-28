@@ -6,6 +6,8 @@ import numpy as np
 import src.listParser as listParser
 
 class PlotGenerator:
+    DELTA_LIMITS_PERCENTAGE = 0.05
+
     def __init__(self, canvas:plt.Figure):
         self.canvas = canvas
     
@@ -36,6 +38,12 @@ class PlotGenerator:
                 uniqueLabels.append(label)
                 uniqueHandles.append(handle)
         self.canvas.ax.legend(handles=uniqueHandles, labels=uniqueLabels, loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=5)
+    
+    def _calculateCanvasLimits(self, minValue:float, maxValue:float) -> tuple[float, float]:
+        delta = abs(maxValue - minValue) * self.DELTA_LIMITS_PERCENTAGE
+        minValue -= delta
+        maxValue += delta
+        return minValue, maxValue
 
 class SequencePlotGenerator(PlotGenerator):
     def generatePlot(self, valuesList:list[list[float]], title:str, limitsList:list[list[float]]|list[float, float], isLogScale:bool, 
@@ -72,9 +80,7 @@ class SequencePlotGenerator(PlotGenerator):
                     yCanvasMax = max(yCanvasMax, max(yUpperLim))
 
             if isValuesInLimitsEnabled:
-                delta = abs(yCanvasMax - yCanvasMin) * 0.05
-                yCanvasMin -= delta
-                yCanvasMax += delta
+                yCanvasMin, yCanvasMax = self._calculateCanvasLimits(yCanvasMin, yCanvasMax)
                 self.canvas.ax.set_ylim(yCanvasMin, yCanvasMax)
 
         else:
@@ -104,19 +110,35 @@ class CapabilityPlotGenerator(PlotGenerator):
         self._addLegendAndScale(title, ['Value', 'Probability density'], isLogScale)
 
 class CxCyPlotGenerator(PlotGenerator):
-    def generatePlot(self, dataList:list[list[float]], title:str, boundaryXYsList:list[list[float]], siteNames:list[str]):
+    def generatePlot(self, dataList:list[list[float]], title:str, boundaryXYsList:list[list[float]], siteNames:list[str], isValuesInLimitsEnabled:bool):
+        def unpackXYs(boundaryXYs:list[float]) -> tuple[list[float], list[float]]:
+            x = [point[0] for point in boundaryXYs]
+            y = [point[1] for point in boundaryXYs]
+            return x, y
+
         self.canvas.ax.cla()
         for siteName, dataSeries in zip(siteNames, dataList):
-            x = [point[0] for point in dataSeries]
-            y = [point[1] for point in dataSeries]
+            x, y = unpackXYs(dataSeries)
             seriesLength = len(dataSeries)
             self.canvas.ax.plot(x, y, '.', linewidth=1, label=f'Site{siteName} ({seriesLength} samples)', picker=5)
         
         for i, boundaryXYs in enumerate(boundaryXYsList):
-            x = [point[0] for point in boundaryXYs]
-            y = [point[1] for point in boundaryXYs]
+            x, y = unpackXYs(boundaryXYs)
             self.canvas.ax.plot(x, y, linewidth=2, label=f'Bin boundary{i + 1}', picker=1)
         
+        if isValuesInLimitsEnabled:
+            minX, minY = float('Inf'), float('Inf')
+            maxX, maxY = float('-Inf'), float('-Inf')
+            for i, boundaryXYs in enumerate(boundaryXYsList):
+                x, y = unpackXYs(boundaryXYs) 
+                minX, minY = min(x + [minX]), min(y + [minY])
+                maxX, maxY = max(x + [maxX]), max(y + [maxY])
+
+            xCanvasMin, xCanvasMax = self._calculateCanvasLimits(minX, maxX)
+            yCanvasMin, yCanvasMax = self._calculateCanvasLimits(minY, maxY)
+            self.canvas.ax.set_xlim(xCanvasMin, xCanvasMax)
+            self.canvas.ax.set_ylim(yCanvasMin, yCanvasMax)
+
         self.canvas.ax.grid()
         self._addPlotText(title, 'CX', 'CY')
 

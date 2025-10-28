@@ -50,7 +50,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         self.plotWidget.setUpdateProcessParametersHandle(self.updateProcessParameters)
         
         self.openLogsFolderButton.setEnabled(False)  
-        self.plotWidget.setStatusPlotHandlingWidgets(False)
+        self.plotWidget.setStatusCommonPlotHandlingWidgets(False)
+        self.plotWidget.setStatusSeriesPlotHandlingWidgets(False)
         self._setStatusOfTestsHandlingWidgets(False)  
 
         self.logsTypeComboBox.currentTextChanged.connect(lambda value: self.selectProcessor(value))
