@@ -55,12 +55,13 @@ class SpeaDataProcessor(AbstractDataProcessor):
         if 'CXCY' in testName2:
             ledBin, valuesString = testName2.split('(')
             testName = f'{testName1} | {ledBin}'
-            valuesString = valuesString.replace('-', '_')
             
             upcaseValuesString = valuesString.upper()
+            valuesString = valuesString.replace('-', '_').replace(',', '.')
+            valuesString = re.sub(r'[^0-9._]+', '', valuesString)
+            
             if 'CX LIMIT:' in upcaseValuesString and 'CY LIMIT:' in upcaseValuesString:
                 # edge case: x_y_CX Limit:x1_x2_x3_x4_CY Limit:y1_y2_y3_y4
-                valuesString = re.sub(r'[^0-9._]+', '', valuesString)
                 x, y, x1, x2, x3, x4, y1, y2, y3, y4 = valuesString.split('_')
                 boundaryXYs = x1, y1, x2, y2, x3, y3, x4, y4
             else:
