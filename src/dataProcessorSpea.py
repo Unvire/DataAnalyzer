@@ -23,7 +23,7 @@ class SpeaDataProcessor(AbstractDataProcessor):
     
     def _getSerialNumber(self, fileLines:list[str]) -> str:
         _, serialNumber, *_ = fileLines[-3].split(';')
-        return serialNumber
+        return serialNumber.strip()
     
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
         speaNamePattern1 = r'.+_\d{14}$'
