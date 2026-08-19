@@ -18,11 +18,14 @@ import src.listParser as listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
     FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK / Ipses / BEC', 'TestStand Grugliasco', 'Column file']
+    TITLE = 'Data Analyzer 1.6.0'
 
     def __init__(self):
         super().__init__()
         uiFilePath = os.path.join(os.getcwd(), 'ui', 'main.ui')
         uic.loadUi(uiFilePath, self)
+
+        self.setWindowTitle(self.TITLE)
 
         self.testListWrapper = TestListWrapper(self.listWidget, self.filterTestsButton, self.resetFilterButton, self.regexPatternEdit)
         self.testListWrapper.setRowOnClickEvent(self.listWidgetClickedEvent)
