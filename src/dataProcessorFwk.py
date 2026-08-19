@@ -24,11 +24,14 @@ class FwkDataProcessor(AbstractDataProcessor):
     def getLogDateTime(self, fileNameNoExtension:str) -> str:
         fwkNamePattern = r'^\d{8}_\d{6}_BF'
         testStandIpsesNamePattern = r'^.+\d{6}_\d{8}_[Pp|Ff]'
+        chineseTeststandNamePattern = r'^\d{8}_\d{6}_'
 
         if re.match(fwkNamePattern, fileNameNoExtension):
             date, time, *_ = fileNameNoExtension.split('_')
         elif re.match(testStandIpsesNamePattern, fileNameNoExtension):
             *_, time, date, _ = fileNameNoExtension.split('_')
+        elif re.match(chineseTeststandNamePattern, fileNameNoExtension):
+            date, time, *_ = fileNameNoExtension.split('_')
         else:
             raise ValueError
         

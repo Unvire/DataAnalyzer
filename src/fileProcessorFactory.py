@@ -9,7 +9,7 @@ class FileProcessorsFactory:
     def __init__(self):
         self.dataProcessorsDict = {
             'SPEA': src.dataProcessorSpea.SpeaDataProcessor,
-            'FWK / Ipses': src.dataProcessorFwk.FwkDataProcessor,
+            'FWK / Ipses / BEC': src.dataProcessorFwk.FwkDataProcessor,
             'TestStand Grugliasco': src.dataProcessorGrugliasco.GrugliascoDataProcessor,
             'Column file': src.dataProcessorColumn.ColumnDataProcessor
         }

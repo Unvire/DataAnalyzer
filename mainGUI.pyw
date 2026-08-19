@@ -17,7 +17,7 @@ from src.dataContainer import DataContainer
 import src.listParser as listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
-    FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK / Ipses', 'TestStand Grugliasco', 'Column file']
+    FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK / Ipses / BEC', 'TestStand Grugliasco', 'Column file']
 
     def __init__(self):
         super().__init__()
