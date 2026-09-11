@@ -18,7 +18,7 @@ import src.listParser as listParser
 
 class DataAnalyzerGUI(QtWidgets.QMainWindow):
     FILE_PROCESSORS = ['Select file type', 'SPEA', 'FWK / Ipses / BEC', 'TestStand Grugliasco', 'Column file']
-    TITLE = 'Data Analyzer 1.6.0'
+    TITLE = 'Data Analyzer 1.6.1'
 
     def __init__(self):
         super().__init__()
@@ -191,7 +191,8 @@ class DataAnalyzerGUI(QtWidgets.QMainWindow):
         def runProcessLogs():
             try:
                 self.factory.processAllLogsInFolder(folderPath, isAppendTests, isSearchInSubfolders)
-            except Exception:         
+            except Exception as e:         
+                print(str(e), e.__repr__())
                 self.logsProcessingSuccess = False
             self.threadFinished = True            
         

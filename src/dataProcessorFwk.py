@@ -9,7 +9,7 @@ class FwkDataProcessor(AbstractDataProcessor):
         super().__init__()
 
     def processLogFile(self, filePath:str, testTime:str):
-        with open(filePath, 'r', encoding='unicode_escape') as file:
+        with open(filePath, 'r', encoding='utf-8') as file:
             fileLines = file.readlines()[:-3]
         
         site = self._getSiteFromHeader(fileLines)
