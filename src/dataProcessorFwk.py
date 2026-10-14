@@ -25,6 +25,7 @@ class FwkDataProcessor(AbstractDataProcessor):
         fwkNamePattern = r'^\d{8}_\d{6}_BF'
         testStandIpsesNamePattern = r'^.+\d{6}_\d{8}_[Pp|Ff]'
         chineseTeststandNamePattern = r'^\d{8}_\d{6}_'
+        chineseTeststandNamePattern2 = r'^UUT\d+_\d{8}_\d{6}_'
 
         if re.match(fwkNamePattern, fileNameNoExtension):
             date, time, *_ = fileNameNoExtension.split('_')
@@ -32,6 +33,8 @@ class FwkDataProcessor(AbstractDataProcessor):
             *_, time, date, _ = fileNameNoExtension.split('_')
         elif re.match(chineseTeststandNamePattern, fileNameNoExtension):
             date, time, *_ = fileNameNoExtension.split('_')
+        elif re.match(chineseTeststandNamePattern2, fileNameNoExtension):
+            _, date, time, *_ = fileNameNoExtension.split('_')
         else:
             raise ValueError
         
