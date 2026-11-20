@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 
 from src.dataProcessorAbstract import AbstractDataProcessor
@@ -5,6 +6,7 @@ from src.dataProcessorAbstract import AbstractDataProcessor
 
 class FwkDataProcessor(AbstractDataProcessor):
     FILE_EXTENSIONS = ['csv']
+    OUTPUT_DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
 
     def processLogFile(self, filePath: str, testTime: str):
         with open(filePath, 'r', encoding='utf-8') as file:
@@ -18,6 +20,10 @@ class FwkDataProcessor(AbstractDataProcessor):
                 self._processFileLine(line, site, testTime, serialNumber)
             except ValueError:
                 pass
+
+    def _formatDateTime(self, dateStr: str, timeStr: str) -> str:
+        parsed = datetime.strptime(f'{dateStr}{timeStr}', '%Y%m%d%H%M%S')
+        return parsed.strftime(self.OUTPUT_DATETIME_FORMAT)
 
     def getLogDateTime(self, fileNameNoExtension: str) -> str:
         fwkNamePattern = r'^\d{8}_\d{6}_BF'
@@ -36,7 +42,7 @@ class FwkDataProcessor(AbstractDataProcessor):
         else:
             raise ValueError(f'Unrecognized FWK filename format: {fileNameNoExtension}')
 
-        return super().getLogDateTime(date + time)
+        return self._formatDateTime(date, time)
 
     def _getSiteFromHeader(self, fileLines: list[str]) -> str:
         return self._getValueFromFileLine(fileLines, 'test socket index')

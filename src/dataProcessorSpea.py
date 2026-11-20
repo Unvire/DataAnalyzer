@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from src.dataProcessorAbstract import AbstractDataProcessor
 from src.dataSchemas import parseBoundaryString
@@ -6,6 +7,7 @@ from src.dataSchemas import parseBoundaryString
 
 class SpeaDataProcessor(AbstractDataProcessor):
     FILE_EXTENSIONS = ['txt']
+    OUTPUT_DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
 
     def processLogFile(self, filePath: str, testTime: str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
@@ -33,6 +35,10 @@ class SpeaDataProcessor(AbstractDataProcessor):
                 return parts[1].strip()
         return '-'
 
+    def _formatDateTime(self, rawCompactDateTime: str) -> str:
+        parsed = datetime.strptime(rawCompactDateTime, '%Y%m%d%H%M%S')
+        return parsed.strftime(self.OUTPUT_DATETIME_FORMAT)
+
     def getLogDateTime(self, fileNameNoExtension: str) -> str:
         speaNamePattern1 = r'.+_\d{14}$'
         speaNamePattern2 = r'.+_\d{8}_\d{6}$'
@@ -40,24 +46,28 @@ class SpeaDataProcessor(AbstractDataProcessor):
 
         if re.match(speaNamePattern1, fileNameNoExtension):
             datetimeString = fileNameNoExtension.split('_')[-1]
-            return super().getLogDateTime(datetimeString)
+            return self._formatDateTime(datetimeString)
 
         if re.match(speaNamePattern2, fileNameNoExtension):
             date, time = fileNameNoExtension.split('_')[-2:]
             day, month, year = date[:2], date[2:4], date[4:]
             hour, minutes, seconds = time[:2], time[2:4], time[4:]
-            return super().getLogDateTime(f'{year}{month}{day}{hour}{minutes}{seconds}')
+            return self._formatDateTime(f'{year}{month}{day}{hour}{minutes}{seconds}')
 
         if re.match(speaNamePattern3, fileNameNoExtension):
             time, date = fileNameNoExtension.split('_')[-2:]
             year, month, day = date[:4], date[4:6], date[6:]
             hour, minutes, seconds = time[:2], time[2:4], time[4:]
-            return super().getLogDateTime(f'{year}{month}{day}{hour}{minutes}{seconds}')
+            return self._formatDateTime(f'{year}{month}{day}{hour}{minutes}{seconds}')
 
         raise ValueError(f'Unrecognized SPEA filename format: {fileNameNoExtension}')
 
     def _processFileLine(self, fileLine: str, testTime: str, serialNumber: str):
-        _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')
+        try:
+            _, site, testName1, _, _, testName2, _, _, measuredValue, lowerLimit, upperLimit, *_ = fileLine.split(';')
+        except ValueError:
+            return
+            
         if 'CXCY' in testName2:
             ledBin, valuesString = testName2.split('(')
             testName = f'{testName1} | {ledBin}'

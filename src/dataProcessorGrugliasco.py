@@ -1,13 +1,18 @@
+from datetime import datetime
+
 from src.dataProcessorAbstract import AbstractDataProcessor
 
 
 class GrugliascoDataProcessor(AbstractDataProcessor):
     FILE_EXTENSIONS = ['txt']
+    OUTPUT_DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
 
     def getLogDateTime(self, fileNameNoExtension: str) -> str:
         _, _, date, time, *_ = fileNameNoExtension.split('][')
-        datetimeString = date.replace('-', '') + time.replace('-', '')
-        return super().getLogDateTime(datetimeString)
+        cleanDate = date.replace('-', '')
+        cleanTime = time.replace('-', '')
+        parsed = datetime.strptime(f'{cleanDate}{cleanTime}', '%Y%m%d%H%M%S')
+        return parsed.strftime(self.OUTPUT_DATETIME_FORMAT)
 
     def processLogFile(self, filePath: str, testTime: str):
         with open(filePath, 'r', encoding='unicode_escape') as file:
