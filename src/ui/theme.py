@@ -1,4 +1,4 @@
-from PyQt5.QtGui import QColor, QPalette
+from PyQt5.QtGui import QColor, QFont, QPalette
 from PyQt5.QtWidgets import QApplication
 
 
@@ -6,8 +6,6 @@ DARK_QSS = """
 QWidget {
     background-color: #1e1f22;
     color: #dfe1e5;
-    font-family: "Segoe UI", Arial, sans-serif;
-    font-size: 13px;
 }
 
 QMainWindow, QDialog {
@@ -45,7 +43,6 @@ QPushButton {
     border-radius: 5px;
     padding: 6px 12px;
     color: #dfe1e5;
-    font-weight: 500;
 }
 
 QPushButton:hover {
@@ -95,13 +92,44 @@ QComboBox, QLineEdit {
     selection-background-color: #3574f0;
 }
 
+QComboBox {
+    padding-right: 28px;
+}
+
+QComboBox:hover {
+    background-color: #32353b;
+    border-color: #5a5d64;
+}
+
 QComboBox:focus, QLineEdit:focus {
     border-color: #3574f0;
 }
 
+QComboBox:disabled {
+    background-color: #242528;
+    color: #6f737a;
+    border-color: #323438;
+}
+
 QComboBox::drop-down {
-    border: none;
-    width: 22px;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #393b40;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+QComboBox::down-arrow {
+    width: 0px;
+    height: 0px;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #bcbec4;
+}
+
+QComboBox::down-arrow:disabled {
+    border-top-color: #5a5d64;
 }
 
 QComboBox QAbstractItemView {
@@ -159,7 +187,7 @@ QTabBar::tab {
     border-bottom: none;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
-    padding: 7px 16px;
+    padding: 7px 14px;
     margin-right: 3px;
 }
 
@@ -171,8 +199,8 @@ QTabBar::tab:hover {
 QTabBar::tab:selected {
     background-color: #1e1f22;
     color: #ffffff;
-    border-bottom: 2px solid #3574f0;
-    font-weight: 600;
+    border-top: 2px solid #3574f0;
+    border-bottom: 1px solid #1e1f22;
 }
 
 QProgressBar {
@@ -269,8 +297,9 @@ QLabel[role="statValue"] {
 """
 
 
-def applyDarkTheme(app:QApplication):
+def applyDarkTheme(app: QApplication):
     app.setStyle('Fusion')
+    app.setFont(QFont('Segoe UI', 10))
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor('#1e1f22'))

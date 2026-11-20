@@ -31,8 +31,11 @@ class WorkspacePanel(QWidget):
         layout.setSpacing(6)
 
         self.tabs = QTabWidget()
+        self.tabs.tabBar().setExpanding(False)
+        self.tabs.tabBar().setElideMode(Qt.ElideNone)
         self.tabs.addTab(self._buildPlotsTab(), 'Plots')
-        self.tabs.addTab(self._buildYieldParetoTab(), 'Yield & Pareto')
+        self.tabs.addTab(self._buildYieldParetoTab(), 'Yield && Pareto')
+        self.tabs.addTab(self._buildPivotTab(), 'Pivot && Multi-Test')
         self.tabs.addTab(self._buildRawDataTab(), 'Raw data')
 
         layout.addWidget(self.tabs)
@@ -48,15 +51,19 @@ class WorkspacePanel(QWidget):
 
         self.siteComboBox = QComboBox()
         self.siteComboBox.addItem('All sites')
+        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.plotTypeComboBox = QComboBox()
         self.plotTypeComboBox.addItems(['Sequence', 'Capability (Histogram)', 'Boxplot'])
+        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.orderByComboBox = QComboBox()
         self.orderByComboBox.addItems(['Date', 'Sites'])
+        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.limitsComboBox = QComboBox()
         self.limitsComboBox.addItems(['All', 'Oldest', 'Newest'])
+        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.valuesInLimitsButton = QPushButton('Only in limits')
         self.valuesInLimitsButton.setCheckable(True)
@@ -95,6 +102,15 @@ class WorkspacePanel(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         placeholder = QLabel('Moduł Yield & Pareto zostanie podpięty w kolejnym kroku (kalkulator + Plotly).')
+        placeholder.setAlignment(Qt.AlignCenter)
+        placeholder.setStyleSheet('color: #9da0a8;')
+        layout.addWidget(placeholder)
+        return tab
+
+    def _buildPivotTab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        placeholder = QLabel('Pivot table & Multi-Test analysis will be connected in the next step.')
         placeholder.setAlignment(Qt.AlignCenter)
         placeholder.setStyleSheet('color: #9da0a8;')
         layout.addWidget(placeholder)

@@ -1,6 +1,6 @@
 import re
 
-from PyQt5.QtCore import QTimer, pyqtSignal
+from PyQt5.QtCore import QTimer, pyqtSignal, Qt
 from PyQt5.QtWidgets import (
     QCheckBox, QComboBox, QGroupBox, QHBoxLayout, QLineEdit, QListWidget, QPushButton, QVBoxLayout,
     QWidget,
@@ -42,6 +42,7 @@ class SidebarPanel(QWidget):
         sourceLayout.setSpacing(6)
 
         self.processorComboBox = QComboBox()
+        self.processorComboBox.setCursor(Qt.PointingHandCursor)
         self.processorComboBox.addItem(self.PLACEHOLDER_PROCESSOR)
         self.processorComboBox.addItems(processorNames)
 
