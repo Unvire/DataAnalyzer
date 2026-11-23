@@ -86,3 +86,22 @@ def test_sequencePlot_10000pointsUsesWebgl():
     fig = gen.createPlot(df, 'V_CORE', plotType='Sequence', limitsMode='Newest')
     assert fig.data[0].type == 'scattergl'
     assert len(fig.data[0].y) == n
+
+def test_siScalingFor33nfCapacitance():
+    df = pd.DataFrame({
+        'Site': ['1', '1', '1'],
+        'Value': [32.5e-9, 33.0e-9, 33.5e-9],
+        'LSL': [30.0e-9, 30.0e-9, 30.0e-9],
+        'USL': [36.0e-9, 36.0e-9, 36.0e-9],
+        'TestDate': ['2025/01/01 10:00:00', '2025/01/01 10:01:00', '2025/01/01 10:02:00'],
+        'SerialNumber': ['SN1', 'SN2', 'SN3'],
+    })
+    gen = PlotlyChartGenerator()
+
+    seqFig = gen.createPlot(df, 'C12 33nF', plotType='Sequence', limitsMode='All')
+    assert seqFig.layout.yaxis.title.text == 'Measured Value [n]'
+    assert list(seqFig.data[0].y) == pytest.approx([32.5, 33.0, 33.5])
+
+    capFig = gen.createPlot(df, 'C12 33nF', plotType='Capability (Histogram)', limitsMode='Newest')
+    assert capFig.layout.xaxis.title.text == 'Measured Value [n]'
+    assert list(capFig.data[0].x) == pytest.approx([32.5, 33.0, 33.5])

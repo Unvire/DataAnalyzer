@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from src.siFormatter import formatAxisTitle, getSiScale
+
+
 class PlotlyChartGenerator:
     DELTA_LIMITS_PERCENTAGE = 0.05
     BG_COLOR = '#1e1f22'
@@ -48,6 +51,10 @@ class PlotlyChartGenerator:
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
+        lslRef, uslRef = self._resolveScalarLimits(df, limitsMode)
+        prefix, scaleFactor = getSiScale(df['Value'].to_numpy(dtype=float), lslRef, uslRef)
+        unitSuffix = f' {prefix}' if prefix else ''
+
         offset = 0
         limitX: list[int] = []
         limitLsl: list[float] = []
@@ -69,17 +76,21 @@ class PlotlyChartGenerator:
             maxX = max(maxX, int(xVals[-1]) + 1)
             color = self.SITE_PALETTE[idx % len(self.SITE_PALETTE)]
 
+            scaledValues = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
+            scaledLsl = siteDf['LSL'].to_numpy(dtype=float) * scaleFactor
+            scaledUsl = siteDf['USL'].to_numpy(dtype=float) * scaleFactor
+
             customData = np.column_stack((
                 siteDf['SerialNumber'].astype(str).to_numpy(),
                 siteDf['TestDate'].astype(str).to_numpy(),
-                siteDf['LSL'].to_numpy(),
-                siteDf['USL'].to_numpy(),
+                scaledLsl,
+                scaledUsl,
             ))
 
             fig.add_trace(
                 go.Scattergl(
                     x=xVals,
-                    y=siteDf['Value'].to_numpy(),
+                    y=scaledValues,
                     mode='markers',
                     name=f'Site {site} ({n:,})',
                     marker=dict(size=5, color=color, opacity=0.85),
@@ -87,10 +98,10 @@ class PlotlyChartGenerator:
                     hovertemplate=(
                         f'<b>Site {site}</b><br>'
                         'Sample: %{x}<br>'
-                        'Value: %{y:.6g}<br>'
+                        f'Value: %{{y:.6g}}{unitSuffix}<br>'
                         'SN: %{customdata[0]}<br>'
                         'Date: %{customdata[1]}<br>'
-                        'Limits: [%{customdata[2]:.4g}, %{customdata[3]:.4g}]'
+                        f'Limits: [%{{customdata[2]:.4g}}{unitSuffix}, %{{customdata[3]:.4g}}{unitSuffix}]'
                         '<extra></extra>'
                     ),
                 )
@@ -99,8 +110,8 @@ class PlotlyChartGenerator:
             if limitsMode == 'All':
                 if orderBy == 'Sites' or idx == 0:
                     limitX.extend(xVals.tolist())
-                    limitLsl.extend(siteDf['LSL'].tolist())
-                    limitUsl.extend(siteDf['USL'].tolist())
+                    limitLsl.extend(scaledLsl.tolist())
+                    limitUsl.extend(scaledUsl.tolist())
 
         if limitsMode == 'All' and limitX:
             fig.add_trace(
@@ -110,7 +121,7 @@ class PlotlyChartGenerator:
                     mode='lines',
                     name='LSL',
                     line=dict(color=self.LSL_COLOR, width=1.6, dash='dashdot'),
-                    hovertemplate='LSL: %{y:.6g}<extra></extra>',
+                    hovertemplate=f'LSL: %{{y:.6g}}{unitSuffix}<extra></extra>',
                 )
             )
             fig.add_trace(
@@ -120,22 +131,22 @@ class PlotlyChartGenerator:
                     mode='lines',
                     name='USL',
                     line=dict(color=self.USL_COLOR, width=1.6, dash='dashdot'),
-                    hovertemplate='USL: %{y:.6g}<extra></extra>',
+                    hovertemplate=f'USL: %{{y:.6g}}{unitSuffix}<extra></extra>',
                 )
             )
             yMinLim = float(np.nanmin(limitLsl))
             yMaxLim = float(np.nanmax(limitUsl))
-
         else:
-            lslVal, uslVal = self._resolveScalarLimits(df, limitsMode)
-            self._addHorizontalLimitLines(fig, lslVal, uslVal)
-            yMinLim, yMaxLim = lslVal, uslVal
+            lslScaled = lslRef * scaleFactor
+            uslScaled = uslRef * scaleFactor
+            self._addHorizontalLimitLines(fig, lslScaled, uslScaled)
+            yMinLim, yMaxLim = lslScaled, uslScaled
 
         self._applyCommonLayout(
             fig,
             title=testName,
             xTitle='Samples sorted by date' if orderBy == 'Date' else 'Samples grouped by site',
-            yTitle='Measured Value',
+            yTitle=formatAxisTitle('Measured Value', prefix),
             logScale=logScale,
         )
 
@@ -153,13 +164,20 @@ class PlotlyChartGenerator:
         if len(values) == 0:
             return self._createEmptyFigure('No numeric values available.')
 
-        lslVal, uslVal = self._resolveScalarLimits(df, limitsMode)
+        lslRaw, uslRaw = self._resolveScalarLimits(df, limitsMode)
+        prefix, scaleFactor = getSiScale(values, lslRaw, uslRaw)
+        unitSuffix = f' {prefix}' if prefix else ''
+
+        scaledAll = values * scaleFactor
+        lslVal = lslRaw * scaleFactor
+        uslVal = uslRaw * scaleFactor
+
         if valuesInLimits:
-            plotValues = values[(values >= lslVal) & (values <= uslVal)]
+            plotValues = scaledAll[(scaledAll >= lslVal) & (scaledAll <= uslVal)]
             if len(plotValues) == 0:
-                plotValues = values
+                plotValues = scaledAll
         else:
-            plotValues = values
+            plotValues = scaledAll
 
         fig = go.Figure()
         binSize = self._calculateHistogramBinSize(plotValues)
@@ -169,7 +187,7 @@ class PlotlyChartGenerator:
             histnorm='probability density',
             name=f'Measurements ({len(plotValues):,})',
             marker=dict(color='#4c8dff', opacity=0.72, line=dict(color='#1e1f22', width=1)),
-            hovertemplate='Range: %{x}<br>Density: %{y:.4g}<extra></extra>',
+            hovertemplate=f'Range: %{{x}}{unitSuffix}<br>Density: %{{y:.4g}}<extra></extra>',
         )
         if binSize is not None:
             histKwargs['xbins'] = dict(size=binSize)
@@ -193,7 +211,7 @@ class PlotlyChartGenerator:
                     mode='lines',
                     name='Normal Fit',
                     line=dict(color='#26c6da', width=2.2),
-                    hovertemplate='Value: %{x:.6g}<br>Normal PDF: %{y:.4g}<extra></extra>',
+                    hovertemplate=f'Value: %{{x:.6g}}{unitSuffix}<br>Normal PDF: %{{y:.4g}}<extra></extra>',
                 )
             )
 
@@ -228,7 +246,7 @@ class PlotlyChartGenerator:
         self._applyCommonLayout(
             fig,
             title=f'{testName} — Capability',
-            xTitle='Measured Value',
+            xTitle=formatAxisTitle('Measured Value', prefix),
             yTitle='Probability Density',
             logScale=logScale,
         )
@@ -245,12 +263,15 @@ class PlotlyChartGenerator:
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
+        lslRaw, uslRaw = self._resolveScalarLimits(df, limitsMode)
+        prefix, scaleFactor = getSiScale(df['Value'].to_numpy(dtype=float), lslRaw, uslRaw)
+
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site]
             color = self.SITE_PALETTE[idx % len(self.SITE_PALETTE)]
             fig.add_trace(
                 go.Box(
-                    y=siteDf['Value'].to_numpy(),
+                    y=siteDf['Value'].to_numpy(dtype=float) * scaleFactor,
                     name=f'Site {site} ({len(siteDf):,})',
                     marker_color=color,
                     boxmean='sd',
@@ -258,14 +279,15 @@ class PlotlyChartGenerator:
                 )
             )
 
-        lslVal, uslVal = self._resolveScalarLimits(df, limitsMode)
+        lslVal = lslRaw * scaleFactor
+        uslVal = uslRaw * scaleFactor
         self._addHorizontalLimitLines(fig, lslVal, uslVal)
 
         self._applyCommonLayout(
             fig,
             title=f'{testName} — Site Comparison',
             xTitle='Test Site',
-            yTitle='Measured Value',
+            yTitle=formatAxisTitle('Measured Value', prefix),
             logScale=logScale,
         )
 
@@ -365,6 +387,7 @@ class PlotlyChartGenerator:
                 title=dict(text=xTitle, standoff=10),
                 gridcolor=self.GRID_COLOR,
                 zerolinecolor=self.GRID_COLOR,
+                exponentformat='e',
                 automargin=True,
             ),
             yaxis=dict(
@@ -372,6 +395,7 @@ class PlotlyChartGenerator:
                 gridcolor=self.GRID_COLOR,
                 zerolinecolor=self.GRID_COLOR,
                 type='log' if logScale else 'linear',
+                exponentformat='e',
                 automargin=True,
             ),
         )
