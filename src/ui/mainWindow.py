@@ -6,6 +6,7 @@ from src.plotGenerator import PlotlyChartGenerator
 from src.ui.widgets.sidebarPanel import SidebarPanel
 from src.ui.widgets.workspacePanel import WorkspacePanel
 from src.ui.workers import LogLoaderWorker
+from src.siFormatter import shouldAutoLogScale
 
 
 class DataAnalyzerWindow(QMainWindow):
@@ -123,7 +124,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.statusLabel.setText('Error while loading logs')
         QMessageBox.critical(self, 'Processing Error', f'An error occurred while reading files:\n{errorMessage}')
 
-    def _onTestSelected(self, testName:str):
+    def _onTestSelected(self, testName: str):
         df = self.engine.getTestDataFrame(testName)
         if df is None:
             return
@@ -134,6 +135,18 @@ class DataAnalyzerWindow(QMainWindow):
 
         self.workspace.updateSites(sites)
         self.workspace.setPlotControlsEnabled(True, isCxCy=isCxCy)
+
+        if not isCxCy and not df.empty and 'Value' in df.columns:
+            lsl = float(df['LSL'].iloc[-1]) if 'LSL' in df.columns else None
+            usl = float(df['USL'].iloc[-1]) if 'USL' in df.columns else None
+            vals = df['Value'].dropna().to_numpy(dtype=float)
+            
+            autoLog = shouldAutoLogScale(vals, lsl, usl, ratioThreshold=1000.0)
+            
+            self.workspace.logScaleButton.blockSignals(True)
+            self.workspace.logScaleButton.setChecked(autoLog)
+            self.workspace.logScaleButton.blockSignals(False)
+
         self._refreshCurrentView()
 
     def _refreshCurrentView(self):

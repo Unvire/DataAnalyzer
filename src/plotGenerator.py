@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from src.siFormatter import formatAxisTitle, getSiScale
+from src.siFormatter import (
+    calculateLinthresh, formatAxisTitle,generateSymlogTicks, getSiScale,
+    isSentinelLimit, symlogTransform,
+)
 
 
 class PlotlyChartGenerator:
@@ -53,14 +56,35 @@ class PlotlyChartGenerator:
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
+        rawValues = df['Value'].to_numpy(dtype=float)
+        finiteVals = rawValues[np.isfinite(rawValues)]
+        dataRef = float(np.median(np.abs(finiteVals[finiteVals != 0]))) if finiteVals.size > 0 and np.any(finiteVals != 0) else None
+
         lslRef, uslRef = self._resolveScalarLimits(df, limitsMode)
-        prefix, scaleFactor = getSiScale(df['Value'].to_numpy(dtype=float), lslRef, uslRef)
+        hasValidLsl = not isSentinelLimit(lslRef, dataRef)
+        hasValidUsl = not isSentinelLimit(uslRef, dataRef)
+
+        prefix, scaleFactor = getSiScale(rawValues, lslRef, uslRef)
         unitSuffix = f' {prefix}' if prefix else ''
+
+        scaledValuesAll = rawValues * scaleFactor
+
+        useSymlog = False
+        linthresh = 1.0
+        if logScale:
+            checkVals = [scaledValuesAll[np.isfinite(scaledValuesAll)]]
+            if hasValidLsl:
+                checkVals.append([lslRef * scaleFactor])
+            if hasValidUsl:
+                checkVals.append([uslRef * scaleFactor])
+            combined = np.concatenate(checkVals) if len(checkVals) > 1 else checkVals[0]
+            if np.any(combined <= 0):
+                useSymlog = True
+                linthresh = calculateLinthresh(combined)
 
         offset = 0
         maxX = 0
-        allLsl: list[float] = []
-        allUsl: list[float] = []
+        allPlotY: list[float] = []
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site].sort_values(by='TestDate', kind='mergesort')
@@ -77,24 +101,31 @@ class PlotlyChartGenerator:
             maxX = max(maxX, int(xVals[-1]) + 1)
             color = self._getSiteColor(idx)
 
-            scaledValues = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
-            scaledLsl = siteDf['LSL'].to_numpy(dtype=float) * scaleFactor
-            scaledUsl = siteDf['USL'].to_numpy(dtype=float) * scaleFactor
+            siteVals = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
+            siteLsl = siteDf['LSL'].to_numpy(dtype=float) * scaleFactor
+            siteUsl = siteDf['USL'].to_numpy(dtype=float) * scaleFactor
 
-            allLsl.extend(scaledLsl.tolist())
-            allUsl.extend(scaledUsl.tolist())
+            yPlot = symlogTransform(siteVals, linthresh) if useSymlog else siteVals
+            lslPlot = symlogTransform(siteLsl, linthresh) if useSymlog else siteLsl
+            uslPlot = symlogTransform(siteUsl, linthresh) if useSymlog else siteUsl
+
+            allPlotY.extend(yPlot.tolist())
+
+            customLsl = [f'{v:.4g}' if hasValidLsl else 'None' for v in siteLsl]
+            customUsl = [f'{v:.4g}' if hasValidUsl else 'None' for v in siteUsl]
 
             customData = np.column_stack((
                 siteDf['SerialNumber'].astype(str).to_numpy(),
                 siteDf['TestDate'].astype(str).to_numpy(),
-                scaledLsl,
-                scaledUsl,
+                customLsl,
+                customUsl,
+                siteVals,
             ))
 
             fig.add_trace(
                 go.Scattergl(
                     x=xVals,
-                    y=scaledValues,
+                    y=yPlot,
                     mode='markers',
                     name=f'Site {site} ({n:,})',
                     marker=dict(size=5, color=color, opacity=0.85),
@@ -102,61 +133,107 @@ class PlotlyChartGenerator:
                     hovertemplate=(
                         f'<b>Site {site}</b><br>'
                         'Sample: %{x}<br>'
-                        f'Value: %{{y:.6g}}{unitSuffix}<br>'
+                        f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
                         'SN: %{customdata[0]}<br>'
                         'Date: %{customdata[1]}<br>'
-                        f'Limits: [%{{customdata[2]:.4g}}{unitSuffix}, %{{customdata[3]:.4g}}{unitSuffix}]'
+                        f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
                         '<extra></extra>'
                     ),
                 )
             )
 
             if limitsMode == 'All':
-                fig.add_trace(
-                    go.Scattergl(
-                        x=xVals,
-                        y=scaledLsl,
-                        mode='lines',
-                        name='LSL',
-                        legendgroup='LSL',
-                        showlegend=(idx == 0),
-                        line=dict(color=self.LSL_COLOR, width=1.6, dash='dashdot'),
-                        hovertemplate=f'LSL: %{{y:.6g}}{unitSuffix}<extra></extra>',
+                if hasValidLsl:
+                    fig.add_trace(
+                        go.Scattergl(
+                            x=xVals,
+                            y=lslPlot,
+                            mode='lines',
+                            name='LSL',
+                            legendgroup='LSL',
+                            showlegend=(idx == 0),
+                            line=dict(color=self.LSL_COLOR, width=1.6, dash='dashdot'),
+                            customdata=siteLsl,
+                            hovertemplate=f'LSL: %{{customdata:.6g}}{unitSuffix}<extra></extra>',
+                        )
                     )
-                )
-                fig.add_trace(
-                    go.Scattergl(
-                        x=xVals,
-                        y=scaledUsl,
-                        mode='lines',
-                        name='USL',
-                        legendgroup='USL',
-                        showlegend=(idx == 0),
-                        line=dict(color=self.USL_COLOR, width=1.6, dash='dashdot'),
-                        hovertemplate=f'USL: %{{y:.6g}}{unitSuffix}<extra></extra>',
+                if hasValidUsl:
+                    fig.add_trace(
+                        go.Scattergl(
+                            x=xVals,
+                            y=uslPlot,
+                            mode='lines',
+                            name='USL',
+                            legendgroup='USL',
+                            showlegend=(idx == 0),
+                            line=dict(color=self.USL_COLOR, width=1.6, dash='dashdot'),
+                            customdata=siteUsl,
+                            hovertemplate=f'USL: %{{customdata:.6g}}{unitSuffix}<extra></extra>',
+                        )
                     )
-                )
 
-        if limitsMode == 'All' and allLsl:
-            yMinLim = float(np.nanmin(allLsl))
-            yMaxLim = float(np.nanmax(allUsl))
-        else:
-            lslScaled = lslRef * scaleFactor
-            uslScaled = uslRef * scaleFactor
-            self._addHorizontalLimitLines(fig, lslScaled, uslScaled)
-            yMinLim, yMaxLim = lslScaled, uslScaled
+        lslScaled = lslRef * scaleFactor
+        uslScaled = uslRef * scaleFactor
+        lslLine = symlogTransform(lslScaled, linthresh) if useSymlog else lslScaled
+        uslLine = symlogTransform(uslScaled, linthresh) if useSymlog else uslScaled
+
+        if limitsMode != 'All':
+            if hasValidLsl:
+                fig.add_hline(
+                    y=lslLine,
+                    line_dash='dash',
+                    line_color=self.LSL_COLOR,
+                    line_width=1.8,
+                    annotation_text=f'LSL ({lslScaled:.4g})',
+                    annotation_position='bottom right',
+                    annotation_font_color=self.LSL_COLOR,
+                )
+            if hasValidUsl:
+                fig.add_hline(
+                    y=uslLine,
+                    line_dash='dash',
+                    line_color=self.USL_COLOR,
+                    line_width=1.8,
+                    annotation_text=f'USL ({uslScaled:.4g})',
+                    annotation_position='top right',
+                    annotation_font_color=self.USL_COLOR,
+                )
 
         self._applyCommonLayout(
             fig,
             title=testName,
             xTitle='Samples sorted by date' if orderBy == 'Date' else 'Samples grouped by site',
-            yTitle=formatAxisTitle('Measured Value', prefix),
-            logScale=logScale,
+            yTitle=formatAxisTitle('Measured Value', prefix) + (' (Symlog)' if useSymlog else ''),
+            logScale=(logScale and not useSymlog),
         )
 
         fig.update_xaxes(range=[-max(1, maxX * 0.01), maxX + max(1, maxX * 0.01)])
-        if valuesInLimits:
-            self._applyAxisLimitsPadding(fig, axis='y', low=yMinLim, high=yMaxLim, logScale=logScale)
+
+        if useSymlog and allPlotY:
+            minValReal = float(np.nanmin(scaledValuesAll))
+            maxValReal = float(np.nanmax(scaledValuesAll))
+            if hasValidLsl:
+                minValReal = min(minValReal, lslScaled)
+            if hasValidUsl:
+                maxValReal = max(maxValReal, uslScaled)
+
+            tickVals, tickText = generateSymlogTicks(minValReal, maxValReal, linthresh)
+            fig.update_layout(
+                yaxis=dict(
+                    type='linear',
+                    tickmode='array',
+                    tickvals=tickVals,
+                    ticktext=tickText,
+                    zeroline=True,
+                    zerolinecolor='#5a5d64',
+                    zerolinewidth=1.5,
+                )
+            )
+
+        if valuesInLimits and (hasValidLsl or hasValidUsl):
+            lowBound = lslLine if hasValidLsl else float(np.nanmin(allPlotY))
+            highBound = uslLine if hasValidUsl else float(np.nanmax(allPlotY))
+            self._applyAxisLimitsPadding(fig, axis='y', low=lowBound, high=highBound, logScale=(logScale and not useSymlog))
 
         return fig
 
@@ -169,19 +246,29 @@ class PlotlyChartGenerator:
             return self._createEmptyFigure('No numeric values available.')
 
         lslRaw, uslRaw = self._resolveScalarLimits(df, limitsMode)
+        dataRef = float(np.median(np.abs(values[values != 0]))) if np.any(values != 0) else None
+
+        hasValidLsl = not isSentinelLimit(lslRaw, dataRef)
+        hasValidUsl = not isSentinelLimit(uslRaw, dataRef)
+
         prefix, scaleFactor = getSiScale(values, lslRaw, uslRaw)
         unitSuffix = f' {prefix}' if prefix else ''
 
         scaledAll = values * scaleFactor
-        lslVal = lslRaw * scaleFactor
-        uslVal = uslRaw * scaleFactor
+        lslVal = lslRaw * scaleFactor if hasValidLsl else None
+        uslVal = uslRaw * scaleFactor if hasValidUsl else None
 
+        plotValues = scaledAll
         if valuesInLimits:
-            plotValues = scaledAll[(scaledAll >= lslVal) & (scaledAll <= uslVal)]
+            if hasValidLsl and hasValidUsl:
+                plotValues = scaledAll[(scaledAll >= lslVal) & (scaledAll <= uslVal)]
+            elif hasValidLsl:
+                plotValues = scaledAll[scaledAll >= lslVal]
+            elif hasValidUsl:
+                plotValues = scaledAll[scaledAll <= uslVal]
+
             if len(plotValues) == 0:
                 plotValues = scaledAll
-        else:
-            plotValues = scaledAll
 
         fig = go.Figure()
         binSize = self._calculateHistogramBinSize(plotValues)
@@ -200,11 +287,16 @@ class PlotlyChartGenerator:
 
         fig.add_trace(go.Histogram(**histKwargs))
 
-        xMin = min(float(np.min(plotValues)), lslVal) if not valuesInLimits else lslVal
-        xMax = max(float(np.max(plotValues)), uslVal) if not valuesInLimits else uslVal
+        xMin = float(np.min(plotValues))
+        xMax = float(np.max(plotValues))
+        if not valuesInLimits:
+            if hasValidLsl:
+                xMin = min(xMin, lslVal)
+            if hasValidUsl:
+                xMax = max(xMax, uslVal)
+
         xGrid = np.linspace(xMin, xMax, 300)
 
-        # overall fit
         meanOverall = float(np.mean(plotValues))
         stdOverall = float(np.std(plotValues, ddof=1)) if len(plotValues) > 1 else 0.0
 
@@ -231,7 +323,10 @@ class PlotlyChartGenerator:
                 siteRaw = df[df['Site'].astype(str) == site]['Value'].dropna().to_numpy(dtype=float)
                 siteScaled = siteRaw * scaleFactor
                 if valuesInLimits:
-                    siteScaled = siteScaled[(siteScaled >= lslVal) & (siteScaled <= uslVal)]
+                    if hasValidLsl:
+                        siteScaled = siteScaled[siteScaled >= lslVal]
+                    if hasValidUsl:
+                        siteScaled = siteScaled[siteScaled <= uslVal]
 
                 if len(siteScaled) < 3:
                     continue
@@ -265,24 +360,26 @@ class PlotlyChartGenerator:
             annotation_position='top',
             annotation_font_color=self.MEAN_COLOR,
         )
-        fig.add_vline(
-            x=lslVal,
-            line_dash='dash',
-            line_color=self.LSL_COLOR,
-            line_width=2,
-            annotation_text='LSL',
-            annotation_position='top left',
-            annotation_font_color=self.LSL_COLOR,
-        )
-        fig.add_vline(
-            x=uslVal,
-            line_dash='dash',
-            line_color=self.USL_COLOR,
-            line_width=2,
-            annotation_text='USL',
-            annotation_position='top right',
-            annotation_font_color=self.USL_COLOR,
-        )
+        if hasValidLsl:
+            fig.add_vline(
+                x=lslVal,
+                line_dash='dash',
+                line_color=self.LSL_COLOR,
+                line_width=2,
+                annotation_text='LSL',
+                annotation_position='top left',
+                annotation_font_color=self.LSL_COLOR,
+            )
+        if hasValidUsl:
+            fig.add_vline(
+                x=uslVal,
+                line_dash='dash',
+                line_color=self.USL_COLOR,
+                line_width=2,
+                annotation_text='USL',
+                annotation_position='top right',
+                annotation_font_color=self.USL_COLOR,
+            )
 
         self._applyCommonLayout(
             fig,
@@ -292,8 +389,10 @@ class PlotlyChartGenerator:
             logScale=logScale,
         )
 
-        if valuesInLimits:
-            self._applyAxisLimitsPadding(fig, axis='x', low=lslVal, high=uslVal, logScale=False)
+        if valuesInLimits and (hasValidLsl or hasValidUsl):
+            lowBound = lslVal if hasValidLsl else float(np.nanmin(plotValues))
+            highBound = uslVal if hasValidUsl else float(np.nanmax(plotValues))
+            self._applyAxisLimitsPadding(fig, axis='x', low=lowBound, high=highBound, logScale=False)
 
         return fig
 
@@ -304,15 +403,39 @@ class PlotlyChartGenerator:
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
+        rawValues = df['Value'].to_numpy(dtype=float)
+        finiteVals = rawValues[np.isfinite(rawValues)]
+        dataRef = float(np.median(np.abs(finiteVals[finiteVals != 0]))) if finiteVals.size > 0 and np.any(finiteVals != 0) else None
+
         lslRaw, uslRaw = self._resolveScalarLimits(df, limitsMode)
-        prefix, scaleFactor = getSiScale(df['Value'].to_numpy(dtype=float), lslRaw, uslRaw)
+        hasValidLsl = not isSentinelLimit(lslRaw, dataRef)
+        hasValidUsl = not isSentinelLimit(uslRaw, dataRef)
+
+        prefix, scaleFactor = getSiScale(rawValues, lslRaw, uslRaw)
+
+        scaledValuesAll = rawValues * scaleFactor
+        useSymlog = False
+        linthresh = 1.0
+        if logScale:
+            checkVals = [scaledValuesAll[np.isfinite(scaledValuesAll)]]
+            if hasValidLsl:
+                checkVals.append([lslRaw * scaleFactor])
+            if hasValidUsl:
+                checkVals.append([uslRaw * scaleFactor])
+            combined = np.concatenate(checkVals) if len(checkVals) > 1 else checkVals[0]
+            if np.any(combined <= 0):
+                useSymlog = True
+                linthresh = calculateLinthresh(combined)
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site]
             color = self._getSiteColor(idx)
+            siteVals = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
+            yPlot = symlogTransform(siteVals, linthresh) if useSymlog else siteVals
+
             fig.add_trace(
                 go.Box(
-                    y=siteDf['Value'].to_numpy(dtype=float) * scaleFactor,
+                    y=yPlot,
                     name=f'Site {site} ({len(siteDf):,})',
                     marker_color=color,
                     boxmean='sd',
@@ -320,20 +443,65 @@ class PlotlyChartGenerator:
                 )
             )
 
-        lslVal = lslRaw * scaleFactor
-        uslVal = uslRaw * scaleFactor
-        self._addHorizontalLimitLines(fig, lslVal, uslVal)
+        lslScaled = lslRaw * scaleFactor
+        uslScaled = uslRaw * scaleFactor
+        lslLine = symlogTransform(lslScaled, linthresh) if useSymlog else lslScaled
+        uslLine = symlogTransform(uslScaled, linthresh) if useSymlog else uslScaled
+
+        if hasValidLsl:
+            fig.add_hline(
+                y=lslLine,
+                line_dash='dash',
+                line_color=self.LSL_COLOR,
+                line_width=1.8,
+                annotation_text=f'LSL ({lslScaled:.4g})',
+                annotation_position='bottom right',
+                annotation_font_color=self.LSL_COLOR,
+            )
+        if hasValidUsl:
+            fig.add_hline(
+                y=uslLine,
+                line_dash='dash',
+                line_color=self.USL_COLOR,
+                line_width=1.8,
+                annotation_text=f'USL ({uslScaled:.4g})',
+                annotation_position='top right',
+                annotation_font_color=self.USL_COLOR,
+            )
 
         self._applyCommonLayout(
             fig,
             title=f'{testName} — Site Comparison',
             xTitle='Test Site',
-            yTitle=formatAxisTitle('Measured Value', prefix),
-            logScale=logScale,
+            yTitle=formatAxisTitle('Measured Value', prefix) + (' (Symlog)' if useSymlog else ''),
+            logScale=(logScale and not useSymlog),
         )
 
-        if valuesInLimits:
-            self._applyAxisLimitsPadding(fig, axis='y', low=lslVal, high=uslVal, logScale=logScale)
+        if useSymlog:
+            minValReal = float(np.nanmin(scaledValuesAll))
+            maxValReal = float(np.nanmax(scaledValuesAll))
+            if hasValidLsl:
+                minValReal = min(minValReal, lslScaled)
+            if hasValidUsl:
+                maxValReal = max(maxValReal, uslScaled)
+
+            tickVals, tickText = generateSymlogTicks(minValReal, maxValReal, linthresh)
+            fig.update_layout(
+                yaxis=dict(
+                    type='linear',
+                    tickmode='array',
+                    tickvals=tickVals,
+                    ticktext=tickText,
+                    zeroline=True,
+                    zerolinecolor='#5a5d64',
+                    zerolinewidth=1.5,
+                )
+            )
+
+        if valuesInLimits and (hasValidLsl or hasValidUsl):
+            lowBound = lslLine if hasValidLsl else float(np.nanmin(scaledValuesAll))
+            highBound = uslLine if hasValidUsl else float(np.nanmax(scaledValuesAll))
+            self._applyAxisLimitsPadding(fig, axis='y', low=lowBound, high=highBound, logScale=(logScale and not useSymlog))
 
         return fig
 
@@ -408,6 +576,7 @@ class PlotlyChartGenerator:
 
     def _applyCommonLayout(self, fig:go.Figure, title:str, xTitle:str, yTitle:str, logScale:bool):
         fig.update_layout(
+            separators='. ',
             title=dict(text=title, x=0.02, y=0.97, font=dict(size=15, color=self.TEXT_COLOR)),
             paper_bgcolor=self.BG_COLOR,
             plot_bgcolor=self.PLOT_BG_COLOR,
@@ -428,7 +597,8 @@ class PlotlyChartGenerator:
                 title=dict(text=xTitle, standoff=10),
                 gridcolor=self.GRID_COLOR,
                 zerolinecolor=self.GRID_COLOR,
-                exponentformat='e',
+                exponentformat='none',
+                separatethousands=True,
                 automargin=True,
             ),
             yaxis=dict(
@@ -436,30 +606,10 @@ class PlotlyChartGenerator:
                 gridcolor=self.GRID_COLOR,
                 zerolinecolor=self.GRID_COLOR,
                 type='log' if logScale else 'linear',
-                exponentformat='e',
+                exponentformat='power' if logScale else 'none',
+                separatethousands=True,
                 automargin=True,
             ),
-        )
-
-
-    def _addHorizontalLimitLines(self, fig:go.Figure, lslVal:float, uslVal:float):
-        fig.add_hline(
-            y=lslVal,
-            line_dash='dash',
-            line_color=self.LSL_COLOR,
-            line_width=1.8,
-            annotation_text='LSL',
-            annotation_position='bottom right',
-            annotation_font_color=self.LSL_COLOR,
-        )
-        fig.add_hline(
-            y=uslVal,
-            line_dash='dash',
-            line_color=self.USL_COLOR,
-            line_width=1.8,
-            annotation_text='USL',
-            annotation_position='top right',
-            annotation_font_color=self.USL_COLOR,
         )
 
     def _applyAxisLimitsPadding(self, fig:go.Figure, axis:str, low:float, high:float, logScale:bool):
@@ -543,7 +693,7 @@ class PlotlyChartGenerator:
         # calcluate colors from golden angle HSL model
         step = idx - len(self.SITE_PALETTE) + 1
         hue = ((step * 137.508) % 360.0) / 360.0
-        lightness = 0.56 + (step % 3) * 0.08 
-        saturation = 0.72 if step % 2 == 0 else 0.85
+        lightness = 0.56 + (step % 3) * 0.08
+        saturation = 0.75 if step % 2 == 0 else 0.88
         r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
         return f'#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}'
