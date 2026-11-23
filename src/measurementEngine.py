@@ -16,7 +16,8 @@ def _processSingleFileWorker(task:tuple[type[AbstractDataProcessor], str, str]) 
 
     processor: AbstractDataProcessor = processorClass()
     processor.processLogFile(fullFilePath, formattedTime)
-    return processor.getRawRowsByTest(), processor.getCxCyTests()
+    rawRows = processor.getRawRowsByTest()
+    return rawRows, processor.getCxCyTests(), list(rawRows.keys())
 
 
 class MeasurementEngine:
@@ -32,6 +33,7 @@ class MeasurementEngine:
         self.measurements: dict[str, pd.DataFrame] = {}
         self._rawRowsByTest: dict[str, list[dict[str, Any]]] = {}
         self._cxcyTests: set[str] = set()
+        self._masterSequence: list[str] = []
 
     def setProcessorType(self, loaderType: str):
         if loaderType not in self.PROCESSORS_DICT:
@@ -42,6 +44,7 @@ class MeasurementEngine:
         self.measurements = {}
         self._rawRowsByTest = {}
         self._cxcyTests = set()
+        self._masterSequence = []
 
     def getMeasurements(self) -> dict[str, pd.DataFrame]:
         return self.measurements
@@ -85,28 +88,41 @@ class MeasurementEngine:
 
         if useMultiprocessing and totalTasks > 1:
             with Pool(processes=min(self.numWorkers, totalTasks)) as pool:
-                for idx, (rowsByTest, cxcySet) in enumerate(pool.imap_unordered(_processSingleFileWorker, tasks, chunksize=16), start=1):
-                    self._mergeRawResults(rowsByTest, cxcySet)
+                for idx, (rowsByTest, cxcySet, fileOrder) in enumerate(pool.imap(_processSingleFileWorker, tasks, chunksize=16), start=1):
+                    self._mergeFileResult(rowsByTest, cxcySet, fileOrder)
                     if progressCallback:
                         progressCallback(int(idx / totalTasks * 100))
         else:
             for idx, task in enumerate(tasks, start=1):
-                rowsByTest, cxcySet = _processSingleFileWorker(task)
-                self._mergeRawResults(rowsByTest, cxcySet)
+                rowsByTest, cxcySet, fileOrder = _processSingleFileWorker(task)
+                self._mergeFileResult(rowsByTest, cxcySet, fileOrder)
                 if progressCallback:
                     progressCallback(int(idx / totalTasks * 100))
 
         self.buildDataFrames()
         return self.measurements
 
-    def _mergeRawResults(self, rowsByTest:dict[str, list[dict[str, Any]]], cxcySet:set[str]):
+    def _mergeFileResult(self, rowsByTest:dict[str, list[dict[str, Any]]], cxcySet:set[str], fileOrder:list[str]):
         self._cxcyTests.update(cxcySet)
+
+        if len(fileOrder) > len(self._masterSequence):
+            missingFromNew = [t for t in self._masterSequence if t not in fileOrder]
+            self._masterSequence = fileOrder + missingFromNew
+        else:
+            for t in fileOrder:
+                if t not in self._masterSequence:
+                    self._masterSequence.append(t)
+
         for testName, rows in rowsByTest.items():
             self._rawRowsByTest.setdefault(testName, []).extend(rows)
 
     def buildDataFrames(self) -> dict[str, pd.DataFrame]:
         built: dict[str, pd.DataFrame] = {}
-        for testName in sorted(self._rawRowsByTest.keys()):
+        orderedKeys = self._masterSequence if self._masterSequence else list(self._rawRowsByTest.keys())
+
+        for testName in orderedKeys:
+            if testName not in self._rawRowsByTest:
+                continue
             rows = self._rawRowsByTest[testName]
             if testName in self._cxcyTests:
                 df = pd.DataFrame(rows, columns=CXCY_COLUMNS)

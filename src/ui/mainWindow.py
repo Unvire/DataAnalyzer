@@ -103,6 +103,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.progressBar.setVisible(False)
         self.sidebar.setBusy(False)
 
+        measurements = self.engine.getMeasurements()
         if not measurements:
             self.statusLabel.setText('No matching logs found')
             QMessageBox.warning(self, 'No Data', 'No measurements were found for the selected log format.')
@@ -112,7 +113,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.sidebar.setAppendMode(True)
         self.sidebar.setDataControlsEnabled(True)
 
-        testNames = list(measurements.keys())
+        testNames = list(measurements)
         self.sidebar.setTestNames(testNames)
         self._onTestSelected(testNames[0])
 

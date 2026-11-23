@@ -58,10 +58,9 @@ class PlotlyChartGenerator:
         unitSuffix = f' {prefix}' if prefix else ''
 
         offset = 0
-        limitX: list[int] = []
-        limitLsl: list[float] = []
-        limitUsl: list[float] = []
         maxX = 0
+        allLsl: list[float] = []
+        allUsl: list[float] = []
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site].sort_values(by='TestDate', kind='mergesort')
@@ -81,6 +80,9 @@ class PlotlyChartGenerator:
             scaledValues = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
             scaledLsl = siteDf['LSL'].to_numpy(dtype=float) * scaleFactor
             scaledUsl = siteDf['USL'].to_numpy(dtype=float) * scaleFactor
+
+            allLsl.extend(scaledLsl.tolist())
+            allUsl.extend(scaledUsl.tolist())
 
             customData = np.column_stack((
                 siteDf['SerialNumber'].astype(str).to_numpy(),
@@ -110,34 +112,34 @@ class PlotlyChartGenerator:
             )
 
             if limitsMode == 'All':
-                if orderBy == 'Sites' or idx == 0:
-                    limitX.extend(xVals.tolist())
-                    limitLsl.extend(scaledLsl.tolist())
-                    limitUsl.extend(scaledUsl.tolist())
+                fig.add_trace(
+                    go.Scattergl(
+                        x=xVals,
+                        y=scaledLsl,
+                        mode='lines',
+                        name='LSL',
+                        legendgroup='LSL',
+                        showlegend=(idx == 0),
+                        line=dict(color=self.LSL_COLOR, width=1.6, dash='dashdot'),
+                        hovertemplate=f'LSL: %{{y:.6g}}{unitSuffix}<extra></extra>',
+                    )
+                )
+                fig.add_trace(
+                    go.Scattergl(
+                        x=xVals,
+                        y=scaledUsl,
+                        mode='lines',
+                        name='USL',
+                        legendgroup='USL',
+                        showlegend=(idx == 0),
+                        line=dict(color=self.USL_COLOR, width=1.6, dash='dashdot'),
+                        hovertemplate=f'USL: %{{y:.6g}}{unitSuffix}<extra></extra>',
+                    )
+                )
 
-        if limitsMode == 'All' and limitX:
-            fig.add_trace(
-                go.Scattergl(
-                    x=limitX,
-                    y=limitLsl,
-                    mode='lines',
-                    name='LSL',
-                    line=dict(color=self.LSL_COLOR, width=1.6, dash='dashdot'),
-                    hovertemplate=f'LSL: %{{y:.6g}}{unitSuffix}<extra></extra>',
-                )
-            )
-            fig.add_trace(
-                go.Scattergl(
-                    x=limitX,
-                    y=limitUsl,
-                    mode='lines',
-                    name='USL',
-                    line=dict(color=self.USL_COLOR, width=1.6, dash='dashdot'),
-                    hovertemplate=f'USL: %{{y:.6g}}{unitSuffix}<extra></extra>',
-                )
-            )
-            yMinLim = float(np.nanmin(limitLsl))
-            yMaxLim = float(np.nanmax(limitUsl))
+        if limitsMode == 'All' and allLsl:
+            yMinLim = float(np.nanmin(allLsl))
+            yMaxLim = float(np.nanmax(allUsl))
         else:
             lslScaled = lslRef * scaleFactor
             uslScaled = uslRef * scaleFactor
@@ -187,8 +189,8 @@ class PlotlyChartGenerator:
         histKwargs = dict(
             x=plotValues,
             histnorm='probability density',
-            name=f'Measurements ({len(plotValues):,})',
-            marker=dict(color='#4c8dff', opacity=0.72, line=dict(color='#1e1f22', width=1)),
+            name=f'All Sites ({len(plotValues):,})',
+            marker=dict(color='#3a4252', opacity=0.6, line=dict(color='#1e1f22', width=1)),
             hovertemplate=f'Range: %{{x}}{unitSuffix}<br>Density: %{{y:.4g}}<extra></extra>',
         )
         if binSize is not None:
@@ -198,28 +200,65 @@ class PlotlyChartGenerator:
 
         fig.add_trace(go.Histogram(**histKwargs))
 
-        meanVal = float(np.mean(plotValues))
-        stdVal = float(np.std(plotValues, ddof=1)) if len(plotValues) > 1 else 0.0
+        xMin = min(float(np.min(plotValues)), lslVal) if not valuesInLimits else lslVal
+        xMax = max(float(np.max(plotValues)), uslVal) if not valuesInLimits else uslVal
+        xGrid = np.linspace(xMin, xMax, 300)
 
-        if stdVal > 0:
-            xMin = min(float(np.min(plotValues)), lslVal) if not valuesInLimits else lslVal
-            xMax = max(float(np.max(plotValues)), uslVal) if not valuesInLimits else uslVal
-            xGrid = np.linspace(xMin, xMax, 250)
-            normalPdf = (1.0 / (stdVal * np.sqrt(2.0 * np.pi))) * np.exp(-0.5 * ((xGrid - meanVal) / stdVal) ** 2)
+        # overall fit
+        meanOverall = float(np.mean(plotValues))
+        stdOverall = float(np.std(plotValues, ddof=1)) if len(plotValues) > 1 else 0.0
+
+        if stdOverall > 0:
+            overallPdf = (1.0 / (stdOverall * np.sqrt(2.0 * np.pi))) * np.exp(
+                -0.5 * ((xGrid - meanOverall) / stdOverall) ** 2
+            )
             fig.add_trace(
                 go.Scatter(
                     x=xGrid,
-                    y=normalPdf,
+                    y=overallPdf,
                     mode='lines',
-                    name='Normal Fit',
-                    line=dict(color='#26c6da', width=2.2),
-                    hovertemplate=f'Value: %{{x:.6g}}{unitSuffix}<br>Normal PDF: %{{y:.4g}}<extra></extra>',
+                    name=f'Overall Fit (μ={meanOverall:.4g}, σ={stdOverall:.3g})',
+                    line=dict(color='#ffffff', width=2.5, dash='dash'),
+                    hovertemplate=f'Overall: %{{x:.6g}}{unitSuffix}<br>PDF: %{{y:.4g}}<extra></extra>',
                 )
             )
 
+        sortedSites = sorted(df['Site'].astype(str).unique().tolist())
+        if len(sortedSites) > 1:
+            autoHidePerSite = len(sortedSites) > 8
+
+            for idx, site in enumerate(sortedSites):
+                siteRaw = df[df['Site'].astype(str) == site]['Value'].dropna().to_numpy(dtype=float)
+                siteScaled = siteRaw * scaleFactor
+                if valuesInLimits:
+                    siteScaled = siteScaled[(siteScaled >= lslVal) & (siteScaled <= uslVal)]
+
+                if len(siteScaled) < 3:
+                    continue
+
+                mSite = float(np.mean(siteScaled))
+                sSite = float(np.std(siteScaled, ddof=1))
+                if sSite <= 0:
+                    continue
+
+                sitePdf = (1.0 / (sSite * np.sqrt(2.0 * np.pi))) * np.exp(-0.5 * ((xGrid - mSite) / sSite) ** 2)
+                siteColor = self._getSiteColor(idx)
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=xGrid,
+                        y=sitePdf,
+                        mode='lines',
+                        name=f'Site {site} (μ={mSite:.4g}, σ={sSite:.3g})',
+                        visible=True if not autoHidePerSite else 'legendonly',
+                        line=dict(color=siteColor, width=1.8),
+                        hovertemplate=f'Site {site}: %{{x:.6g}}{unitSuffix}<br>PDF: %{{y:.4g}}<extra></extra>',
+                    )
+                )
+
         fig.add_vline(
-            x=meanVal,
-            line_dash='dash',
+            x=meanOverall,
+            line_dash='dot',
             line_color=self.MEAN_COLOR,
             line_width=2,
             annotation_text='Mean',

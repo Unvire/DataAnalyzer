@@ -5,7 +5,7 @@ from src.measurementEngine import MeasurementEngine
 
 class LogLoaderWorker(QThread):
     progressChanged = Signal(int)
-    finishedLoading = Signal(dict)
+    finishedLoading = Signal()
     errorOccurred = Signal(str)
 
     def __init__(self, engine:MeasurementEngine, folderPath:str, isAppendTests:bool, isSearchInSubfolders:bool,

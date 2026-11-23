@@ -74,6 +74,7 @@ class SidebarPanel(QWidget):
 
         self.testListWidget = QListWidget()
         self.testListWidget.setAlternatingRowColors(True)
+        self.testListWidget.setSortingEnabled(False)
 
         testsLayout.addWidget(self.regexFilterEdit)
         testsLayout.addWidget(self.testListWidget, 1)
@@ -116,9 +117,10 @@ class SidebarPanel(QWidget):
     def _populateList(self, names:list[str]):
         self.testListWidget.blockSignals(True)
         self.testListWidget.clear()
+        self.testListWidget.setSortingEnabled(False)
         self.testListWidget.addItems(names)
         self.testListWidget.blockSignals(False)
-        self.testsGroup.setTitle(f'Testy ({len(names)} / {len(self._allTestNames)})')
+        self.testsGroup.setTitle(f'Tests ({len(names)} / {len(self._allTestNames)})')
 
     def _applyRegexFilter(self):
         pattern = self.regexFilterEdit.text().strip()
