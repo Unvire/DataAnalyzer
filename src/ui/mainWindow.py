@@ -5,6 +5,7 @@ from src.measurementEngine import MeasurementEngine
 from src.ui.widgets.sidebarPanel import SidebarPanel
 from src.ui.widgets.workspacePanel import WorkspacePanel
 from src.ui.workers import LogLoaderWorker
+from src.plotGenerator import PlotlyChartGenerator
 
 
 class DataAnalyzerWindow(QMainWindow):
@@ -19,6 +20,7 @@ class DataAnalyzerWindow(QMainWindow):
         self._isSearchInSubfolders = True
         self._selectedTestName = ''
         self._loaderWorker: LogLoaderWorker | None = None
+        self.plotGenerator = PlotlyChartGenerator()
 
         self._buildUi()
         self._bindEvents()
@@ -162,13 +164,16 @@ class DataAnalyzerWindow(QMainWindow):
         else:
             self.sidebar.statsPanel.clear()
 
-        self.workspace.setPlotHtml(
-            self.workspace._emptyPlotHtml(
-                f'<b>{self._selectedTestName}</b><br>'
-                f'Site: {selectedSite} | Samples: {len(filteredDf):,} | Plot: {options["plotType"]}<br>'
-                f'<span style="font-size:12px; color:#6f737a;">(Generator wykresów Plotly podpinamy w kolejnym kroku)</span>'
-            )
+        fig = self.plotGenerator.createPlot(
+            df=filteredDf,
+            testName=self._selectedTestName,
+            plotType=options['plotType'],
+            orderBy=options['orderBy'],
+            limitsMode=options['limits'],
+            valuesInLimits=options['valuesInLimits'],
+            logScale=options['logScale'],
         )
+        self.workspace.setFigure(fig)
 
     def _onClear(self):
         reply = QMessageBox.question(
@@ -193,3 +198,7 @@ class DataAnalyzerWindow(QMainWindow):
             'Raport HTML v2.0',
             'Generator raportów Jinja2 + Plotly zostanie podpięty po dodaniu kalkulatora i wykresów.',
         )
+
+    def closeEvent(self, event):
+        self.workspace.plotView.cleanup()
+        super().closeEvent(event)

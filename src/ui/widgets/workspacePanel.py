@@ -6,11 +6,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-try:
-    from PyQt5.QtWebEngineWidgets import QWebEngineView
-    HAS_WEBENGINE = True
-except ImportError:
-    HAS_WEBENGINE = False
+import plotly.graph_objects as go
+from src.ui.widgets.plotlyView import PlotlyView
 
 from src.ui.widgets.dataTableModel import PandasTableModel
 
@@ -86,13 +83,9 @@ class WorkspacePanel(QWidget):
         controlsRow.addStretch(1)
         controlsRow.addWidget(self.newWindowButton)
 
-        if HAS_WEBENGINE:
-            self.plotView = QWebEngineView()
-            self.plotView.page().setBackgroundColor(QColor('#1e1f22'))
-            self.setPlotHtml(self._emptyPlotHtml('Load logs in order to display plot.'))
-        else:
-            self.plotView = QLabel('Install PyQtWebEngine in order to display interactive Plotly plots.')
-            self.plotView.setAlignment(Qt.AlignCenter)
+        self.plotView = PlotlyView()
+        layout.addLayout(controlsRow)
+        layout.addWidget(self.plotView, 1)
 
         layout.addLayout(controlsRow)
         layout.addWidget(self.plotView, 1)
@@ -149,9 +142,11 @@ class WorkspacePanel(QWidget):
     def _emitOptionsChanged(self, *_):
         self.plotOptionsChanged.emit()
 
-    def setPlotHtml(self, html:str):
-        if HAS_WEBENGINE:
-            self.plotView.setHtml(html)
+    def setFigure(self, fig:go.Figure):
+        self.plotView.setFigure(fig)
+
+    def showPlotMessage(self, message:str):
+        self.plotView.showMessage(message)
 
     def updateSites(self, sites:list[str]):
         current = self.siteComboBox.currentText()
@@ -191,10 +186,10 @@ class WorkspacePanel(QWidget):
 
     def clear(self):
         self.tableModel.clear()
-        self.tableInfoLabel.setText('No loaded data')
+        self.tableInfoLabel.setText('No data loaded')
         self.updateSites([])
         self.setPlotControlsEnabled(False)
-        self.setPlotHtml(self._emptyPlotHtml('Data was cleared.'))
+        self.plotView.showMessage('Data cleared.')
 
     @staticmethod
     def _emptyPlotHtml(message: str) -> str:
