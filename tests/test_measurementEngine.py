@@ -25,7 +25,8 @@ def test_measurementEngine_speaPipeline(tmp_path):
 
     engine = MeasurementEngine(numWorkers=1)
     engine.setProcessorType('SPEA')
-    result = engine.processFolder(str(tmp_path), useMultiprocessing=False)
+    engine.processFolder(str(tmp_path), useMultiprocessing=False)
+    result = engine.getMeasurements()
 
     assert 'R1 | RES 1K' in result
     assert 'LED1 | LED_CXCY' in result
@@ -108,7 +109,8 @@ def test_measurementEngine_10000logsSingleTest(tmp_path):
     engine = MeasurementEngine()
     engine.setProcessorType('FWK / Ipses / BEC')
 
-    result = engine.processFolder(str(tmp_path), isAppendTests=False, useMultiprocessing=True)
+    engine.processFolder(str(tmp_path), isAppendTests=False, useMultiprocessing=True)
+    result = engine.getMeasurements()
 
     assert 'V_Core' in result
     df = result['V_Core']

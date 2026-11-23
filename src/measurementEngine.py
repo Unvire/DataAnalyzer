@@ -57,7 +57,7 @@ class MeasurementEngine:
         return 'CX' in df.columns and 'CY' in df.columns
 
     def processFolder(self, folderPath:str, isAppendTests:bool = False, isSearchInSubfolders:bool=True, progressCallback=None,
-        useMultiprocessing:bool=True) -> dict[str, pd.DataFrame]:
+        useMultiprocessing:bool=True):
         
         if self.processorClass is None:
             raise RuntimeError('Processor type has not been set')
@@ -100,7 +100,6 @@ class MeasurementEngine:
                     progressCallback(int(idx / totalTasks * 100))
 
         self.buildDataFrames()
-        return self.measurements
 
     def _mergeFileResult(self, rowsByTest:dict[str, list[dict[str, Any]]], cxcySet:set[str], fileOrder:list[str]):
         self._cxcyTests.update(cxcySet)

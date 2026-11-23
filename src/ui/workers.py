@@ -20,13 +20,13 @@ class LogLoaderWorker(QThread):
 
     def run(self):
         try:
-            measurements = self.engine.processFolder(
+            self.engine.processFolder(
                 folderPath=self.folderPath,
                 isAppendTests=self.isAppendTests,
                 isSearchInSubfolders=self.isSearchInSubfolders,
                 progressCallback=self.progressChanged.emit,
                 useMultiprocessing=self.useMultiprocessing,
             )
-            self.finishedLoading.emit(measurements)
+            self.finishedLoading.emit()
         except Exception as exc:
             self.errorOccurred.emit(str(exc))

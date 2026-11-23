@@ -98,7 +98,7 @@ class DataAnalyzerWindow(QMainWindow):
         self._loaderWorker.errorOccurred.connect(self._onLoadingError)
         self._loaderWorker.start()
 
-    def _onLoadingFinished(self, measurements:dict):
+    def _onLoadingFinished(self):
         self.progressBar.setValue(100)
         self.progressBar.setVisible(False)
         self.sidebar.setBusy(False)

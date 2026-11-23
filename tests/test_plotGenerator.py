@@ -48,14 +48,16 @@ def test_sequencePlot_createsSiteTracesAndLimits(scalarDf):
 def test_capabilityPlot_handlesNormalAndConstantData(scalarDf):
     gen = PlotlyChartGenerator()
     fig = gen.createPlot(scalarDf, 'VDD_5V', plotType='Capability (Histogram)', limitsMode='Newest')
+    
     assert any(t.type == 'histogram' for t in fig.data)
-    assert any(t.name == 'Normal Fit' for t in fig.data)
+    assert any(t.name and t.name.startswith('Overall Fit') for t in fig.data)
 
     constDf = scalarDf.copy()
     constDf['Value'] = 5.0
     figConst = gen.createPlot(constDf, 'CONST', plotType='Capability (Histogram)')
+    
     assert any(t.type == 'histogram' for t in figConst.data)
-    assert not any(t.name == 'Normal Fit' for t in figConst.data)
+    assert not any(t.name and t.name.startswith('Overall Fit') for t in figConst.data)
 
 
 def test_boxplotPerSite(scalarDf):
