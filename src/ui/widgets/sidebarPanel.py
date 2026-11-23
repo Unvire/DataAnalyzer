@@ -1,7 +1,7 @@
 import re
 
-from PyQt5.QtCore import QTimer, pyqtSignal, Qt
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import QTimer, Signal, Qt
+from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QGroupBox, QHBoxLayout, QLineEdit, QListWidget, QPushButton, QVBoxLayout,
     QWidget,
 )
@@ -10,12 +10,12 @@ from src.ui.widgets.statsPanel import StatsPanel
 
 
 class SidebarPanel(QWidget):
-    processorChanged = pyqtSignal(str)
-    openFolderRequested = pyqtSignal()
-    clearRequested = pyqtSignal()
-    testSelected = pyqtSignal(str)
-    generateReportRequested = pyqtSignal()
-    searchSubfoldersChanged = pyqtSignal(bool)
+    processorChanged = Signal(str)
+    openFolderRequested = Signal()
+    clearRequested = Signal()
+    testSelected = Signal(str)
+    generateReportRequested = Signal()
+    searchSubfoldersChanged = Signal(bool)
 
     PLACEHOLDER_PROCESSOR = 'Select log type...'
 

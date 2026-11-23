@@ -1,15 +1,15 @@
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from src.measurementEngine import MeasurementEngine
 
 
 class LogLoaderWorker(QThread):
-    progressChanged = pyqtSignal(int)
-    finishedLoading = pyqtSignal(dict)
-    errorOccurred = pyqtSignal(str)
+    progressChanged = Signal(int)
+    finishedLoading = Signal(dict)
+    errorOccurred = Signal(str)
 
     def __init__(self, engine:MeasurementEngine, folderPath:str, isAppendTests:bool, isSearchInSubfolders:bool,
-        useMultiprocessing:bool=True, parent=None):
+            useMultiprocessing:bool=True, parent=None):
         
         super().__init__(parent)
         self.engine = engine

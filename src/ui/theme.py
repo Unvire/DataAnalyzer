@@ -1,5 +1,5 @@
-from PyQt5.QtGui import QColor, QFont, QPalette
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtGui import QColor, QFont, QPalette
+from PySide6.QtWidgets import QApplication
 
 
 DARK_QSS = """
@@ -302,19 +302,19 @@ def applyDarkTheme(app: QApplication):
     app.setFont(QFont('Segoe UI', 10))
 
     palette = QPalette()
-    palette.setColor(QPalette.Window, QColor('#1e1f22'))
-    palette.setColor(QPalette.WindowText, QColor('#dfe1e5'))
-    palette.setColor(QPalette.Base, QColor('#26282e'))
-    palette.setColor(QPalette.AlternateBase, QColor('#2b2d30'))
-    palette.setColor(QPalette.ToolTipBase, QColor('#2b2d30'))
-    palette.setColor(QPalette.ToolTipText, QColor('#dfe1e5'))
-    palette.setColor(QPalette.Text, QColor('#dfe1e5'))
-    palette.setColor(QPalette.Button, QColor('#2b2d30'))
-    palette.setColor(QPalette.ButtonText, QColor('#dfe1e5'))
-    palette.setColor(QPalette.Highlight, QColor('#3574f0'))
-    palette.setColor(QPalette.HighlightedText, QColor('#ffffff'))
-    palette.setColor(QPalette.Disabled, QPalette.Text, QColor('#6f737a'))
-    palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor('#6f737a'))
+    palette.setColor(QPalette.ColorRole.Window, QColor('#1e1f22'))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor('#dfe1e5'))
+    palette.setColor(QPalette.ColorRole.Base, QColor('#26282e'))
+    palette.setColor(QPalette.ColorRole.AlternateBase, QColor('#2b2d30'))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor('#2b2d30'))
+    palette.setColor(QPalette.ColorRole.ToolTipText, QColor('#dfe1e5'))
+    palette.setColor(QPalette.ColorRole.Text, QColor('#dfe1e5'))
+    palette.setColor(QPalette.ColorRole.Button, QColor('#2b2d30'))
+    palette.setColor(QPalette.ColorRole.ButtonText, QColor('#dfe1e5'))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor('#3574f0'))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor('#ffffff'))
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor('#6f737a'))
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor('#6f737a'))
 
     app.setPalette(palette)
     app.setStyleSheet(DARK_QSS)

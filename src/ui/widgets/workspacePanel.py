@@ -1,20 +1,18 @@
 import pandas as pd
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import (
-    QComboBox, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableView, QTabWidget,
-    QVBoxLayout, QWidget,
+import plotly.graph_objects as go
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QComboBox, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableView,
+    QTabWidget, QVBoxLayout, QWidget,
 )
 
-import plotly.graph_objects as go
-from src.ui.widgets.plotlyView import PlotlyView
-
 from src.ui.widgets.dataTableModel import PandasTableModel
+from src.ui.widgets.plotlyView import PlotlyView
 
 
 class WorkspacePanel(QWidget):
-    plotOptionsChanged = pyqtSignal()
-    openPlotWindowRequested = pyqtSignal()
+    plotOptionsChanged = Signal()
+    openPlotWindowRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,7 +27,7 @@ class WorkspacePanel(QWidget):
 
         self.tabs = QTabWidget()
         self.tabs.tabBar().setExpanding(False)
-        self.tabs.tabBar().setElideMode(Qt.ElideNone)
+        self.tabs.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
         self.tabs.addTab(self._buildPlotsTab(), 'Plots')
         self.tabs.addTab(self._buildYieldParetoTab(), 'Yield && Pareto')
         self.tabs.addTab(self._buildPivotTab(), 'Pivot && Multi-Test')
@@ -48,27 +46,34 @@ class WorkspacePanel(QWidget):
 
         self.siteComboBox = QComboBox()
         self.siteComboBox.addItem('All sites')
-        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.plotTypeComboBox = QComboBox()
         self.plotTypeComboBox.addItems(['Sequence', 'Capability (Histogram)', 'Boxplot'])
-        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.orderByComboBox = QComboBox()
         self.orderByComboBox.addItems(['Date', 'Sites'])
-        self.siteComboBox.setCursor(Qt.PointingHandCursor)
 
         self.limitsComboBox = QComboBox()
         self.limitsComboBox.addItems(['All', 'Oldest', 'Newest'])
-        self.siteComboBox.setCursor(Qt.PointingHandCursor)
+
+        for combo in (
+            self.siteComboBox,
+            self.plotTypeComboBox,
+            self.orderByComboBox,
+            self.limitsComboBox,
+        ):
+            combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.valuesInLimitsButton = QPushButton('Only in limits')
         self.valuesInLimitsButton.setCheckable(True)
+        self.valuesInLimitsButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.logScaleButton = QPushButton('Log scale')
         self.logScaleButton.setCheckable(True)
+        self.logScaleButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.newWindowButton = QPushButton('New window')
+        self.newWindowButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
         controlsRow.addWidget(QLabel('Site:'))
         controlsRow.addWidget(self.siteComboBox)
@@ -84,8 +89,6 @@ class WorkspacePanel(QWidget):
         controlsRow.addWidget(self.newWindowButton)
 
         self.plotView = PlotlyView()
-        layout.addLayout(controlsRow)
-        layout.addWidget(self.plotView, 1)
 
         layout.addLayout(controlsRow)
         layout.addWidget(self.plotView, 1)
@@ -94,8 +97,8 @@ class WorkspacePanel(QWidget):
     def _buildYieldParetoTab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
-        placeholder = QLabel('Moduł Yield & Pareto zostanie podpięty w kolejnym kroku (kalkulator + Plotly).')
-        placeholder.setAlignment(Qt.AlignCenter)
+        placeholder = QLabel('Yield & Pareto module will be connected in the next step.')
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder.setStyleSheet('color: #9da0a8;')
         layout.addWidget(placeholder)
         return tab
@@ -104,7 +107,7 @@ class WorkspacePanel(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         placeholder = QLabel('Pivot table & Multi-Test analysis will be connected in the next step.')
-        placeholder.setAlignment(Qt.AlignCenter)
+        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         placeholder.setStyleSheet('color: #9da0a8;')
         layout.addWidget(placeholder)
         return tab
@@ -123,7 +126,7 @@ class WorkspacePanel(QWidget):
         self.tableView.setModel(self.tableModel)
         self.tableView.setAlternatingRowColors(True)
         self.tableView.setSortingEnabled(False)
-        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.tableView.verticalHeader().setDefaultSectionSize(24)
 
         layout.addWidget(self.tableInfoLabel)
@@ -142,13 +145,13 @@ class WorkspacePanel(QWidget):
     def _emitOptionsChanged(self, *_):
         self.plotOptionsChanged.emit()
 
-    def setFigure(self, fig:go.Figure):
+    def setFigure(self, fig: go.Figure):
         self.plotView.setFigure(fig)
 
-    def showPlotMessage(self, message:str):
+    def showPlotMessage(self, message: str):
         self.plotView.showMessage(message)
 
-    def updateSites(self, sites:list[str]):
+    def updateSites(self, sites: list[str]):
         current = self.siteComboBox.currentText()
         self.siteComboBox.blockSignals(True)
         self.siteComboBox.clear()
@@ -159,9 +162,9 @@ class WorkspacePanel(QWidget):
         self.siteComboBox.setCurrentIndex(idx if idx >= 0 else 0)
         self.siteComboBox.blockSignals(False)
 
-    def setRawDataFrame(self, testName:str, df:pd.DataFrame):
+    def setRawDataFrame(self, testName: str, df: pd.DataFrame):
         self.tableModel.setDataFrame(df)
-        self.tableInfoLabel.setText(f'Test: {testName}  |  Samples: {len(df):,}')
+        self.tableInfoLabel.setText(f'Test: {testName}  |  Rows: {len(df):,}')
 
     def setPlotControlsEnabled(self, enabled: bool, isCxCy: bool = False):
         self.siteComboBox.setEnabled(enabled)
@@ -190,14 +193,3 @@ class WorkspacePanel(QWidget):
         self.updateSites([])
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
-
-    @staticmethod
-    def _emptyPlotHtml(message: str) -> str:
-        return f"""
-        <html>
-            <body style="background:#1e1f22; color:#9da0a8; font-family:'Segoe UI', sans-serif;
-                         display:flex; align-items:center; justify-content:center; height:92vh; margin:0;">
-                <div style="text-align:center; font-size:15px;">{message}</div>
-            </body>
-        </html>
-        """

@@ -3,15 +3,10 @@ import tempfile
 
 import plotly.graph_objects as go
 from plotly.offline import get_plotlyjs
-from PyQt5.QtCore import Qt, QUrl
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
-
-try:
-    from PyQt5.QtWebEngineWidgets import QWebEngineView
-    HAS_WEBENGINE = True
-except ImportError:
-    HAS_WEBENGINE = False
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QColor
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 
 class PlotlyView(QWidget):
@@ -21,6 +16,7 @@ class PlotlyView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._htmlPath = os.path.join(self._CACHE_DIR, f'chart_{id(self)}.html')
+        self._renderCounter = 0
         self._ensurePlotlyJsCached()
         self._buildUi()
 
@@ -28,16 +24,10 @@ class PlotlyView(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        if HAS_WEBENGINE:
-            self.webView = QWebEngineView(self)
-            self.webView.page().setBackgroundColor(QColor('#1e1f22'))
-            layout.addWidget(self.webView)
-            self.showMessage('Load logs in order to display plot.')
-        else:
-            self.webView = None
-            label = QLabel('Install PyQtWebEngine to display interactive Plotly charts.')
-            label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(label)
+        self.webView = QWebEngineView(self)
+        self.webView.page().setBackgroundColor(QColor('#1e1f22'))
+        layout.addWidget(self.webView)
+        self.showMessage('Load logs in order to display plot.')
 
     @classmethod
     def _ensurePlotlyJsCached(cls):
@@ -48,9 +38,6 @@ class PlotlyView(QWidget):
                 f.write(get_plotlyjs())
 
     def setFigure(self, fig: go.Figure):
-        if self.webView is None:
-            return
-
         config = {
             'responsive': True,
             'displaylogo': False,
@@ -85,12 +72,12 @@ class PlotlyView(QWidget):
         with open(self._htmlPath, 'w', encoding='utf-8') as f:
             f.write(htmlContent)
 
-        self.webView.load(QUrl.fromLocalFile(self._htmlPath))
+        self._renderCounter += 1
+        url = QUrl.fromLocalFile(self._htmlPath)
+        url.setQuery(f'v={self._renderCounter}')
+        self.webView.load(url)
 
     def showMessage(self, message: str):
-        if self.webView is None:
-            return
-
         htmlContent = f"""<!DOCTYPE html>
 <html>
 <body style="background:#1e1f22; color:#9da0a8; font-family:'Segoe UI', sans-serif;

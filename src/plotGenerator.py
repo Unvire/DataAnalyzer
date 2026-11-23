@@ -1,3 +1,5 @@
+import colorsys
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -74,7 +76,7 @@ class PlotlyChartGenerator:
                 xVals = np.arange(0, n)
 
             maxX = max(maxX, int(xVals[-1]) + 1)
-            color = self.SITE_PALETTE[idx % len(self.SITE_PALETTE)]
+            color = self._getSiteColor(idx)
 
             scaledValues = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
             scaledLsl = siteDf['LSL'].to_numpy(dtype=float) * scaleFactor
@@ -268,7 +270,7 @@ class PlotlyChartGenerator:
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site]
-            color = self.SITE_PALETTE[idx % len(self.SITE_PALETTE)]
+            color = self._getSiteColor(idx)
             fig.add_trace(
                 go.Box(
                     y=siteDf['Value'].to_numpy(dtype=float) * scaleFactor,
@@ -303,7 +305,7 @@ class PlotlyChartGenerator:
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site]
-            color = self.SITE_PALETTE[idx % len(self.SITE_PALETTE)]
+            color = self._getSiteColor(idx)
             customData = np.column_stack((
                 siteDf['SerialNumber'].astype(str).to_numpy(),
                 siteDf['TestDate'].astype(str).to_numpy(),
@@ -494,3 +496,15 @@ class PlotlyChartGenerator:
             ],
         )
         return fig
+
+    def _getSiteColor(self, idx: int) -> str:
+        if idx < len(self.SITE_PALETTE):
+            return self.SITE_PALETTE[idx]
+
+        # calcluate colors from golden angle HSL model
+        step = idx - len(self.SITE_PALETTE) + 1
+        hue = ((step * 137.508) % 360.0) / 360.0
+        lightness = 0.56 + (step % 3) * 0.08 
+        saturation = 0.72 if step % 2 == 0 else 0.85
+        r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
+        return f'#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}'

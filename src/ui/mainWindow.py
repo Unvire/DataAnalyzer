@@ -1,11 +1,11 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QProgressBar, QSplitter
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QProgressBar, QSplitter
 
 from src.measurementEngine import MeasurementEngine
+from src.plotGenerator import PlotlyChartGenerator
 from src.ui.widgets.sidebarPanel import SidebarPanel
 from src.ui.widgets.workspacePanel import WorkspacePanel
 from src.ui.workers import LogLoaderWorker
-from src.plotGenerator import PlotlyChartGenerator
 
 
 class DataAnalyzerWindow(QMainWindow):
@@ -15,12 +15,12 @@ class DataAnalyzerWindow(QMainWindow):
         self.resize(1380, 820)
 
         self.engine = MeasurementEngine()
+        self.plotGenerator = PlotlyChartGenerator()
         self._loadedProcessorType = ''
         self._selectedProcessorType = ''
         self._isSearchInSubfolders = True
         self._selectedTestName = ''
         self._loaderWorker: LogLoaderWorker | None = None
-        self.plotGenerator = PlotlyChartGenerator()
 
         self._buildUi()
         self._bindEvents()
@@ -30,7 +30,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.sidebar = SidebarPanel(processorNames)
         self.workspace = WorkspacePanel()
 
-        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.addWidget(self.sidebar)
         self.splitter.addWidget(self.workspace)
         self.splitter.setStretchFactor(0, 0)
@@ -71,7 +71,7 @@ class DataAnalyzerWindow(QMainWindow):
             self,
             'Select logs folder',
             '',
-            QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog,
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontUseNativeDialog,
         )
         if not folderPath:
             return
@@ -79,11 +79,11 @@ class DataAnalyzerWindow(QMainWindow):
         isAppend = self._loadedProcessorType == self._selectedProcessorType and bool(self.engine.getMeasurements())
         self._startLoadingLogs(folderPath, isAppend)
 
-    def _startLoadingLogs(self, folderPath: str, isAppend: bool):
+    def _startLoadingLogs(self, folderPath:str, isAppend:bool):
         self.sidebar.setBusy(True)
         self.progressBar.setValue(0)
         self.progressBar.setVisible(True)
-        self.statusLabel.setText(f'Processing logs: {folderPath}...')
+        self.statusLabel.setText(f'Processing folder: {folderPath}...')
 
         self._loaderWorker = LogLoaderWorker(
             engine=self.engine,
@@ -105,7 +105,7 @@ class DataAnalyzerWindow(QMainWindow):
 
         if not measurements:
             self.statusLabel.setText('No matching logs found')
-            QMessageBox.warning(self, 'No data', 'No data found for selected logs type.')
+            QMessageBox.warning(self, 'No Data', 'No measurements were found for the selected log format.')
             return
 
         self._loadedProcessorType = self._selectedProcessorType
@@ -114,18 +114,15 @@ class DataAnalyzerWindow(QMainWindow):
 
         testNames = list(measurements.keys())
         self.sidebar.setTestNames(testNames)
-
-        totalPoints = sum(len(df) for df in measurements.values())
-        self.statusLabel.setText(f'Loaded {len(testNames)} testów ({totalPoints:,} samples)')
         self._onTestSelected(testNames[0])
 
-    def _onLoadingError(self, errorMessage: str):
+    def _onLoadingError(self, errorMessage:str):
         self.progressBar.setVisible(False)
         self.sidebar.setBusy(False)
-        self.statusLabel.setText('Error during processing logs')
-        QMessageBox.critical(self, 'Error processing logs', f'Error during processing logs:\n{errorMessage}')
+        self.statusLabel.setText('Error while loading logs')
+        QMessageBox.critical(self, 'Processing Error', f'An error occurred while reading files:\n{errorMessage}')
 
-    def _onTestSelected(self, testName: str):
+    def _onTestSelected(self, testName:str):
         df = self.engine.getTestDataFrame(testName)
         if df is None:
             return
@@ -175,15 +172,21 @@ class DataAnalyzerWindow(QMainWindow):
         )
         self.workspace.setFigure(fig)
 
+        totalTests = len(self.engine.getMeasurements())
+        self.statusLabel.setText(
+            f'Tests: {totalTests:,}  |  Selected: {self._selectedTestName}  |  '
+            f'Samples: {len(filteredDf):,} (Site: {selectedSite})'
+        )
+
     def _onClear(self):
         reply = QMessageBox.question(
             self,
-            'Clear data',
-            'Do you want to clear data?',
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            'Clear Data',
+            'Are you sure you want to clear all loaded data?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply != QMessageBox.Yes:
+        if reply != QMessageBox.StandardButton.Yes:
             return
 
         self.engine.clear()
@@ -194,11 +197,14 @@ class DataAnalyzerWindow(QMainWindow):
         self.statusLabel.setText('Data cleared')
 
     def _onGenerateReport(self):
-        QMessageBox.information(self,
-            'Raport HTML v2.0',
-            'Generator raportów Jinja2 + Plotly zostanie podpięty po dodaniu kalkulatora i wykresów.',
+        QMessageBox.information(
+            self,
+            'HTML Report v2.0',
+            'Jinja2 + Plotly report generator will be connected in the next step.',
         )
 
     def closeEvent(self, event):
+        if self._loaderWorker is not None and self._loaderWorker.isRunning():
+            self._loaderWorker.wait(2000)
         self.workspace.plotView.cleanup()
         super().closeEvent(event)
