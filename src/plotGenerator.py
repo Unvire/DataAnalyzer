@@ -32,22 +32,27 @@ class PlotlyChartGenerator:
         '#8d6e63',
     ]
 
-    def createPlot(self, df:pd.DataFrame, testName:str, plotType:str='Sequence', orderBy: str = 'Date', limitsMode: str = 'All',
-            valuesInLimits: bool = False, logScale: bool = False) -> go.Figure:
+    def createPlot(self, df:pd.DataFrame, testName:str, plotType:str='Sequence', orderBy:str='Date', limitsMode:str='All',
+            valuesInLimits:bool=False, logScale:bool=False) -> go.Figure:
 
         if df is None or df.empty:
             return self._createEmptyFigure('No data available for selected filters.')
 
         if 'CX' in df.columns and 'CY' in df.columns:
-            return self.createCxCyPlot(df, testName, valuesInLimits=valuesInLimits)
+            return self.createCxCyPlot(df, testName, limitsMode=limitsMode, valuesInLimits=valuesInLimits)
 
-        if plotType == 'Capability (Histogram)':
+        normalizedType = plotType.strip().lower()
+        if normalizedType == 'sequence':
+            return self.createSequencePlot(df, testName, orderBy=orderBy, limitsMode=limitsMode, valuesInLimits=valuesInLimits,
+                        logScale=logScale)
+        
+        if normalizedType in ('capability (histogram)', 'capability', 'histogram'):
             return self.createCapabilityPlot(df, testName, limitsMode=limitsMode, valuesInLimits=valuesInLimits, logScale=logScale)
-
-        if plotType == 'Boxplot':
+        
+        if normalizedType == 'boxplot':
             return self.createBoxplot(df, testName, limitsMode=limitsMode, valuesInLimits=valuesInLimits, logScale=logScale)
 
-        return self.createSequencePlot(df, testName, orderBy=orderBy, limitsMode=limitsMode, valuesInLimits=valuesInLimits, logScale=logScale)
+        raise ValueError(f'Unsupported plot type: {plotType}')
 
 
     def createSequencePlot(self, df:pd.DataFrame, testName:str, orderBy:str='Date', limitsMode:str='All', valuesInLimits:bool=False, 
@@ -85,6 +90,7 @@ class PlotlyChartGenerator:
         offset = 0
         maxX = 0
         allPlotY: list[float] = []
+        siteLimitsData: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site].sort_values(by='TestDate', kind='mergesort')
@@ -106,9 +112,6 @@ class PlotlyChartGenerator:
             siteUsl = siteDf['USL'].to_numpy(dtype=float) * scaleFactor
 
             yPlot = symlogTransform(siteVals, linthresh) if useSymlog else siteVals
-            lslPlot = symlogTransform(siteLsl, linthresh) if useSymlog else siteLsl
-            uslPlot = symlogTransform(siteUsl, linthresh) if useSymlog else siteUsl
-
             allPlotY.extend(yPlot.tolist())
 
             customLsl = [f'{v:.4g}' if hasValidLsl else 'None' for v in siteLsl]
@@ -142,7 +145,13 @@ class PlotlyChartGenerator:
                 )
             )
 
-            if limitsMode == 'All':
+            siteLimitsData.append((xVals, siteLsl, siteUsl))
+
+        if limitsMode == 'All':
+            for idx, (xVals, siteLsl, siteUsl) in enumerate(siteLimitsData):
+                lslPlot = symlogTransform(siteLsl, linthresh) if useSymlog else siteLsl
+                uslPlot = symlogTransform(siteUsl, linthresh) if useSymlog else siteUsl
+
                 if hasValidLsl:
                     fig.add_trace(
                         go.Scattergl(
@@ -506,7 +515,7 @@ class PlotlyChartGenerator:
         return fig
 
 
-    def createCxCyPlot(self, df: pd.DataFrame, testName: str, valuesInLimits: bool = False) -> go.Figure:
+    def createCxCyPlot(self, df:pd.DataFrame, testName:str, valuesInLimits:bool=False, limitsMode:str='All') -> go.Figure:
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
@@ -537,37 +546,54 @@ class PlotlyChartGenerator:
                 )
             )
 
-        uniqueBoundaries: list[tuple[tuple[float, float], ...]] = []
-        seen: set[tuple[tuple[float, float], ...]] = set()
-        for boundary in df['Boundary'].dropna():
-            key = tuple(tuple(pt) for pt in boundary)
-            if key not in seen:
-                seen.add(key)
-                uniqueBoundaries.append(key)
+        sortedByDateDf = df.sort_values(by='TestDate', kind='mergesort')
+        boundariesToDraw: list[tuple[tuple[tuple[float, float], ...], str]] = []
+
+        if limitsMode == 'Newest':
+            lastValid = sortedByDateDf['Boundary'].dropna().iloc[-1] if not sortedByDateDf['Boundary'].dropna().empty else None
+            if lastValid:
+                boundariesToDraw.append((tuple(tuple(pt) for pt in lastValid), 'Active Bin (Newest)'))
+        elif limitsMode == 'Oldest':
+            firstValid = sortedByDateDf['Boundary'].dropna().iloc[0] if not sortedByDateDf['Boundary'].dropna().empty else None
+            if firstValid:
+                boundariesToDraw.append((tuple(tuple(pt) for pt in firstValid), 'Initial Bin (Oldest)'))
+        else:
+            seen: set[tuple[tuple[float, float], ...]] = set()
+            for boundary in sortedByDateDf['Boundary'].dropna():
+                key = tuple(tuple(pt) for pt in boundary)
+                if key not in seen:
+                    seen.add(key)
+                    label = f'Bin Boundary {len(seen)}' if len(seen) > 1 else 'Bin Boundary'
+                    boundariesToDraw.append((key, label))
 
         minX, maxX = float('inf'), float('-inf')
         minY, maxY = float('inf'), float('-inf')
 
-        for idx, boundary in enumerate(uniqueBoundaries, start=1):
+        dashStyles = ['solid', 'dash', 'dot', 'dashdot']
+
+        for idx, (boundary, label) in enumerate(boundariesToDraw):
             bx = [pt[0] for pt in boundary]
             by = [pt[1] for pt in boundary]
             minX, maxX = min(minX, min(bx)), max(maxX, max(bx))
             minY, maxY = min(minY, min(by)), max(maxY, max(by))
+
+            dash = dashStyles[idx % len(dashStyles)]
+            color = self.USL_COLOR if idx == 0 else ('#e040fb' if idx == 1 else self.LSL_COLOR)
 
             fig.add_trace(
                 go.Scatter(
                     x=bx,
                     y=by,
                     mode='lines',
-                    name=f'Bin Boundary {idx}',
-                    line=dict(color=self.USL_COLOR if idx % 2 else self.LSL_COLOR, width=2),
+                    name=label,
+                    line=dict(color=color, width=2.2, dash=dash),
                     hoverinfo='skip',
                 )
             )
 
         self._applyCommonLayout(fig, title=testName, xTitle='CX', yTitle='CY', logScale=False)
 
-        if valuesInLimits and uniqueBoundaries:
+        if valuesInLimits and boundariesToDraw:
             self._applyAxisLimitsPadding(fig, axis='x', low=minX, high=maxX, logScale=False)
             self._applyAxisLimitsPadding(fig, axis='y', low=minY, high=maxY, logScale=False)
 

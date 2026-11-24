@@ -1,6 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableView,
     QTabWidget, QVBoxLayout, QWidget,
@@ -16,6 +16,9 @@ class WorkspacePanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._controlsEnabled = False
+        self._isCxCy = False
+
         self._buildUi()
         self._bindEvents()
         self.setPlotControlsEnabled(False)
@@ -44,21 +47,34 @@ class WorkspacePanel(QWidget):
         controlsRow = QHBoxLayout()
         controlsRow.setSpacing(8)
 
-        self.siteComboBox = QComboBox()
-        self.siteComboBox.addItem('All sites')
-
+        self.plotTypeLabel = QLabel('Plot:')
         self.plotTypeComboBox = QComboBox()
         self.plotTypeComboBox.addItems(['Sequence', 'Capability (Histogram)', 'Boxplot'])
+        self.plotTypeComboBox.setStyleSheet("""
+            QComboBox {
+                font-weight: 600;
+                border: 1px solid #3574f0;
+                padding: 4px 10px;
+                min-width: 155px;
+            }
+        """)
 
+        self.siteLabel = QLabel('Site:')
+        self.siteComboBox = QComboBox()
+        self.siteComboBox.addItem('All sites')
+        self.siteComboBox.setMinimumWidth(100)
+
+        self.orderByLabel = QLabel('Sorting:')
         self.orderByComboBox = QComboBox()
         self.orderByComboBox.addItems(['Date', 'Sites'])
 
+        self.limitsLabel = QLabel('Limits:')
         self.limitsComboBox = QComboBox()
-        self.limitsComboBox.addItems(['All', 'Oldest', 'Newest'])
+        self.limitsComboBox.addItems(['All', 'Newest', 'Oldest'])
 
         for combo in (
-            self.siteComboBox,
             self.plotTypeComboBox,
+            self.siteComboBox,
             self.orderByComboBox,
             self.limitsComboBox,
         ):
@@ -72,21 +88,21 @@ class WorkspacePanel(QWidget):
         self.logScaleButton.setCheckable(True)
         self.logScaleButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.newWindowButton = QPushButton('New window')
-        self.newWindowButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.copyPlotButton = QPushButton('Copy plot')
+        self.copyPlotButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        controlsRow.addWidget(QLabel('Site:'))
-        controlsRow.addWidget(self.siteComboBox)
-        controlsRow.addWidget(QLabel('Plot:'))
+        controlsRow.addWidget(self.plotTypeLabel)
         controlsRow.addWidget(self.plotTypeComboBox)
-        controlsRow.addWidget(QLabel('Sorting:'))
+        controlsRow.addWidget(self.siteLabel)
+        controlsRow.addWidget(self.siteComboBox)
+        controlsRow.addWidget(self.orderByLabel)
         controlsRow.addWidget(self.orderByComboBox)
-        controlsRow.addWidget(QLabel('Limits:'))
+        controlsRow.addWidget(self.limitsLabel)
         controlsRow.addWidget(self.limitsComboBox)
         controlsRow.addWidget(self.valuesInLimitsButton)
         controlsRow.addWidget(self.logScaleButton)
         controlsRow.addStretch(1)
-        controlsRow.addWidget(self.newWindowButton)
+        controlsRow.addWidget(self.copyPlotButton)
 
         self.plotView = PlotlyView()
 
@@ -134,16 +150,88 @@ class WorkspacePanel(QWidget):
         return tab
 
     def _bindEvents(self):
+        self.plotTypeComboBox.currentTextChanged.connect(self._onPlotTypeChanged)
         self.siteComboBox.currentTextChanged.connect(self._emitOptionsChanged)
-        self.plotTypeComboBox.currentTextChanged.connect(self._emitOptionsChanged)
         self.orderByComboBox.currentTextChanged.connect(self._emitOptionsChanged)
         self.limitsComboBox.currentTextChanged.connect(self._emitOptionsChanged)
         self.valuesInLimitsButton.toggled.connect(self._emitOptionsChanged)
         self.logScaleButton.toggled.connect(self._emitOptionsChanged)
-        self.newWindowButton.clicked.connect(self.openPlotWindowRequested.emit)
+        self.copyPlotButton.clicked.connect(self._onCopyPlotClicked)
+
+    def _onPlotTypeChanged(self, *_):
+        self._updateControlStates()
+        self._emitOptionsChanged()
 
     def _emitOptionsChanged(self, *_):
         self.plotOptionsChanged.emit()
+
+    def _onCopyPlotClicked(self):
+        origText = self.copyPlotButton.text()
+        self.copyPlotButton.setText('Copying...')
+        self.copyPlotButton.setEnabled(False)
+
+        def onDone(success: bool):
+            self.copyPlotButton.setText('Copied!' if success else 'Failed')
+            QTimer.singleShot(1200, lambda: (
+                self.copyPlotButton.setText(origText),
+                self.copyPlotButton.setEnabled(True)
+            ))
+
+        self.plotView.copyPlotToClipboard(onDone)
+
+    def _updateControlStates(self):
+        if not self._controlsEnabled:
+            self.plotTypeLabel.setEnabled(False)
+            self.plotTypeComboBox.setEnabled(False)
+            self.siteLabel.setEnabled(False)
+            self.siteComboBox.setEnabled(False)
+            self.orderByLabel.setEnabled(False)
+            self.orderByComboBox.setEnabled(False)
+            self.limitsLabel.setEnabled(False)
+            self.limitsComboBox.setEnabled(False)
+            self.valuesInLimitsButton.setEnabled(False)
+            self.logScaleButton.setEnabled(False)
+            self.copyPlotButton.setEnabled(False)
+            return
+
+        self.siteLabel.setEnabled(True)
+        self.siteComboBox.setEnabled(True)
+        self.valuesInLimitsButton.setEnabled(True)
+        self.copyPlotButton.setEnabled(True)
+
+        if self._isCxCy:
+            self.plotTypeLabel.setEnabled(False)
+            self.plotTypeComboBox.setEnabled(False)
+            self.orderByLabel.setEnabled(False)
+            self.orderByComboBox.setEnabled(False)
+            self.limitsLabel.setEnabled(True)
+            self.limitsComboBox.setEnabled(True)
+            self.logScaleButton.setEnabled(False)
+            return
+
+        self.plotTypeLabel.setEnabled(True)
+        self.plotTypeComboBox.setEnabled(True)
+
+        currType = self.plotTypeComboBox.currentText().strip().lower()
+
+        if currType == 'sequence':
+            self.orderByLabel.setEnabled(True)
+            self.orderByComboBox.setEnabled(True)
+            self.limitsLabel.setEnabled(True)
+            self.limitsComboBox.setEnabled(True)
+            self.logScaleButton.setEnabled(True)
+        elif currType in ('capability (histogram)', 'capability', 'histogram'):
+            self.orderByLabel.setEnabled(False)
+            self.orderByComboBox.setEnabled(False)
+            self.limitsLabel.setEnabled(False)
+            self.limitsComboBox.setEnabled(False)
+            self.logScaleButton.setEnabled(False)
+        elif currType == 'boxplot':
+            self.orderByLabel.setEnabled(False)
+            self.orderByComboBox.setEnabled(False)
+            self.limitsLabel.setEnabled(False)
+            self.limitsComboBox.setEnabled(False)
+            self.logScaleButton.setEnabled(True)
 
     def setFigure(self, fig: go.Figure):
         self.plotView.setFigure(fig)
@@ -167,15 +255,9 @@ class WorkspacePanel(QWidget):
         self.tableInfoLabel.setText(f'Test: {testName}  |  Rows: {len(df):,}')
 
     def setPlotControlsEnabled(self, enabled: bool, isCxCy: bool = False):
-        self.siteComboBox.setEnabled(enabled)
-        self.valuesInLimitsButton.setEnabled(enabled)
-        self.newWindowButton.setEnabled(enabled)
-
-        scalarOnly = enabled and not isCxCy
-        self.plotTypeComboBox.setEnabled(scalarOnly)
-        self.orderByComboBox.setEnabled(scalarOnly)
-        self.limitsComboBox.setEnabled(scalarOnly)
-        self.logScaleButton.setEnabled(scalarOnly)
+        self._controlsEnabled = enabled
+        self._isCxCy = isCxCy
+        self._updateControlStates()
 
     def getPlotOptions(self) -> dict:
         return {
@@ -183,6 +265,7 @@ class WorkspacePanel(QWidget):
             'plotType': self.plotTypeComboBox.currentText(),
             'orderBy': self.orderByComboBox.currentText(),
             'limits': self.limitsComboBox.currentText(),
+            'limitsMode': self.limitsComboBox.currentText(),
             'valuesInLimits': self.valuesInLimitsButton.isChecked(),
             'logScale': self.logScaleButton.isChecked(),
         }

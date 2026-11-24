@@ -1,10 +1,12 @@
+import base64
 import os
 import tempfile
+from typing import Callable
 
 import plotly.graph_objects as go
 from plotly.offline import get_plotlyjs
 from PySide6.QtCore import QUrl
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QGuiApplication, QImage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
@@ -317,6 +319,39 @@ class PlotlyView(QWidget):
         url = QUrl.fromLocalFile(self._htmlPath)
         url.setQuery(f'v={self._renderCounter}')
         self.webView.load(url)
+
+    def copyPlotToClipboard(self, onDone:Callable[[bool], None]|None=None):
+        jsScript = """
+        (function() {
+            var gd = document.getElementsByClassName('plotly-graph-div')[0];
+            if (!gd || typeof Plotly === 'undefined') return null;
+            return Plotly.toImage(gd, {format: 'png', width: 1920, height: 1080});
+        })();
+        """
+
+        def handleResult(dataUri):
+            success = False
+            if dataUri and isinstance(dataUri, str) and dataUri.startswith('data:image/png;base64,'):
+                try:
+                    rawBase64 = dataUri.split(',', 1)[1]
+                    imgBytes = base64.b64decode(rawBase64)
+                    qimg = QImage.fromData(imgBytes)
+                    if not qimg.isNull():
+                        QGuiApplication.clipboard().setImage(qimg)
+                        success = True
+                except Exception:
+                    success = False
+
+            if not success:
+                pixmap = self.webView.grab()
+                if not pixmap.isNull():
+                    QGuiApplication.clipboard().setPixmap(pixmap)
+                    success = True
+
+            if onDone:
+                onDone(success)
+
+        self.webView.page().runJavaScript(jsScript, handleResult)
 
     def showMessage(self, message: str):
         htmlContent = f"""<!DOCTYPE html>
