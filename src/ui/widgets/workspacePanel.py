@@ -28,6 +28,11 @@ class WorkspacePanel(QWidget):
         self._rawFilterTimer.setInterval(150)
         self._rawFilterTimer.timeout.connect(self._applyRawDataFilter)
 
+        self._snFilterTimer = QTimer(self)
+        self._snFilterTimer.setSingleShot(True)
+        self._snFilterTimer.setInterval(200)
+        self._snFilterTimer.timeout.connect(self._emitOptionsChanged)
+
         self._buildUi()
         self._bindEvents()
         self.setPlotControlsEnabled(False)
@@ -113,9 +118,35 @@ class WorkspacePanel(QWidget):
         controlsRow.addStretch(1)
         controlsRow.addWidget(self.copyPlotButton)
 
+        snRow = QHBoxLayout()
+        snRow.setSpacing(8)
+
+        self.snFilterLabel = QLabel('Serial Number:')
+        self.snFilterEdit = QLineEdit()
+        self.snFilterEdit.setPlaceholderText('Track SN / golden unit (partial or comma-separated)...')
+        self.snFilterEdit.setToolTip(
+            'Highlight all measurements for the given Serial Number(s).\n'
+            'Supports partial match and multiple SNs separated by commas.'
+        )
+        self.snFilterEdit.setClearButtonEnabled(True)
+
+        self.onlySnButton = QPushButton('Only SN')
+        self.onlySnButton.setCheckable(True)
+        self.onlySnButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.onlySnButton.setToolTip('Show ONLY measurements matching the entered SN (isolates golden unit)')
+
+        self.snMatchLabel = QLabel('')
+        self.snMatchLabel.setStyleSheet('color: #9da0a8;')
+
+        snRow.addWidget(self.snFilterLabel)
+        snRow.addWidget(self.snFilterEdit, 1)
+        snRow.addWidget(self.onlySnButton)
+        snRow.addWidget(self.snMatchLabel)
+
         self.plotView = PlotlyView()
 
         layout.addLayout(controlsRow)
+        layout.addLayout(snRow)
         layout.addWidget(self.plotView, 1)
         return tab
 
@@ -215,6 +246,10 @@ class WorkspacePanel(QWidget):
         self.rawRegexButton.toggled.connect(self._applyRawDataFilter)
         self.rawColumnComboBox.currentIndexChanged.connect(self._applyRawDataFilter)
         self.exportCsvButton.clicked.connect(self._onExportCsvClicked)
+
+        self.snFilterEdit.textChanged.connect(lambda _: self._snFilterTimer.start())
+        self.snFilterEdit.returnPressed.connect(self._onSnReturnPressed)
+        self.onlySnButton.toggled.connect(self._emitOptionsChanged)
 
     def _onPlotTypeChanged(self, *_):
         self._updateControlStates()
@@ -317,12 +352,18 @@ class WorkspacePanel(QWidget):
             self.valuesInLimitsButton.setEnabled(False)
             self.logScaleButton.setEnabled(False)
             self.copyPlotButton.setEnabled(False)
+            self.snFilterLabel.setEnabled(False)
+            self.snFilterEdit.setEnabled(False)
+            self.onlySnButton.setEnabled(False)
             return
 
         self.siteLabel.setEnabled(True)
         self.siteComboBox.setEnabled(True)
         self.valuesInLimitsButton.setEnabled(True)
         self.copyPlotButton.setEnabled(True)
+        self.snFilterLabel.setEnabled(True)
+        self.snFilterEdit.setEnabled(True)
+        self.onlySnButton.setEnabled(True)
 
         if self._isCxCy:
             self.plotTypeLabel.setEnabled(False)
@@ -409,6 +450,8 @@ class WorkspacePanel(QWidget):
             'limitsMode': self.limitsComboBox.currentText(),
             'valuesInLimits': self.valuesInLimitsButton.isChecked(),
             'logScale': self.logScaleButton.isChecked(),
+            'snQuery': self.snFilterEdit.text().strip(),
+            'onlySn': self.onlySnButton.isChecked(),
         }
 
     def clear(self):
@@ -440,3 +483,32 @@ class WorkspacePanel(QWidget):
         self.updateSites([])
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
+
+        self._snFilterTimer.stop()
+        self.snFilterEdit.blockSignals(True)
+        self.snFilterEdit.clear()
+        self.snFilterEdit.blockSignals(False)
+
+        self.onlySnButton.blockSignals(True)
+        self.onlySnButton.setChecked(False)
+        self.onlySnButton.blockSignals(False)
+        self.setSnMatchInfo(0, 0, hasQuery=False)
+        
+
+    def _onSnReturnPressed(self):
+        self._snFilterTimer.stop()
+        self._emitOptionsChanged()
+
+    def setSnMatchInfo(self, matchedCount: int, matchedSites: int, hasQuery: bool):
+        if not hasQuery:
+            self.snMatchLabel.setText('')
+            self.snMatchLabel.setStyleSheet('color: #9da0a8;')
+            return
+
+        if matchedCount == 0:
+            self.snMatchLabel.setText('No matching SN')
+            self.snMatchLabel.setStyleSheet('color: #ef5350; font-weight: 600;')
+        else:
+            siteWord = 'site' if matchedSites == 1 else 'sites'
+            self.snMatchLabel.setText(f'Matched: {matchedCount:,} pts ({matchedSites} {siteWord})')
+            self.snMatchLabel.setStyleSheet('color: #ffd600; font-weight: 600;')

@@ -173,6 +173,23 @@ class DataAnalyzerWindow(QMainWindow):
         selectedSite = options['site']
         filteredDf = df if selectedSite == 'All sites' else df[df['Site'] == selectedSite]
 
+        snQuery = options['snQuery']
+        onlySn = options['onlySn']
+        highlightSn = ''
+
+        if snQuery:
+            snMask = PlotlyChartGenerator.getSerialMatchMask(filteredDf, snQuery)
+            matchedCount = int(snMask.sum())
+            matchedSites = int(filteredDf[snMask]['Site'].nunique()) if matchedCount > 0 else 0
+            self.workspace.setSnMatchInfo(matchedCount, matchedSites, hasQuery=True)
+
+            if onlySn:
+                filteredDf = filteredDf[snMask]
+            else:
+                highlightSn = snQuery
+        else:
+            self.workspace.setSnMatchInfo(0, 0, hasQuery=False)
+
         self.workspace.setRawDataFrame(self._selectedTestName, filteredDf)
 
         isCxCy = MeasurementEngine.isCxCyDataFrame(filteredDf)
@@ -195,13 +212,15 @@ class DataAnalyzerWindow(QMainWindow):
             limitsMode=options['limits'],
             valuesInLimits=options['valuesInLimits'],
             logScale=options['logScale'],
+            highlightSn=highlightSn,
         )
         self.workspace.setFigure(fig)
 
         totalTests = len(self.engine.getMeasurements())
+        snStatus = f'  |  SN: {snQuery} ({"isolated" if onlySn else "highlighted"})' if snQuery else ''
         self.statusLabel.setText(
             f'Tests: {totalTests:,}  |  Selected: {self._selectedTestName}  |  '
-            f'Samples: {len(filteredDf):,} (Site: {selectedSite})'
+            f'Samples: {len(filteredDf):,} (Site: {selectedSite}){snStatus}'
         )
 
     def _onClear(self):

@@ -107,3 +107,40 @@ def test_siScalingFor33nfCapacitance():
     capFig = gen.createPlot(df, 'C12 33nF', plotType='Capability (Histogram)', limitsMode='Newest')
     assert capFig.layout.xaxis.title.text == 'Measured Value [n]'
     assert list(capFig.data[0].x) == pytest.approx([32.5, 33.0, 33.5])
+
+def test_highlightSerialNumberAcrossPlotTypes(scalarDf, cxcyDf):
+    gen = PlotlyChartGenerator()
+
+    # Sequence highlight dims population and adds diamond overlay trace
+    seqFig = gen.createPlot(scalarDf, 'VDD_5V', plotType='Sequence', highlightSn='SN1, SN3')
+    snTraces = [t for t in seqFig.data if t.name.startswith('SN: ')]
+    assert len(snTraces) == 1
+    assert len(snTraces[0].y) == 2
+    assert seqFig.data[0].marker.opacity == pytest.approx(0.30)
+
+    # Boxplot highlight overlays matched SNs on matching site boxes
+    boxFig = gen.createPlot(scalarDf, 'VDD_5V', plotType='Boxplot', highlightSn='SN2')
+    boxSnTraces = [t for t in boxFig.data if t.name.startswith('SN: ')]
+    assert len(boxSnTraces) == 1
+    assert list(boxSnTraces[0].x) == ['Site 1 (2)']
+    assert list(boxSnTraces[0].y) == pytest.approx([5.05])
+
+    # Capability highlight places markers at y=0 for matched SNs
+    capFig = gen.createPlot(scalarDf, 'VDD_5V', plotType='Capability (Histogram)', highlightSn='SN4')
+    capSnTraces = [t for t in capFig.data if t.name.startswith('SN: ')]
+    assert len(capSnTraces) == 1
+    assert list(capSnTraces[0].x) == pytest.approx([5.10])
+
+    # CxCy highlight overlays matched LED measurement
+    cxFig = gen.createPlot(cxcyDf, 'LED_CXCY', highlightSn='SN2')
+    cxSnTraces = [t for t in cxFig.data if t.name.startswith('SN: ')]
+    assert len(cxSnTraces) == 1
+    assert list(cxSnTraces[0].x) == pytest.approx([0.33])
+    assert list(cxSnTraces[0].y) == pytest.approx([0.34])
+
+
+def test_highlightSerialNumberNoMatchDoesNotDimPlot(scalarDf):
+    gen = PlotlyChartGenerator()
+    seqFig = gen.createPlot(scalarDf, 'VDD_5V', plotType='Sequence', highlightSn='NON_EXISTENT')
+    assert not any(t.name.startswith('SN: ') for t in seqFig.data)
+    assert seqFig.data[0].marker.opacity == pytest.approx(0.85)

@@ -1,11 +1,12 @@
 import colorsys
+import re
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
 from src.siFormatter import (
-    calculateLinthresh, formatAxisTitle,generateSymlogTicks, getSiScale,
+    calculateLinthresh, formatAxisTitle, generateSymlogTicks, getSiScale,
     isSentinelLimit, symlogTransform,
 )
 
@@ -20,6 +21,7 @@ class PlotlyChartGenerator:
     LSL_COLOR = '#ef5350'
     USL_COLOR = '#ffa726'
     MEAN_COLOR = '#66bb6a'
+    HIGHLIGHT_SN_COLOR = '#ffd600'
 
     SITE_PALETTE = [
         '#4c8dff',
@@ -32,38 +34,98 @@ class PlotlyChartGenerator:
         '#8d6e63',
     ]
 
-    def createPlot(self, df:pd.DataFrame, testName:str, plotType:str='Sequence', orderBy:str='Date', limitsMode:str='All',
-            valuesInLimits:bool=False, logScale:bool=False) -> go.Figure:
+    @staticmethod
+    def getSerialMatchMask(df: pd.DataFrame | None, serialQuery: str) -> np.ndarray:
+        if df is None or df.empty or not serialQuery or 'SerialNumber' not in df.columns:
+            return np.zeros(len(df) if df is not None else 0, dtype=bool)
+
+        tokens = [token.strip() for token in re.split(r'[,;]+', serialQuery) if token.strip()]
+        if not tokens:
+            return np.zeros(len(df), dtype=bool)
+
+        pattern = '|'.join(re.escape(token) for token in tokens)
+        series = df['SerialNumber'].astype(str)
+        return series.str.contains(pattern, case=False, regex=True, na=False).to_numpy(dtype=bool)
+
+    def createPlot(
+        self,
+        df: pd.DataFrame,
+        testName: str,
+        plotType: str = 'Sequence',
+        orderBy: str = 'Date',
+        limitsMode: str = 'All',
+        valuesInLimits: bool = False,
+        logScale: bool = False,
+        highlightSn: str = '',
+    ) -> go.Figure:
 
         if df is None or df.empty:
             return self._createEmptyFigure('No data available for selected filters.')
 
         if 'CX' in df.columns and 'CY' in df.columns:
-            return self.createCxCyPlot(df, testName, limitsMode=limitsMode, valuesInLimits=valuesInLimits)
+            return self.createCxCyPlot(
+                df,
+                testName,
+                limitsMode=limitsMode,
+                valuesInLimits=valuesInLimits,
+                highlightSn=highlightSn,
+            )
 
         normalizedType = plotType.strip().lower()
         if normalizedType == 'sequence':
-            return self.createSequencePlot(df, testName, orderBy=orderBy, limitsMode=limitsMode, valuesInLimits=valuesInLimits,
-                        logScale=logScale)
-        
+            return self.createSequencePlot(
+                df,
+                testName,
+                orderBy=orderBy,
+                limitsMode=limitsMode,
+                valuesInLimits=valuesInLimits,
+                logScale=logScale,
+                highlightSn=highlightSn,
+            )
+
         if normalizedType in ('capability (histogram)', 'capability', 'histogram'):
-            return self.createCapabilityPlot(df, testName, limitsMode=limitsMode, valuesInLimits=valuesInLimits, logScale=logScale)
-        
+            return self.createCapabilityPlot(
+                df,
+                testName,
+                limitsMode=limitsMode,
+                valuesInLimits=valuesInLimits,
+                logScale=logScale,
+                highlightSn=highlightSn,
+            )
+
         if normalizedType == 'boxplot':
-            return self.createBoxplot(df, testName, limitsMode=limitsMode, valuesInLimits=valuesInLimits, logScale=logScale)
+            return self.createBoxplot(
+                df,
+                testName,
+                limitsMode=limitsMode,
+                valuesInLimits=valuesInLimits,
+                logScale=logScale,
+                highlightSn=highlightSn,
+            )
 
         raise ValueError(f'Unsupported plot type: {plotType}')
 
-
-    def createSequencePlot(self, df:pd.DataFrame, testName:str, orderBy:str='Date', limitsMode:str='All', valuesInLimits:bool=False, 
-            logScale:bool=False) -> go.Figure:
+    def createSequencePlot(
+        self,
+        df: pd.DataFrame,
+        testName: str,
+        orderBy: str = 'Date',
+        limitsMode: str = 'All',
+        valuesInLimits: bool = False,
+        logScale: bool = False,
+        highlightSn: str = '',
+    ) -> go.Figure:
 
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
         rawValues = df['Value'].to_numpy(dtype=float)
         finiteVals = rawValues[np.isfinite(rawValues)]
-        dataRef = float(np.median(np.abs(finiteVals[finiteVals != 0]))) if finiteVals.size > 0 and np.any(finiteVals != 0) else None
+        dataRef = (
+            float(np.median(np.abs(finiteVals[finiteVals != 0])))
+            if finiteVals.size > 0 and np.any(finiteVals != 0)
+            else None
+        )
 
         lslRef, uslRef = self._resolveScalarLimits(df, limitsMode)
         hasValidLsl = not isSentinelLimit(lslRef, dataRef)
@@ -87,10 +149,17 @@ class PlotlyChartGenerator:
                 useSymlog = True
                 linthresh = calculateLinthresh(combined)
 
+        hasSnMatches = bool(highlightSn) and bool(np.any(self.getSerialMatchMask(df, highlightSn)))
+        pointOpacity = 0.30 if hasSnMatches else 0.85
+
         offset = 0
         maxX = 0
         allPlotY: list[float] = []
         siteLimitsData: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
+
+        matchedX: list[int] = []
+        matchedY: list[float] = []
+        matchedCustomData: list[np.ndarray] = []
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site].sort_values(by='TestDate', kind='mergesort')
@@ -131,7 +200,7 @@ class PlotlyChartGenerator:
                     y=yPlot,
                     mode='markers',
                     name=f'Site {site} ({n:,})',
-                    marker=dict(size=5, color=color, opacity=0.85),
+                    marker=dict(size=5, color=color, opacity=pointOpacity),
                     customdata=customData,
                     hovertemplate=(
                         f'<b>Site {site}</b><br>'
@@ -144,6 +213,15 @@ class PlotlyChartGenerator:
                     ),
                 )
             )
+
+            if hasSnMatches:
+                siteSnMask = self.getSerialMatchMask(siteDf, highlightSn)
+                if np.any(siteSnMask):
+                    matchedCount = int(np.sum(siteSnMask))
+                    matchedX.extend(xVals[siteSnMask].tolist())
+                    matchedY.extend(yPlot[siteSnMask].tolist())
+                    siteCol = np.full((matchedCount, 1), site, dtype=object)
+                    matchedCustomData.append(np.hstack((customData[siteSnMask], siteCol)))
 
             siteLimitsData.append((xVals, siteLsl, siteUsl))
 
@@ -180,6 +258,32 @@ class PlotlyChartGenerator:
                             hovertemplate=f'USL: %{{customdata:.6g}}{unitSuffix}<extra></extra>',
                         )
                     )
+
+        if matchedX:
+            fig.add_trace(
+                go.Scatter(
+                    x=matchedX,
+                    y=matchedY,
+                    mode='markers',
+                    name=f'SN: {highlightSn} ({len(matchedX):,})',
+                    marker=dict(
+                        size=10,
+                        symbol='diamond',
+                        color=self.HIGHLIGHT_SN_COLOR,
+                        line=dict(color='#ffffff', width=1.2),
+                    ),
+                    customdata=np.vstack(matchedCustomData),
+                    hovertemplate=(
+                        '<b>SN: %{customdata[0]}</b><br>'
+                        'Site: %{customdata[5]}<br>'
+                        'Sample: %{x}<br>'
+                        f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
+                        'Date: %{customdata[1]}<br>'
+                        f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
+                        '<extra></extra>'
+                    ),
+                )
+            )
 
         lslScaled = lslRef * scaleFactor
         uslScaled = uslRef * scaleFactor
@@ -246,11 +350,18 @@ class PlotlyChartGenerator:
 
         return fig
 
+    def createCapabilityPlot(
+        self,
+        df: pd.DataFrame,
+        testName: str,
+        limitsMode: str = 'Newest',
+        valuesInLimits: bool = False,
+        logScale: bool = False,
+        highlightSn: str = '',
+    ) -> go.Figure:
 
-    def createCapabilityPlot(self, df:pd.DataFrame, testName:str, limitsMode:str='Newest', valuesInLimits:bool=False,
-            logScale:bool=False) -> go.Figure:
-
-        values = df['Value'].dropna().to_numpy(dtype=float)
+        validDf = df.dropna(subset=['Value'])
+        values = validDf['Value'].to_numpy(dtype=float)
         if len(values) == 0:
             return self._createEmptyFigure('No numeric values available.')
 
@@ -267,17 +378,20 @@ class PlotlyChartGenerator:
         lslVal = lslRaw * scaleFactor if hasValidLsl else None
         uslVal = uslRaw * scaleFactor if hasValidUsl else None
 
-        plotValues = scaledAll
+        inLimitsMask = np.ones(len(scaledAll), dtype=bool)
         if valuesInLimits:
             if hasValidLsl and hasValidUsl:
-                plotValues = scaledAll[(scaledAll >= lslVal) & (scaledAll <= uslVal)]
+                inLimitsMask = (scaledAll >= lslVal) & (scaledAll <= uslVal)
             elif hasValidLsl:
-                plotValues = scaledAll[scaledAll >= lslVal]
+                inLimitsMask = scaledAll >= lslVal
             elif hasValidUsl:
-                plotValues = scaledAll[scaledAll <= uslVal]
+                inLimitsMask = scaledAll <= uslVal
 
-            if len(plotValues) == 0:
-                plotValues = scaledAll
+            if not np.any(inLimitsMask):
+                inLimitsMask = np.ones(len(scaledAll), dtype=bool)
+
+        plotDf = validDf[inLimitsMask]
+        plotValues = scaledAll[inLimitsMask]
 
         fig = go.Figure()
         binSize = self._calculateHistogramBinSize(plotValues)
@@ -360,6 +474,39 @@ class PlotlyChartGenerator:
                     )
                 )
 
+        if highlightSn:
+            snMask = self.getSerialMatchMask(plotDf, highlightSn)
+            if np.any(snMask):
+                matchedDf = plotDf[snMask]
+                matchedVals = plotValues[snMask]
+                customData = np.column_stack((
+                    matchedDf['SerialNumber'].astype(str).to_numpy(),
+                    matchedDf['TestDate'].astype(str).to_numpy(),
+                    matchedDf['Site'].astype(str).to_numpy(),
+                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=matchedVals,
+                        y=np.zeros(len(matchedVals)),
+                        mode='markers',
+                        name=f'SN: {highlightSn} ({len(matchedVals):,})',
+                        marker=dict(
+                            size=11,
+                            symbol='diamond',
+                            color=self.HIGHLIGHT_SN_COLOR,
+                            line=dict(color='#ffffff', width=1.2),
+                        ),
+                        customdata=customData,
+                        hovertemplate=(
+                            '<b>SN: %{customdata[0]}</b><br>'
+                            'Site: %{customdata[2]}<br>'
+                            f'Value: %{{x:.6g}}{unitSuffix}<br>'
+                            'Date: %{customdata[1]}'
+                            '<extra></extra>'
+                        ),
+                    )
+                )
+
         fig.add_vline(
             x=meanOverall,
             line_dash='dot',
@@ -405,22 +552,33 @@ class PlotlyChartGenerator:
 
         return fig
 
+    def createBoxplot(
+        self,
+        df: pd.DataFrame,
+        testName: str,
+        limitsMode: str = 'Newest',
+        valuesInLimits: bool = False,
+        logScale: bool = False,
+        highlightSn: str = '',
+    ) -> go.Figure:
 
-    def createBoxplot(self, df:pd.DataFrame, testName:str, limitsMode:str='Newest', valuesInLimits:bool=False,
-            logScale:bool=False) -> go.Figure:
-        
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
         rawValues = df['Value'].to_numpy(dtype=float)
         finiteVals = rawValues[np.isfinite(rawValues)]
-        dataRef = float(np.median(np.abs(finiteVals[finiteVals != 0]))) if finiteVals.size > 0 and np.any(finiteVals != 0) else None
+        dataRef = (
+            float(np.median(np.abs(finiteVals[finiteVals != 0])))
+            if finiteVals.size > 0 and np.any(finiteVals != 0)
+            else None
+        )
 
         lslRaw, uslRaw = self._resolveScalarLimits(df, limitsMode)
         hasValidLsl = not isSentinelLimit(lslRaw, dataRef)
         hasValidUsl = not isSentinelLimit(uslRaw, dataRef)
 
         prefix, scaleFactor = getSiScale(rawValues, lslRaw, uslRaw)
+        unitSuffix = f' {prefix}' if prefix else ''
 
         scaledValuesAll = rawValues * scaleFactor
         useSymlog = False
@@ -436,26 +594,75 @@ class PlotlyChartGenerator:
                 useSymlog = True
                 linthresh = calculateLinthresh(combined)
 
+        lslScaled = lslRaw * scaleFactor
+        uslScaled = uslRaw * scaleFactor
+        lslLine = symlogTransform(lslScaled, linthresh) if useSymlog else lslScaled
+        uslLine = symlogTransform(uslScaled, linthresh) if useSymlog else uslScaled
+
+        hasSnMatches = bool(highlightSn) and bool(np.any(self.getSerialMatchMask(df, highlightSn)))
+        matchedBoxX: list[str] = []
+        matchedBoxY: list[float] = []
+        matchedBoxCustom: list[np.ndarray] = []
+
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site]
             color = self._getSiteColor(idx)
+            siteLabel = f'Site {site} ({len(siteDf):,})'
             siteVals = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
             yPlot = symlogTransform(siteVals, linthresh) if useSymlog else siteVals
 
             fig.add_trace(
                 go.Box(
                     y=yPlot,
-                    name=f'Site {site} ({len(siteDf):,})',
+                    name=siteLabel,
                     marker_color=color,
                     boxmean='sd',
                     boxpoints='outliers',
                 )
             )
 
-        lslScaled = lslRaw * scaleFactor
-        uslScaled = uslRaw * scaleFactor
-        lslLine = symlogTransform(lslScaled, linthresh) if useSymlog else lslScaled
-        uslLine = symlogTransform(uslScaled, linthresh) if useSymlog else uslScaled
+            if hasSnMatches:
+                siteSnMask = self.getSerialMatchMask(siteDf, highlightSn)
+                if np.any(siteSnMask):
+                    matchedSiteDf = siteDf[siteSnMask]
+                    mVals = siteVals[siteSnMask]
+                    mYPlot = yPlot[siteSnMask]
+                    mCount = len(matchedSiteDf)
+                    matchedBoxX.extend([siteLabel] * mCount)
+                    matchedBoxY.extend(mYPlot.tolist())
+                    matchedBoxCustom.append(np.column_stack((
+                        matchedSiteDf['SerialNumber'].astype(str).to_numpy(),
+                        matchedSiteDf['TestDate'].astype(str).to_numpy(),
+                        [f'{lslScaled:.4g}' if hasValidLsl else 'None'] * mCount,
+                        [f'{uslScaled:.4g}' if hasValidUsl else 'None'] * mCount,
+                        mVals,
+                        [site] * mCount,
+                    )))
+
+        if matchedBoxX:
+            fig.add_trace(
+                go.Scatter(
+                    x=matchedBoxX,
+                    y=matchedBoxY,
+                    mode='markers',
+                    name=f'SN: {highlightSn} ({len(matchedBoxX):,})',
+                    marker=dict(
+                        size=10,
+                        symbol='diamond',
+                        color=self.HIGHLIGHT_SN_COLOR,
+                        line=dict(color='#ffffff', width=1.2),
+                    ),
+                    customdata=np.vstack(matchedBoxCustom),
+                    hovertemplate=(
+                        '<b>SN: %{customdata[0]}</b><br>'
+                        'Site: %{customdata[5]}<br>'
+                        f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
+                        'Date: %{customdata[1]}<br>'
+                        f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
+                        '<extra></extra>'
+                    ),
+                )
+            )
 
         if hasValidLsl:
             fig.add_hline(
@@ -514,10 +721,21 @@ class PlotlyChartGenerator:
 
         return fig
 
+    def createCxCyPlot(
+        self,
+        df: pd.DataFrame,
+        testName: str,
+        valuesInLimits: bool = False,
+        limitsMode: str = 'All',
+        highlightSn: str = '',
+    ) -> go.Figure:
 
-    def createCxCyPlot(self, df:pd.DataFrame, testName:str, valuesInLimits:bool=False, limitsMode:str='All') -> go.Figure:
         fig = go.Figure()
         sortedSites = sorted(df['Site'].astype(str).unique().tolist())
+
+        snMaskAll = self.getSerialMatchMask(df, highlightSn) if highlightSn else np.zeros(len(df), dtype=bool)
+        hasSnMatches = bool(np.any(snMaskAll))
+        pointOpacity = 0.30 if hasSnMatches else 0.85
 
         for idx, site in enumerate(sortedSites):
             siteDf = df[df['Site'].astype(str) == site]
@@ -533,7 +751,7 @@ class PlotlyChartGenerator:
                     y=siteDf['CY'].to_numpy(),
                     mode='markers',
                     name=f'Site {site} ({len(siteDf):,})',
-                    marker=dict(size=6, color=color, opacity=0.85),
+                    marker=dict(size=6, color=color, opacity=pointOpacity),
                     customdata=customData,
                     hovertemplate=(
                         f'<b>Site {site}</b><br>'
@@ -591,6 +809,37 @@ class PlotlyChartGenerator:
                 )
             )
 
+        if hasSnMatches:
+            matchedDf = df[snMaskAll]
+            matchedCustom = np.column_stack((
+                matchedDf['SerialNumber'].astype(str).to_numpy(),
+                matchedDf['TestDate'].astype(str).to_numpy(),
+                matchedDf['Site'].astype(str).to_numpy(),
+            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=matchedDf['CX'].to_numpy(),
+                    y=matchedDf['CY'].to_numpy(),
+                    mode='markers',
+                    name=f'SN: {highlightSn} ({len(matchedDf):,})',
+                    marker=dict(
+                        size=10,
+                        symbol='diamond',
+                        color=self.HIGHLIGHT_SN_COLOR,
+                        line=dict(color='#ffffff', width=1.2),
+                    ),
+                    customdata=matchedCustom,
+                    hovertemplate=(
+                        '<b>SN: %{customdata[0]}</b><br>'
+                        'Site: %{customdata[2]}<br>'
+                        'CX: %{x:.5f}<br>'
+                        'CY: %{y:.5f}<br>'
+                        'Date: %{customdata[1]}'
+                        '<extra></extra>'
+                    ),
+                )
+            )
+
         self._applyCommonLayout(fig, title=testName, xTitle='CX', yTitle='CY', logScale=False)
 
         if valuesInLimits and boundariesToDraw:
@@ -599,8 +848,7 @@ class PlotlyChartGenerator:
 
         return fig
 
-
-    def _applyCommonLayout(self, fig:go.Figure, title:str, xTitle:str, yTitle:str, logScale:bool):
+    def _applyCommonLayout(self, fig: go.Figure, title: str, xTitle: str, yTitle: str, logScale: bool):
         fig.update_layout(
             separators='. ',
             title=dict(text=title, x=0.02, y=0.97, font=dict(size=15, color=self.TEXT_COLOR)),
@@ -638,10 +886,10 @@ class PlotlyChartGenerator:
             ),
         )
 
-    def _applyAxisLimitsPadding(self, fig:go.Figure, axis:str, low:float, high:float, logScale:bool):
+    def _applyAxisLimitsPadding(self, fig: go.Figure, axis: str, low: float, high: float, logScale: bool):
         if not (np.isfinite(low) and np.isfinite(high)):
             return
-        
+
         span = abs(high - low)
         delta = span * self.DELTA_LIMITS_PERCENTAGE if span > 0 else max(abs(low) * 0.05, 1e-6)
         minBound = low - delta
@@ -716,7 +964,7 @@ class PlotlyChartGenerator:
         if idx < len(self.SITE_PALETTE):
             return self.SITE_PALETTE[idx]
 
-        # calcluate colors from golden angle HSL model
+        # calculate colors from golden angle HSL model
         step = idx - len(self.SITE_PALETTE) + 1
         hue = ((step * 137.508) % 360.0) / 360.0
         lightness = 0.56 + (step % 3) * 0.08
