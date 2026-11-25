@@ -57,6 +57,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.sidebar.testSelected.connect(self._onTestSelected)
         self.sidebar.generateReportRequested.connect(self._onGenerateReport)
         self.workspace.plotOptionsChanged.connect(self._refreshCurrentView)
+        self.workspace.statusMessageRequested.connect(self.statusLabel.setText)
 
     def _onProcessorChanged(self, processorName:str):
         self._selectedProcessorType = processorName

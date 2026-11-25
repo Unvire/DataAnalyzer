@@ -1,23 +1,32 @@
+import os, re
+
 import pandas as pd
 import plotly.graph_objects as go
 from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
-    QComboBox, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableView,
-    QTabWidget, QVBoxLayout, QWidget,
+    QComboBox, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QMessageBox, QPushButton, QTableView, QTabWidget, QVBoxLayout, QWidget,
 )
 
-from src.ui.widgets.dataTableModel import PandasTableModel
+from src.ui.widgets.dataTableModel import PandasTableModel, RawDataFilterProxyModel
 from src.ui.widgets.plotlyView import PlotlyView
 
 
 class WorkspacePanel(QWidget):
     plotOptionsChanged = Signal()
     openPlotWindowRequested = Signal()
+    statusMessageRequested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._controlsEnabled = False
         self._isCxCy = False
+        self._currentRawTestName = ''
+
+        self._rawFilterTimer = QTimer(self)
+        self._rawFilterTimer.setSingleShot(True)
+        self._rawFilterTimer.setInterval(150)
+        self._rawFilterTimer.timeout.connect(self._applyRawDataFilter)
 
         self._buildUi()
         self._bindEvents()
@@ -134,17 +143,61 @@ class WorkspacePanel(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
 
+        controlsRow = QHBoxLayout()
+        controlsRow.setSpacing(8)
+
+        self.rawSearchEdit = QLineEdit()
+        self.rawSearchEdit.setPlaceholderText(
+            'Filter: text/regex, >5.1, 4.9..5.1, 2025/01/01..2025/01/03, site>=2'
+        )
+        self.rawSearchEdit.setToolTip(
+            'Supported filters (combine multiple terms with spaces):\n'
+            '• Text / Regex (toggle "Regex"):  ^17025.*70$\n'
+            '• Numeric (SI supported):  >5.05, <=33n, 4.9..5.1, val>1.2k, site>=2\n'
+            '• Date / Time:  >2025/01/01, 2025/01/01..2025/01/03, >="2025/01/01 10:00"'
+        )
+        self.rawSearchEdit.setClearButtonEnabled(True)
+        self.rawSearchEdit.setEnabled(False)
+
+        self.rawRegexButton = QPushButton('Regex')
+        self.rawRegexButton.setCheckable(True)
+        self.rawRegexButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.rawRegexButton.setToolTip('Interpret text tokens as regular expressions (case-insensitive)')
+        self.rawRegexButton.setEnabled(False)
+
+        self.rawColumnLabel = QLabel('Column:')
+        self.rawColumnComboBox = QComboBox()
+        self.rawColumnComboBox.addItem('All columns')
+        self.rawColumnComboBox.setMinimumWidth(130)
+        self.rawColumnComboBox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.rawColumnComboBox.setEnabled(False)
+
+        self.exportCsvButton = QPushButton('Export CSV')
+        self.exportCsvButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.exportCsvButton.setToolTip('Export currently filtered rows to CSV')
+        self.exportCsvButton.setEnabled(False)
+
+        controlsRow.addWidget(self.rawSearchEdit, 1)
+        controlsRow.addWidget(self.rawRegexButton)
+        controlsRow.addWidget(self.rawColumnLabel)
+        controlsRow.addWidget(self.rawColumnComboBox)
+        controlsRow.addWidget(self.exportCsvButton)
+
         self.tableInfoLabel = QLabel('No data loaded')
         self.tableInfoLabel.setStyleSheet('color: #9da0a8;')
 
         self.tableModel = PandasTableModel()
+        self.tableProxyModel = RawDataFilterProxyModel(self)
+        self.tableProxyModel.setSourceModel(self.tableModel)
+
         self.tableView = QTableView()
-        self.tableView.setModel(self.tableModel)
+        self.tableView.setModel(self.tableProxyModel)
         self.tableView.setAlternatingRowColors(True)
-        self.tableView.setSortingEnabled(False)
+        self.tableView.setSortingEnabled(True)
         self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.tableView.verticalHeader().setDefaultSectionSize(24)
 
+        layout.addLayout(controlsRow)
         layout.addWidget(self.tableInfoLabel)
         layout.addWidget(self.tableView, 1)
         return tab
@@ -157,6 +210,11 @@ class WorkspacePanel(QWidget):
         self.valuesInLimitsButton.toggled.connect(self._emitOptionsChanged)
         self.logScaleButton.toggled.connect(self._emitOptionsChanged)
         self.copyPlotButton.clicked.connect(self._onCopyPlotClicked)
+
+        self.rawSearchEdit.textChanged.connect(lambda _: self._rawFilterTimer.start())
+        self.rawRegexButton.toggled.connect(self._applyRawDataFilter)
+        self.rawColumnComboBox.currentIndexChanged.connect(self._applyRawDataFilter)
+        self.exportCsvButton.clicked.connect(self._onExportCsvClicked)
 
     def _onPlotTypeChanged(self, *_):
         self._updateControlStates()
@@ -178,6 +236,73 @@ class WorkspacePanel(QWidget):
             ))
 
         self.plotView.copyPlotToClipboard(onDone)
+
+    def _applyRawDataFilter(self, *_):
+        query = self.rawSearchEdit.text()
+        columnIdx = self.rawColumnComboBox.currentIndex() - 1
+        regexEnabled = self.rawRegexButton.isChecked()
+
+        self.tableProxyModel.setFilterQuery(query, columnIdx, regexEnabled=regexEnabled)
+
+        if self.tableProxyModel.hasRegexError:
+            self.rawSearchEdit.setStyleSheet('border: 1px solid #d9534f;')
+        else:
+            self.rawSearchEdit.setStyleSheet('')
+
+        self._updateRawTableInfo()
+
+    def _updateRawTableInfo(self):
+        totalRows = self.tableModel.rowCount()
+        visibleRows = self.tableProxyModel.rowCount()
+
+        if not self._currentRawTestName or totalRows == 0:
+            self.tableInfoLabel.setText('No data loaded')
+            self.exportCsvButton.setEnabled(False)
+            return
+
+        if visibleRows == totalRows:
+            self.tableInfoLabel.setText(f'Test: {self._currentRawTestName}  |  Rows: {totalRows:,}')
+        else:
+            self.tableInfoLabel.setText(f'Test: {self._currentRawTestName}  |  Showing: {visibleRows:,} / {totalRows:,} rows')
+
+        self.exportCsvButton.setEnabled(visibleRows > 0)
+
+    def _onExportCsvClicked(self):
+        exportDf = self.tableProxyModel.getFilteredDataFrame()
+        if exportDf.empty:
+            return
+
+        safeName = re.sub(r'[\\/:*?"<>|\s]+', '_', self._currentRawTestName).strip('_') or 'raw_data'
+        defaultFileName = f'{safeName}.csv'
+
+        filePath, _ = QFileDialog.getSaveFileName(
+            self,
+            'Export filtered rows to CSV',
+            defaultFileName,
+            'CSV Files (*.csv);;All Files (*)',
+        )
+        if not filePath:
+            return
+
+        if not filePath.lower().endswith('.csv'):
+            filePath += '.csv'
+
+        try:
+            exportDf.to_csv(filePath, index=False, encoding='utf-8-sig')
+        except OSError as exc:
+            QMessageBox.critical(self, 'Export Error', f'Could not save CSV file:\n{exc}')
+            return
+
+        origText = self.exportCsvButton.text()
+        self.exportCsvButton.setText('Exported!')
+        self.exportCsvButton.setEnabled(False)
+        QTimer.singleShot(1200, lambda: (
+            self.exportCsvButton.setText(origText),
+            self.exportCsvButton.setEnabled(self.tableProxyModel.rowCount() > 0),
+        ))
+        self.statusMessageRequested.emit(
+            f'Exported {len(exportDf):,} rows to {os.path.basename(filePath)}'
+        )
 
     def _updateControlStates(self):
         if not self._controlsEnabled:
@@ -251,8 +376,24 @@ class WorkspacePanel(QWidget):
         self.siteComboBox.blockSignals(False)
 
     def setRawDataFrame(self, testName: str, df: pd.DataFrame):
+        self._currentRawTestName = testName
         self.tableModel.setDataFrame(df)
-        self.tableInfoLabel.setText(f'Test: {testName}  |  Rows: {len(df):,}')
+
+        previousColumn = self.rawColumnComboBox.currentText()
+        self.rawColumnComboBox.blockSignals(True)
+        self.rawColumnComboBox.clear()
+        self.rawColumnComboBox.addItem('All columns')
+        self.rawColumnComboBox.addItems(self.tableModel.getColumnNames())
+        idx = self.rawColumnComboBox.findText(previousColumn)
+        self.rawColumnComboBox.setCurrentIndex(idx if idx >= 0 else 0)
+        self.rawColumnComboBox.blockSignals(False)
+
+        hasRows = not df.empty
+        self.rawSearchEdit.setEnabled(hasRows)
+        self.rawRegexButton.setEnabled(hasRows)
+        self.rawColumnComboBox.setEnabled(hasRows)
+
+        self._applyRawDataFilter()
 
     def setPlotControlsEnabled(self, enabled: bool, isCxCy: bool = False):
         self._controlsEnabled = enabled
@@ -271,8 +412,31 @@ class WorkspacePanel(QWidget):
         }
 
     def clear(self):
+        self._currentRawTestName = ''
+        self._rawFilterTimer.stop()
+
+        self.rawSearchEdit.blockSignals(True)
+        self.rawSearchEdit.clear()
+        self.rawSearchEdit.setStyleSheet('')
+        self.rawSearchEdit.setEnabled(False)
+        self.rawSearchEdit.blockSignals(False)
+
+        self.rawRegexButton.blockSignals(True)
+        self.rawRegexButton.setChecked(False)
+        self.rawRegexButton.setEnabled(False)
+        self.rawRegexButton.blockSignals(False)
+
+        self.rawColumnComboBox.blockSignals(True)
+        self.rawColumnComboBox.clear()
+        self.rawColumnComboBox.addItem('All columns')
+        self.rawColumnComboBox.setEnabled(False)
+        self.rawColumnComboBox.blockSignals(False)
+
+        self.tableProxyModel.clearFilter()
         self.tableModel.clear()
         self.tableInfoLabel.setText('No data loaded')
+        self.exportCsvButton.setEnabled(False)
+
         self.updateSites([])
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
