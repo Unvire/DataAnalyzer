@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from PySide6.QtCore import QCoreApplication, Qt
 
-from src.ui.widgets.dataTableModel import PandasTableModel, RawDataFilterProxyModel
+from src.ui.widgets.dataTableModel import PandasTableModel
 
 
 @pytest.fixture(scope='module')
@@ -32,47 +32,37 @@ def sampleRawDf():
 
 def test_filterAcrossAllColumnsAndMultiToken(qtCoreApp, sampleRawDf):
     model = PandasTableModel(sampleRawDf)
-    proxy = RawDataFilterProxyModel()
-    proxy.setSourceModel(model)
 
-    proxy.setFilterQuery('alpha')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_001', 'SN_ALPHA_003']
+    model.setFilterQuery('alpha')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_001', 'SN_ALPHA_003']
 
-    proxy.setFilterQuery('alpha 2025/01/02')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_003']
+    model.setFilterQuery('alpha 2025/01/02')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_003']
 
 
 def test_regexFilteringAndInvalidRegexHandling(qtCoreApp, sampleRawDf):
     model = PandasTableModel(sampleRawDf)
-    proxy = RawDataFilterProxyModel()
-    proxy.setSourceModel(model)
 
-    proxy.setFilterQuery(r'^SN_(ALPHA|GAMMA)_00[14]$', regexEnabled=True)
-    assert not proxy.hasRegexError
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_001', 'SN_GAMMA_004']
+    model.setFilterQuery(r'^SN_(ALPHA|GAMMA)_00[14]$', regexEnabled=True)
+    assert not model.hasRegexError
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_001', 'SN_GAMMA_004']
 
-    # Invalid regex sets error flag without crashing
-    proxy.setFilterQuery(r'[unclosed', regexEnabled=True)
-    assert proxy.hasRegexError
+    model.setFilterQuery(r'[unclosed', regexEnabled=True)
+    assert model.hasRegexError
 
 
 def test_numericComparisonRangeAndSiSuffix(qtCoreApp, sampleRawDf):
     model = PandasTableModel(sampleRawDf)
-    proxy = RawDataFilterProxyModel()
-    proxy.setSourceModel(model)
 
-    # Default numeric comparison checks Value (does NOT falsely match USL=5.2)
-    proxy.setFilterQuery('>5.1')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_BETA_002']
+    model.setFilterQuery('>5.1')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_BETA_002']
 
-    proxy.setFilterQuery('4.9..5.1')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_001', 'SN_ALPHA_003']
+    model.setFilterQuery('4.9..5.1')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_001', 'SN_ALPHA_003']
 
-    # Column prefix override
-    proxy.setFilterQuery('site>=2')
-    assert proxy.getFilteredDataFrame()['Site'].tolist() == ['2', '10']
+    model.setFilterQuery('site>=2')
+    assert model.getFilteredDataFrame()['Site'].tolist() == ['2', '10']
 
-    # SI units
     capDf = pd.DataFrame({
         'Site': ['1', '1', '1'],
         'Value': [30e-9, 33e-9, 40e-9],
@@ -82,46 +72,43 @@ def test_numericComparisonRangeAndSiSuffix(qtCoreApp, sampleRawDf):
         'SerialNumber': ['C1', 'C2', 'C3'],
     })
     model.setDataFrame(capDf)
-    proxy.setFilterQuery('31n..35n')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['C2']
+    model.setFilterQuery('31n..35n')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['C2']
 
 
 def test_dateComparisonAndRange(qtCoreApp, sampleRawDf):
     model = PandasTableModel(sampleRawDf)
-    proxy = RawDataFilterProxyModel()
-    proxy.setSourceModel(model)
 
-    proxy.setFilterQuery('>2025-01-01')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == [
+    model.setFilterQuery('>2025-01-01')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == [
         'SN_BETA_002', 'SN_ALPHA_003', 'SN_GAMMA_004'
     ]
 
-    proxy.setFilterQuery('2025/01/02..2025/01/02')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_BETA_002', 'SN_ALPHA_003']
+    model.setFilterQuery('2025/01/02..2025/01/02')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_BETA_002', 'SN_ALPHA_003']
 
-    proxy.setFilterQuery('>="2025/01/02 11:45" <="2025/01/03 09:00"')
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_003', 'SN_GAMMA_004']
+    model.setFilterQuery('>="2025/01/02 11:45" <="2025/01/03 09:00"')
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_003', 'SN_GAMMA_004']
 
 
 def test_combinedRegexNumericAndDateQuery(qtCoreApp, sampleRawDf):
     model = PandasTableModel(sampleRawDf)
-    proxy = RawDataFilterProxyModel()
-    proxy.setSourceModel(model)
 
-    proxy.setFilterQuery(r'^SN_ALPHA_\d{3}$ >5.0 2025/01/02..2025/01/03', regexEnabled=True)
-    assert proxy.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_003']
+    model.setFilterQuery(r'^SN_ALPHA_\d{3}$ >5.0 2025/01/02..2025/01/03', regexEnabled=True)
+    assert model.getFilteredDataFrame()['SerialNumber'].tolist() == ['SN_ALPHA_003']
 
 
 def test_numericSortingAndFilteredCsvExport(qtCoreApp, sampleRawDf, tmp_path):
     model = PandasTableModel(sampleRawDf)
-    proxy = RawDataFilterProxyModel()
-    proxy.setSourceModel(model)
 
-    proxy.sort(0, Qt.SortOrder.AscendingOrder)
-    assert proxy.getFilteredDataFrame()['Site'].tolist() == ['1', '1', '2', '10']
+    model.sort(0, Qt.SortOrder.AscendingOrder)
+    assert model.getFilteredDataFrame()['Site'].tolist() == ['1', '1', '2', '10']
 
-    proxy.setFilterQuery('<5.0')
-    filteredDf = proxy.getFilteredDataFrame()
+    model.sort(1, Qt.SortOrder.DescendingOrder)
+    assert model.getFilteredDataFrame()['Value'].tolist() == pytest.approx([12.5, 5.05, 4.95, 3.123456789])
+
+    model.setFilterQuery('<5.0')
+    filteredDf = model.getFilteredDataFrame()
     csvPath = tmp_path / 'filtered.csv'
     filteredDf.to_csv(csvPath, index=False, encoding='utf-8-sig')
 

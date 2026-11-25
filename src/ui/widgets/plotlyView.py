@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import tempfile
 from typing import Callable
@@ -18,8 +19,11 @@ class PlotlyView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._htmlPath = os.path.join(self._CACHE_DIR, f'chart_{id(self)}.html')
-        self._renderCounter = 0
+        self._shellReady = False
+        self._pendingFigureJson: str | None = None
+        self._pendingMessage: str | None = 'Load logs in order to display plot.'
         self._ensurePlotlyJsCached()
+        self._writeShellHtml()
         self._buildUi()
 
     def _buildUi(self):
@@ -28,8 +32,10 @@ class PlotlyView(QWidget):
 
         self.webView = QWebEngineView(self)
         self.webView.page().setBackgroundColor(QColor('#1e1f22'))
+        self.webView.loadFinished.connect(self._onShellLoaded)
         layout.addWidget(self.webView)
-        self.showMessage('Load logs in order to display plot.')
+
+        self.webView.load(QUrl.fromLocalFile(self._htmlPath))
 
     @classmethod
     def _ensurePlotlyJsCached(cls):
@@ -39,14 +45,7 @@ class PlotlyView(QWidget):
             with open(jsPath, 'w', encoding='utf-8') as f:
                 f.write(get_plotlyjs())
 
-    def setFigure(self, fig: go.Figure):
-        config = {
-            'responsive': True,
-            'displaylogo': False,
-            'modeBarButtonsToRemove': ['lasso2d', 'select2d'],
-        }
-        plotDiv = fig.to_html(full_html=False, include_plotlyjs=False, config=config)
-
+    def _writeShellHtml(self):
         htmlContent = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -62,11 +61,21 @@ class PlotlyView(QWidget):
             overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }}
-        .plotly-graph-div {{
-            width: 100% !important;
-            height: 100vh !important;
+        #plotly-container {{
+            width: 100%;
+            height: 100vh;
+            display: none;
         }}
-
+        #message-overlay {{
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9da0a8;
+            font-size: 15px;
+            text-align: center;
+        }}
         #point-card {{
             display: none;
             position: absolute;
@@ -83,7 +92,6 @@ class PlotlyView(QWidget):
             -webkit-user-select: text !important;
             cursor: default;
         }}
-
         #point-card-header {{
             display: flex;
             justify-content: space-between;
@@ -94,7 +102,6 @@ class PlotlyView(QWidget):
             font-weight: 600;
             color: #3574f0;
         }}
-
         #point-card-close {{
             background: none;
             border: none;
@@ -104,23 +111,19 @@ class PlotlyView(QWidget):
             padding: 0 4px;
             line-height: 1;
         }}
-
         #point-card-close:hover {{
             color: #ffffff;
         }}
-
         .info-row {{
             display: flex;
             justify-content: space-between;
             margin: 4px 0;
             line-height: 1.4;
         }}
-
         .info-key {{
             color: #9da0a8;
             font-weight: 500;
         }}
-
         .info-val {{
             color: #dfe1e5;
             font-family: 'Consolas', monospace;
@@ -128,7 +131,6 @@ class PlotlyView(QWidget):
             user-select: text !important;
             -webkit-user-select: text !important;
         }}
-
         .sn-highlight {{
             color: #ffffff;
             background: #1e1f22;
@@ -137,7 +139,6 @@ class PlotlyView(QWidget):
             border: 1px solid #35373c;
             font-weight: bold;
         }}
-
         #point-card-actions {{
             display: flex;
             gap: 6px;
@@ -145,7 +146,6 @@ class PlotlyView(QWidget):
             padding-top: 8px;
             border-top: 1px solid #35373c;
         }}
-
         .card-btn {{
             flex: 1;
             background-color: #2b2d30;
@@ -157,25 +157,23 @@ class PlotlyView(QWidget):
             cursor: pointer;
             text-align: center;
         }}
-
         .card-btn:hover {{
             background-color: #393b40;
             border-color: #5a5d64;
         }}
-
         .card-btn-accent {{
             background-color: #3574f0;
             border-color: #3574f0;
             color: #ffffff;
         }}
-
         .card-btn-accent:hover {{
             background-color: #4682f5;
         }}
     </style>
 </head>
 <body>
-    {plotDiv}
+    <div id="message-overlay">Load logs in order to display plot.</div>
+    <div id="plotly-container"></div>
 
     <div id="point-card">
         <div id="point-card-header">
@@ -191,13 +189,22 @@ class PlotlyView(QWidget):
 
     <script>
         (function() {{
+            var plotDiv = document.getElementById('plotly-container');
+            var msgOverlay = document.getElementById('message-overlay');
             var card = document.getElementById('point-card');
             var cardBody = document.getElementById('point-card-body');
             var closeBtn = document.getElementById('point-card-close');
             var copySnBtn = document.getElementById('btn-copy-sn');
             var copyAllBtn = document.getElementById('btn-copy-all');
 
+            var plotConfig = {{
+                responsive: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+            }};
+
             var currentPointData = {{}};
+            var clickBound = false;
 
             function copyTextToClipboard(text) {{
                 if (navigator.clipboard && window.isSecureContext) {{
@@ -217,9 +224,7 @@ class PlotlyView(QWidget):
                 document.body.appendChild(textArea);
                 textArea.focus();
                 textArea.select();
-                try {{
-                    document.execCommand('copy');
-                }} catch (err) {{}}
+                try {{ document.execCommand('copy'); }} catch (err) {{}}
                 document.body.removeChild(textArea);
             }}
 
@@ -251,8 +256,9 @@ class PlotlyView(QWidget):
                 setTimeout(function() {{ copyAllBtn.innerText = origText; }}, 1200);
             }});
 
-            var plotDiv = document.getElementsByClassName('plotly-graph-div')[0];
-            if (plotDiv) {{
+            function bindPlotClick() {{
+                if (clickBound || !plotDiv || typeof plotDiv.on !== 'function') return;
+                clickBound = true;
                 plotDiv.on('plotly_click', function(data) {{
                     if (!data || !data.points || data.points.length === 0) return;
                     var pt = data.points[0];
@@ -263,18 +269,25 @@ class PlotlyView(QWidget):
                     var date = '—';
                     var lsl = '—';
                     var usl = '—';
+                    var realVal = pt.y;
+                    var siteName = (pt.data && pt.data.name) ? pt.data.name.split(' (')[0] : '—';
 
                     if (pt.customdata && pt.customdata.length > 0) {{
                         sn = pt.customdata[0] || '—';
                         date = pt.customdata[1] || '—';
-                        if (pt.customdata.length >= 4) {{
+                        if (pt.customdata.length >= 5) {{
                             lsl = pt.customdata[2];
                             usl = pt.customdata[3];
+                            realVal = pt.customdata[4];
+                            if (pt.customdata.length >= 6 && pt.customdata[5] !== undefined) {{
+                                siteName = 'Site ' + pt.customdata[5];
+                            }}
+                        }} else if (pt.customdata.length === 3) {{
+                            siteName = 'Site ' + pt.customdata[2];
                         }}
                     }}
 
-                    var valFormatted = (typeof pt.y === 'number') ? pt.y.toPrecision(6) : pt.y;
-                    var siteName = (pt.data && pt.data.name) ? pt.data.name.split(' (')[0] : '—';
+                    var valFormatted = (typeof realVal === 'number') ? realVal.toPrecision(6) : realVal;
 
                     currentPointData = {{
                         sn: sn,
@@ -285,7 +298,7 @@ class PlotlyView(QWidget):
                         usl: usl
                     }};
 
-                    cardBody.innerHTML = 
+                    cardBody.innerHTML =
                         '<div class="info-row"><span class="info-key">Serial Number:</span><span class="info-val sn-highlight">' + sn + '</span></div>' +
                         '<div class="info-row"><span class="info-key">Site:</span><span class="info-val">' + siteName + '</span></div>' +
                         '<div class="info-row"><span class="info-key">Value:</span><span class="info-val">' + valFormatted + '</span></div>' +
@@ -307,6 +320,35 @@ class PlotlyView(QWidget):
                     card.style.display = 'block';
                 }});
             }}
+
+            window.renderPlot = function(figObj) {{
+                card.style.display = 'none';
+                msgOverlay.style.display = 'none';
+                plotDiv.style.display = 'block';
+
+                Plotly.react(plotDiv, figObj.data || [], figObj.layout || {{}}, plotConfig)
+                    .then(function() {{
+                        bindPlotClick();
+                        Plotly.Plots.resize(plotDiv);
+                    }});
+            }};
+
+            window.showMessage = function(msg) {{
+                card.style.display = 'none';
+                if (typeof Plotly !== 'undefined') {{
+                    try {{ Plotly.purge(plotDiv); }} catch (e) {{}}
+                    clickBound = false;
+                }}
+                plotDiv.style.display = 'none';
+                msgOverlay.textContent = msg;
+                msgOverlay.style.display = 'flex';
+            }};
+
+            window.addEventListener('resize', function() {{
+                if (plotDiv.style.display !== 'none' && typeof Plotly !== 'undefined') {{
+                    Plotly.Plots.resize(plotDiv);
+                }}
+            }});
         }})();
     </script>
 </body>
@@ -315,16 +357,40 @@ class PlotlyView(QWidget):
         with open(self._htmlPath, 'w', encoding='utf-8') as f:
             f.write(htmlContent)
 
-        self._renderCounter += 1
-        url = QUrl.fromLocalFile(self._htmlPath)
-        url.setQuery(f'v={self._renderCounter}')
-        self.webView.load(url)
+    def _onShellLoaded(self, ok: bool):
+        if not ok:
+            return
+        self._shellReady = True
+        if self._pendingFigureJson is not None:
+            figJson = self._pendingFigureJson
+            self._pendingFigureJson = None
+            self._pendingMessage = None
+            self._runRenderPlot(figJson)
+        elif self._pendingMessage is not None:
+            msg = self._pendingMessage
+            self._pendingMessage = None
+            self._runShowMessage(msg)
 
-    def copyPlotToClipboard(self, onDone:Callable[[bool], None]|None=None):
+    def _runRenderPlot(self, figJson: str):
+        safeJson = figJson.replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
+        self.webView.page().runJavaScript(f'window.renderPlot({safeJson});')
+
+    def _runShowMessage(self, message: str):
+        self.webView.page().runJavaScript(f'window.showMessage({json.dumps(message)});')
+
+    def setFigure(self, fig: go.Figure):
+        figJson = fig.to_json()
+        if not self._shellReady:
+            self._pendingFigureJson = figJson
+            self._pendingMessage = None
+            return
+        self._runRenderPlot(figJson)
+
+    def copyPlotToClipboard(self, onDone: Callable[[bool], None] | None = None):
         jsScript = """
         (function() {
-            var gd = document.getElementsByClassName('plotly-graph-div')[0];
-            if (!gd || typeof Plotly === 'undefined') return null;
+            var gd = document.getElementById('plotly-container');
+            if (!gd || gd.style.display === 'none' || typeof Plotly === 'undefined') return null;
             return Plotly.toImage(gd, {format: 'png', width: 1920, height: 1080});
         })();
         """
@@ -354,14 +420,11 @@ class PlotlyView(QWidget):
         self.webView.page().runJavaScript(jsScript, handleResult)
 
     def showMessage(self, message: str):
-        htmlContent = f"""<!DOCTYPE html>
-<html>
-<body style="background:#1e1f22; color:#9da0a8; font-family:'Segoe UI', sans-serif;
-             display:flex; align-items:center; justify-content:center; height:92vh; margin:0;">
-    <div style="text-align:center; font-size:15px;">{message}</div>
-</body>
-</html>"""
-        self.webView.setHtml(htmlContent)
+        if not self._shellReady:
+            self._pendingMessage = message
+            self._pendingFigureJson = None
+            return
+        self._runShowMessage(message)
 
     def cleanup(self):
         if os.path.exists(self._htmlPath):

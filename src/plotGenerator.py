@@ -117,7 +117,6 @@ class PlotlyChartGenerator:
     ) -> go.Figure:
 
         fig = go.Figure()
-        sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
         rawValues = df['Value'].to_numpy(dtype=float)
         finiteVals = rawValues[np.isfinite(rawValues)]
@@ -149,20 +148,24 @@ class PlotlyChartGenerator:
                 useSymlog = True
                 linthresh = calculateLinthresh(combined)
 
-        hasSnMatches = bool(highlightSn) and bool(np.any(self.getSerialMatchMask(df, highlightSn)))
+        snMaskAll = self.getSerialMatchMask(df, highlightSn) if highlightSn else np.zeros(len(df), dtype=bool)
+        hasSnMatches = bool(np.any(snMaskAll))
         pointOpacity = 0.30 if hasSnMatches else 0.85
 
         offset = 0
         maxX = 0
-        allPlotY: list[float] = []
+        minPlotY = float('inf')
+        maxPlotY = float('-inf')
         siteLimitsData: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
 
-        matchedX: list[int] = []
-        matchedY: list[float] = []
+        matchedX: list[np.ndarray] = []
+        matchedY: list[np.ndarray] = []
         matchedCustomData: list[np.ndarray] = []
 
-        for idx, site in enumerate(sortedSites):
-            siteDf = df[df['Site'].astype(str) == site].sort_values(by='TestDate', kind='mergesort')
+        siteGroups = df.groupby(df['Site'].astype(str), sort=True)
+
+        for idx, (site, siteDfRaw) in enumerate(siteGroups):
+            siteDf = siteDfRaw.sort_values(by='TestDate', kind='mergesort')
             n = len(siteDf)
             if n == 0:
                 continue
@@ -181,10 +184,13 @@ class PlotlyChartGenerator:
             siteUsl = siteDf['USL'].to_numpy(dtype=float) * scaleFactor
 
             yPlot = symlogTransform(siteVals, linthresh) if useSymlog else siteVals
-            allPlotY.extend(yPlot.tolist())
+            finiteY = yPlot[np.isfinite(yPlot)]
+            if finiteY.size > 0:
+                minPlotY = min(minPlotY, float(np.min(finiteY)))
+                maxPlotY = max(maxPlotY, float(np.max(finiteY)))
 
-            customLsl = [f'{v:.4g}' if hasValidLsl else 'None' for v in siteLsl]
-            customUsl = [f'{v:.4g}' if hasValidUsl else 'None' for v in siteUsl]
+            customLsl = self._formatLimitArray(siteLsl, hasValidLsl)
+            customUsl = self._formatLimitArray(siteUsl, hasValidUsl)
 
             customData = np.column_stack((
                 siteDf['SerialNumber'].astype(str).to_numpy(),
@@ -218,8 +224,8 @@ class PlotlyChartGenerator:
                 siteSnMask = self.getSerialMatchMask(siteDf, highlightSn)
                 if np.any(siteSnMask):
                     matchedCount = int(np.sum(siteSnMask))
-                    matchedX.extend(xVals[siteSnMask].tolist())
-                    matchedY.extend(yPlot[siteSnMask].tolist())
+                    matchedX.append(xVals[siteSnMask])
+                    matchedY.append(yPlot[siteSnMask])
                     siteCol = np.full((matchedCount, 1), site, dtype=object)
                     matchedCustomData.append(np.hstack((customData[siteSnMask], siteCol)))
 
@@ -260,12 +266,14 @@ class PlotlyChartGenerator:
                     )
 
         if matchedX:
+            allMatchedX = np.concatenate(matchedX)
+            allMatchedY = np.concatenate(matchedY)
             fig.add_trace(
                 go.Scatter(
-                    x=matchedX,
-                    y=matchedY,
+                    x=allMatchedX,
+                    y=allMatchedY,
                     mode='markers',
-                    name=f'SN: {highlightSn} ({len(matchedX):,})',
+                    name=f'SN: {highlightSn} ({len(allMatchedX):,})',
                     marker=dict(
                         size=10,
                         symbol='diamond',
@@ -322,7 +330,7 @@ class PlotlyChartGenerator:
 
         fig.update_xaxes(range=[-max(1, maxX * 0.01), maxX + max(1, maxX * 0.01)])
 
-        if useSymlog and allPlotY:
+        if useSymlog and np.isfinite(minPlotY):
             minValReal = float(np.nanmin(scaledValuesAll))
             maxValReal = float(np.nanmax(scaledValuesAll))
             if hasValidLsl:
@@ -344,9 +352,15 @@ class PlotlyChartGenerator:
             )
 
         if valuesInLimits and (hasValidLsl or hasValidUsl):
-            lowBound = lslLine if hasValidLsl else float(np.nanmin(allPlotY))
-            highBound = uslLine if hasValidUsl else float(np.nanmax(allPlotY))
-            self._applyAxisLimitsPadding(fig, axis='y', low=lowBound, high=highBound, logScale=(logScale and not useSymlog))
+            lowBound = lslLine if hasValidLsl else minPlotY
+            highBound = uslLine if hasValidUsl else maxPlotY
+            self._applyAxisLimitsPadding(
+                fig,
+                axis='y',
+                low=lowBound,
+                high=highBound,
+                logScale=(logScale and not useSymlog),
+            )
 
         return fig
 
@@ -971,3 +985,17 @@ class PlotlyChartGenerator:
         saturation = 0.75 if step % 2 == 0 else 0.88
         r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
         return f'#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}'
+
+    @staticmethod
+    def _formatLimitArray(arr: np.ndarray, isValid: bool) -> np.ndarray:
+        n = len(arr)
+        if not isValid or n == 0:
+            return np.full(n, 'None', dtype=object)
+
+        first = arr[0]
+        if np.isfinite(first) and np.all(arr == first):
+            return np.full(n, f'{float(first):.4g}', dtype=object)
+
+        uniqueVals = np.unique(arr[np.isfinite(arr)])
+        mapping = {float(v): f'{float(v):.4g}' for v in uniqueVals}
+        return np.array([mapping.get(float(v), 'None') if np.isfinite(v) else 'None' for v in arr], dtype=object)
