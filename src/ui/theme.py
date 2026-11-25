@@ -140,7 +140,7 @@ QComboBox QAbstractItemView {
     outline: 0;
 }
 
-QListWidget, QTableView {
+QListWidget, QTableView, QTreeView {
     background-color: #26282e;
     border: 1px solid #393b40;
     border-radius: 6px;
@@ -149,16 +149,15 @@ QListWidget, QTableView {
     outline: 0;
 }
 
-QListWidget::item {
-    padding: 5px 8px;
-    border-radius: 4px;
+QListWidget::item, QTreeView::item {
+    padding: 4px 6px;
 }
 
-QListWidget::item:hover {
+QListWidget::item:hover, QTreeView::item:hover {
     background-color: #32353d;
 }
 
-QListWidget::item:selected {
+QListWidget::item:selected, QTreeView::item:selected {
     background-color: #2e436e;
     color: #ffffff;
 }

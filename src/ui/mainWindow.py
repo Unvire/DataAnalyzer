@@ -1,12 +1,13 @@
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFileDialog, QLabel, QMainWindow, QMessageBox, QProgressBar, QSplitter
+from PySide6.QtWidgets import QLabel, QMainWindow, QMessageBox, QProgressBar, QSplitter
 
 from src.measurementEngine import MeasurementEngine
 from src.plotGenerator import PlotlyChartGenerator
+from src.siFormatter import shouldAutoLogScale
+from src.ui.widgets.folderBrowserDialog import FolderBrowserDialog
 from src.ui.widgets.sidebarPanel import SidebarPanel
 from src.ui.widgets.workspacePanel import WorkspacePanel
 from src.ui.workers import LogLoaderWorker
-from src.siFormatter import shouldAutoLogScale
 
 
 class DataAnalyzerWindow(QMainWindow):
@@ -22,6 +23,7 @@ class DataAnalyzerWindow(QMainWindow):
         self._isSearchInSubfolders = True
         self._selectedTestName = ''
         self._loaderWorker: LogLoaderWorker | None = None
+        self._lastFolderPath = ''
 
         self._buildUi()
         self._bindEvents()
@@ -69,15 +71,24 @@ class DataAnalyzerWindow(QMainWindow):
         self._isSearchInSubfolders = checked
 
     def _onOpenFolder(self):
-        folderPath = QFileDialog.getExistingDirectory(
-            self,
-            'Select logs folder',
-            '',
-            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontUseNativeDialog,
+        extensions = self.engine.processorClass.FILE_EXTENSIONS if self.engine.processorClass else []
+        dialogTitle = (
+            f'Select logs folder — {self._selectedProcessorType}'
+            if self._selectedProcessorType
+            else 'Select logs folder'
+        )
+
+        folderPath = FolderBrowserDialog.getExistingDirectory(
+            parent=self,
+            title=dialogTitle,
+            initialDir=self._lastFolderPath,
+            extensions=extensions,
+            includeSubfoldersHint=self._isSearchInSubfolders,
         )
         if not folderPath:
             return
 
+        self._lastFolderPath = folderPath
         isAppend = self._loadedProcessorType == self._selectedProcessorType and bool(self.engine.getMeasurements())
         self._startLoadingLogs(folderPath, isAppend)
 
