@@ -535,6 +535,8 @@ class WorkspacePanel(QWidget):
         self.tableInfoLabel.setText('No data loaded')
         self.exportCsvButton.setEnabled(False)
 
+        self.yieldParetoTab.clear()
+
         self.updateSites([])
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
