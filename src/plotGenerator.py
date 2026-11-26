@@ -21,7 +21,7 @@ class PlotlyChartGenerator:
     LSL_COLOR = '#ef5350'
     USL_COLOR = '#ffa726'
     MEAN_COLOR = '#66bb6a'
-    HIGHLIGHT_SN_COLOR = '#ffd600'
+    HIGHLIGHT_SN_COLOR = '#ffe600'
 
     SITE_PALETTE = [
         '#4c8dff',
@@ -46,6 +46,75 @@ class PlotlyChartGenerator:
         pattern = '|'.join(re.escape(token) for token in tokens)
         series = df['SerialNumber'].astype(str)
         return series.str.contains(pattern, case=False, regex=True, na=False).to_numpy(dtype=bool)
+
+    @staticmethod
+    def _formatLimitArray(arr: np.ndarray, isValid: bool) -> np.ndarray:
+        n = len(arr)
+        if not isValid or n == 0:
+            return np.full(n, 'None', dtype=object)
+
+        first = arr[0]
+        if np.isfinite(first) and np.all(arr == first):
+            return np.full(n, f'{float(first):.4g}', dtype=object)
+
+        uniqueVals = np.unique(arr[np.isfinite(arr)])
+        mapping = {float(v): f'{float(v):.4g}' for v in uniqueVals}
+        return np.array(
+            [mapping.get(float(v), 'None') if np.isfinite(v) else 'None' for v in arr],
+            dtype=object,
+        )
+
+    def _addSerialHighlightOverlay(
+        self,
+        fig: go.Figure,
+        x,
+        y,
+        highlightSn: str,
+        customData: np.ndarray,
+        hoverTemplate: str,
+        useWebgl: bool,
+    ):
+        traceCls = go.Scattergl if useWebgl else go.Scatter
+        count = len(x)
+        extraKwargs = {} if useWebgl else {'cliponaxis': False}
+
+        # Outer target ring (halo) above background population
+        fig.add_trace(
+            traceCls(
+                x=x,
+                y=y,
+                mode='markers',
+                name='',
+                showlegend=False,
+                hoverinfo='skip',
+                marker=dict(
+                    size=20,
+                    symbol='circle-open',
+                    color=self.HIGHLIGHT_SN_COLOR,
+                    line=dict(color=self.HIGHLIGHT_SN_COLOR, width=2.5),
+                ),
+                **extraKwargs,
+            )
+        )
+
+        # High-contrast diamond with dark outline on the topmost Z-layer
+        fig.add_trace(
+            traceCls(
+                x=x,
+                y=y,
+                mode='markers',
+                name=f'SN: {highlightSn} ({count:,})',
+                marker=dict(
+                    size=12,
+                    symbol='diamond',
+                    color=self.HIGHLIGHT_SN_COLOR,
+                    line=dict(color='#111214', width=2.0),
+                ),
+                customdata=customData,
+                hovertemplate=hoverTemplate,
+                **extraKwargs,
+            )
+        )
 
     def createPlot(
         self,
@@ -150,7 +219,8 @@ class PlotlyChartGenerator:
 
         snMaskAll = self.getSerialMatchMask(df, highlightSn) if highlightSn else np.zeros(len(df), dtype=bool)
         hasSnMatches = bool(np.any(snMaskAll))
-        pointOpacity = 0.30 if hasSnMatches else 0.85
+        pointOpacity = 0.15 if hasSnMatches else 0.85
+        pointSize = 4 if hasSnMatches else 5
 
         offset = 0
         maxX = 0
@@ -206,7 +276,7 @@ class PlotlyChartGenerator:
                     y=yPlot,
                     mode='markers',
                     name=f'Site {site} ({n:,})',
-                    marker=dict(size=5, color=color, opacity=pointOpacity),
+                    marker=dict(size=pointSize, color=color, opacity=pointOpacity),
                     customdata=customData,
                     hovertemplate=(
                         f'<b>Site {site}</b><br>'
@@ -268,29 +338,22 @@ class PlotlyChartGenerator:
         if matchedX:
             allMatchedX = np.concatenate(matchedX)
             allMatchedY = np.concatenate(matchedY)
-            fig.add_trace(
-                go.Scatter(
-                    x=allMatchedX,
-                    y=allMatchedY,
-                    mode='markers',
-                    name=f'SN: {highlightSn} ({len(allMatchedX):,})',
-                    marker=dict(
-                        size=10,
-                        symbol='diamond',
-                        color=self.HIGHLIGHT_SN_COLOR,
-                        line=dict(color='#ffffff', width=1.2),
-                    ),
-                    customdata=np.vstack(matchedCustomData),
-                    hovertemplate=(
-                        '<b>SN: %{customdata[0]}</b><br>'
-                        'Site: %{customdata[5]}<br>'
-                        'Sample: %{x}<br>'
-                        f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
-                        'Date: %{customdata[1]}<br>'
-                        f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
-                        '<extra></extra>'
-                    ),
-                )
+            self._addSerialHighlightOverlay(
+                fig=fig,
+                x=allMatchedX,
+                y=allMatchedY,
+                highlightSn=highlightSn,
+                customData=np.vstack(matchedCustomData),
+                hoverTemplate=(
+                    '<b>SN: %{customdata[0]}</b><br>'
+                    'Site: %{customdata[5]}<br>'
+                    'Sample: %{x}<br>'
+                    f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
+                    'Date: %{customdata[1]}<br>'
+                    f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
+                    '<extra></extra>'
+                ),
+                useWebgl=True,
             )
 
         lslScaled = lslRef * scaleFactor
@@ -374,8 +437,10 @@ class PlotlyChartGenerator:
         highlightSn: str = '',
     ) -> go.Figure:
 
-        validDf = df.dropna(subset=['Value'])
-        values = validDf['Value'].to_numpy(dtype=float)
+        rawVals = df['Value'].to_numpy(dtype=float)
+        finiteMask = np.isfinite(rawVals)
+        validDf = df[finiteMask]
+        values = rawVals[finiteMask]
         if len(values) == 0:
             return self._createEmptyFigure('No numeric values available.')
 
@@ -493,32 +558,55 @@ class PlotlyChartGenerator:
             if np.any(snMask):
                 matchedDf = plotDf[snMask]
                 matchedVals = plotValues[snMask]
+
+                peakY = float(1.0 / (stdOverall * np.sqrt(2.0 * np.pi))) if stdOverall > 0 else 0.0
+                try:
+                    if np.ptp(plotValues) > 0:
+                        nbins = max(1, int(np.ceil(np.ptp(plotValues) / binSize))) if binSize else 10
+                        histDens, _ = np.histogram(plotValues, bins=nbins, density=True)
+                        if histDens.size > 0 and np.all(np.isfinite(histDens)):
+                            peakY = max(peakY, float(np.max(histDens)))
+                except ValueError:
+                    pass
+
+                if peakY > 0.0:
+                    stemX: list[float | None] = []
+                    stemY: list[float | None] = []
+                    for val in matchedVals:
+                        stemX.extend([float(val), float(val), None])
+                        stemY.extend([0.0, peakY * 1.05, None])
+                    fig.add_trace(
+                        go.Scatter(
+                            x=stemX,
+                            y=stemY,
+                            mode='lines',
+                            name='',
+                            showlegend=False,
+                            hoverinfo='skip',
+                            line=dict(color=self.HIGHLIGHT_SN_COLOR, width=1.8, dash='dot'),
+                            opacity=0.85,
+                        )
+                    )
+
                 customData = np.column_stack((
                     matchedDf['SerialNumber'].astype(str).to_numpy(),
                     matchedDf['TestDate'].astype(str).to_numpy(),
                     matchedDf['Site'].astype(str).to_numpy(),
                 ))
-                fig.add_trace(
-                    go.Scatter(
-                        x=matchedVals,
-                        y=np.zeros(len(matchedVals)),
-                        mode='markers',
-                        name=f'SN: {highlightSn} ({len(matchedVals):,})',
-                        marker=dict(
-                            size=11,
-                            symbol='diamond',
-                            color=self.HIGHLIGHT_SN_COLOR,
-                            line=dict(color='#ffffff', width=1.2),
-                        ),
-                        customdata=customData,
-                        hovertemplate=(
-                            '<b>SN: %{customdata[0]}</b><br>'
-                            'Site: %{customdata[2]}<br>'
-                            f'Value: %{{x:.6g}}{unitSuffix}<br>'
-                            'Date: %{customdata[1]}'
-                            '<extra></extra>'
-                        ),
-                    )
+                self._addSerialHighlightOverlay(
+                    fig=fig,
+                    x=matchedVals,
+                    y=np.zeros(len(matchedVals)),
+                    highlightSn=highlightSn,
+                    customData=customData,
+                    hoverTemplate=(
+                        '<b>SN: %{customdata[0]}</b><br>'
+                        'Site: %{customdata[2]}<br>'
+                        f'Value: %{{x:.6g}}{unitSuffix}<br>'
+                        'Date: %{customdata[1]}'
+                        '<extra></extra>'
+                    ),
+                    useWebgl=False,
                 )
 
         fig.add_vline(
@@ -577,7 +665,6 @@ class PlotlyChartGenerator:
     ) -> go.Figure:
 
         fig = go.Figure()
-        sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
         rawValues = df['Value'].to_numpy(dtype=float)
         finiteVals = rawValues[np.isfinite(rawValues)]
@@ -618,8 +705,8 @@ class PlotlyChartGenerator:
         matchedBoxY: list[float] = []
         matchedBoxCustom: list[np.ndarray] = []
 
-        for idx, site in enumerate(sortedSites):
-            siteDf = df[df['Site'].astype(str) == site]
+        siteGroups = df.groupby(df['Site'].astype(str), sort=True)
+        for idx, (site, siteDf) in enumerate(siteGroups):
             color = self._getSiteColor(idx)
             siteLabel = f'Site {site} ({len(siteDf):,})'
             siteVals = siteDf['Value'].to_numpy(dtype=float) * scaleFactor
@@ -630,6 +717,7 @@ class PlotlyChartGenerator:
                     y=yPlot,
                     name=siteLabel,
                     marker_color=color,
+                    opacity=0.45 if hasSnMatches else 1.0,
                     boxmean='sd',
                     boxpoints='outliers',
                 )
@@ -654,28 +742,21 @@ class PlotlyChartGenerator:
                     )))
 
         if matchedBoxX:
-            fig.add_trace(
-                go.Scatter(
-                    x=matchedBoxX,
-                    y=matchedBoxY,
-                    mode='markers',
-                    name=f'SN: {highlightSn} ({len(matchedBoxX):,})',
-                    marker=dict(
-                        size=10,
-                        symbol='diamond',
-                        color=self.HIGHLIGHT_SN_COLOR,
-                        line=dict(color='#ffffff', width=1.2),
-                    ),
-                    customdata=np.vstack(matchedBoxCustom),
-                    hovertemplate=(
-                        '<b>SN: %{customdata[0]}</b><br>'
-                        'Site: %{customdata[5]}<br>'
-                        f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
-                        'Date: %{customdata[1]}<br>'
-                        f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
-                        '<extra></extra>'
-                    ),
-                )
+            self._addSerialHighlightOverlay(
+                fig=fig,
+                x=matchedBoxX,
+                y=matchedBoxY,
+                highlightSn=highlightSn,
+                customData=np.vstack(matchedBoxCustom),
+                hoverTemplate=(
+                    '<b>SN: %{customdata[0]}</b><br>'
+                    'Site: %{customdata[5]}<br>'
+                    f'Value: %{{customdata[4]:.6g}}{unitSuffix}<br>'
+                    'Date: %{customdata[1]}<br>'
+                    f'Limits: [%{{customdata[2]}}{unitSuffix}, %{{customdata[3]}}{unitSuffix}]'
+                    '<extra></extra>'
+                ),
+                useWebgl=False,
             )
 
         if hasValidLsl:
@@ -731,7 +812,13 @@ class PlotlyChartGenerator:
         if valuesInLimits and (hasValidLsl or hasValidUsl):
             lowBound = lslLine if hasValidLsl else float(np.nanmin(scaledValuesAll))
             highBound = uslLine if hasValidUsl else float(np.nanmax(scaledValuesAll))
-            self._applyAxisLimitsPadding(fig, axis='y', low=lowBound, high=highBound, logScale=(logScale and not useSymlog))
+            self._applyAxisLimitsPadding(
+                fig,
+                axis='y',
+                low=lowBound,
+                high=highBound,
+                logScale=(logScale and not useSymlog),
+            )
 
         return fig
 
@@ -745,14 +832,14 @@ class PlotlyChartGenerator:
     ) -> go.Figure:
 
         fig = go.Figure()
-        sortedSites = sorted(df['Site'].astype(str).unique().tolist())
 
         snMaskAll = self.getSerialMatchMask(df, highlightSn) if highlightSn else np.zeros(len(df), dtype=bool)
         hasSnMatches = bool(np.any(snMaskAll))
-        pointOpacity = 0.30 if hasSnMatches else 0.85
+        pointOpacity = 0.15 if hasSnMatches else 0.85
+        pointSize = 5 if hasSnMatches else 6
 
-        for idx, site in enumerate(sortedSites):
-            siteDf = df[df['Site'].astype(str) == site]
+        siteGroups = df.groupby(df['Site'].astype(str), sort=True)
+        for idx, (site, siteDf) in enumerate(siteGroups):
             color = self._getSiteColor(idx)
             customData = np.column_stack((
                 siteDf['SerialNumber'].astype(str).to_numpy(),
@@ -765,7 +852,7 @@ class PlotlyChartGenerator:
                     y=siteDf['CY'].to_numpy(),
                     mode='markers',
                     name=f'Site {site} ({len(siteDf):,})',
-                    marker=dict(size=6, color=color, opacity=pointOpacity),
+                    marker=dict(size=pointSize, color=color, opacity=pointOpacity),
                     customdata=customData,
                     hovertemplate=(
                         f'<b>Site {site}</b><br>'
@@ -830,28 +917,21 @@ class PlotlyChartGenerator:
                 matchedDf['TestDate'].astype(str).to_numpy(),
                 matchedDf['Site'].astype(str).to_numpy(),
             ))
-            fig.add_trace(
-                go.Scatter(
-                    x=matchedDf['CX'].to_numpy(),
-                    y=matchedDf['CY'].to_numpy(),
-                    mode='markers',
-                    name=f'SN: {highlightSn} ({len(matchedDf):,})',
-                    marker=dict(
-                        size=10,
-                        symbol='diamond',
-                        color=self.HIGHLIGHT_SN_COLOR,
-                        line=dict(color='#ffffff', width=1.2),
-                    ),
-                    customdata=matchedCustom,
-                    hovertemplate=(
-                        '<b>SN: %{customdata[0]}</b><br>'
-                        'Site: %{customdata[2]}<br>'
-                        'CX: %{x:.5f}<br>'
-                        'CY: %{y:.5f}<br>'
-                        'Date: %{customdata[1]}'
-                        '<extra></extra>'
-                    ),
-                )
+            self._addSerialHighlightOverlay(
+                fig=fig,
+                x=matchedDf['CX'].to_numpy(),
+                y=matchedDf['CY'].to_numpy(),
+                highlightSn=highlightSn,
+                customData=matchedCustom,
+                hoverTemplate=(
+                    '<b>SN: %{customdata[0]}</b><br>'
+                    'Site: %{customdata[2]}<br>'
+                    'CX: %{x:.5f}<br>'
+                    'CY: %{y:.5f}<br>'
+                    'Date: %{customdata[1]}'
+                    '<extra></extra>'
+                ),
+                useWebgl=True,
             )
 
         self._applyCommonLayout(fig, title=testName, xTitle='CX', yTitle='CY', logScale=False)
@@ -985,17 +1065,3 @@ class PlotlyChartGenerator:
         saturation = 0.75 if step % 2 == 0 else 0.88
         r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
         return f'#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}'
-
-    @staticmethod
-    def _formatLimitArray(arr: np.ndarray, isValid: bool) -> np.ndarray:
-        n = len(arr)
-        if not isValid or n == 0:
-            return np.full(n, 'None', dtype=object)
-
-        first = arr[0]
-        if np.isfinite(first) and np.all(arr == first):
-            return np.full(n, f'{float(first):.4g}', dtype=object)
-
-        uniqueVals = np.unique(arr[np.isfinite(arr)])
-        mapping = {float(v): f'{float(v):.4g}' for v in uniqueVals}
-        return np.array([mapping.get(float(v), 'None') if np.isfinite(v) else 'None' for v in arr], dtype=object)
