@@ -162,3 +162,26 @@ class SidebarPanel(QWidget):
         self.processorComboBox.setCurrentIndex(0)
         self.setAppendMode(False)
         self.setDataControlsEnabled(False)
+
+    def selectTest(self, testName: str) -> bool:
+        if testName not in self._allTestNames:
+            return False
+
+        items = self.testListWidget.findItems(testName, Qt.MatchFlag.MatchExactly)
+        if not items:
+            self._filterTimer.stop()
+            self.regexFilterEdit.blockSignals(True)
+            self.regexFilterEdit.clear()
+            self.regexFilterEdit.setStyleSheet('')
+            self.regexFilterEdit.blockSignals(False)
+            self._populateList(self._allTestNames)
+            items = self.testListWidget.findItems(testName, Qt.MatchFlag.MatchExactly)
+
+        if not items:
+            return False
+
+        self.testListWidget.blockSignals(True)
+        self.testListWidget.setCurrentItem(items[0])
+        self.testListWidget.scrollToItem(items[0])
+        self.testListWidget.blockSignals(False)
+        return True

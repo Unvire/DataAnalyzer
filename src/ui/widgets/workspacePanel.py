@@ -11,12 +11,14 @@ from PySide6.QtWidgets import (
 
 from src.ui.widgets.dataTableModel import PandasTableModel
 from src.ui.widgets.plotlyView import PlotlyView
+from src.ui.widgets.yieldParetoTab import YieldParetoTab
 
 
 class WorkspacePanel(QWidget):
     plotOptionsChanged = Signal()
     openPlotWindowRequested = Signal()
     statusMessageRequested = Signal(str)
+    jumpToTestRequested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -48,8 +50,8 @@ class WorkspacePanel(QWidget):
         self.tabs = QTabWidget()
         self.tabs.tabBar().setExpanding(False)
         self.tabs.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
-        self.tabs.addTab(self._buildPlotsTab(), 'Plots')
-        self.tabs.addTab(self._buildYieldParetoTab(), 'Yield && Pareto')
+        self._plotsTabIndex = self.tabs.addTab(self._buildPlotsTab(), 'Plots')
+        self._yieldTabIndex = self.tabs.addTab(self._buildYieldParetoTab(), 'Yield && Pareto')
         self.tabs.addTab(self._buildPivotTab(), 'Pivot && Multi-Test')
         self._rawTabIndex = self.tabs.addTab(self._buildRawDataTab(), 'Raw data')
 
@@ -154,13 +156,8 @@ class WorkspacePanel(QWidget):
         return tab
 
     def _buildYieldParetoTab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        placeholder = QLabel('Yield & Pareto module will be connected in the next step.')
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet('color: #9da0a8;')
-        layout.addWidget(placeholder)
-        return tab
+        self.yieldParetoTab = YieldParetoTab()
+        return self.yieldParetoTab
 
     def _buildPivotTab(self) -> QWidget:
         tab = QWidget()
@@ -254,9 +251,14 @@ class WorkspacePanel(QWidget):
         self.rawColumnComboBox.currentIndexChanged.connect(self._applyRawDataFilter)
         self.exportCsvButton.clicked.connect(self._onExportCsvClicked)
 
+        self.yieldParetoTab.testActivated.connect(self.jumpToTestRequested.emit)
+        self.yieldParetoTab.statusMessageRequested.connect(self.statusMessageRequested.emit)
+
     def _onTabChanged(self, index: int):
         if index == self._rawTabIndex and self._rawDataDirty:
             self._flushPendingRawData()
+        elif index == self._yieldTabIndex:
+            self.yieldParetoTab.refreshIfNeeded()
 
     def _onPlotTypeChanged(self, *_):
         self._updateControlStates()
@@ -536,3 +538,14 @@ class WorkspacePanel(QWidget):
         self.updateSites([])
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
+
+    def setBatchMeasurements(self, measurements:dict[str, pd.DataFrame]):
+        isYieldActive = self.tabs.currentIndex() == self._yieldTabIndex
+        self.yieldParetoTab.setMeasurements(measurements, isTabActive=isYieldActive)
+
+    def switchToPlotsTab(self):
+        self.tabs.setCurrentIndex(self._plotsTabIndex)
+
+    def cleanup(self):
+        self.plotView.cleanup()
+        self.yieldParetoTab.cleanup()

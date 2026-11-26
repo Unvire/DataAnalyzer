@@ -1,6 +1,7 @@
 from PySide6.QtCore import QThread, Signal
 
 from src.measurementEngine import MeasurementEngine
+from src.yieldParetoAnalyzer import BatchSummaryResult, YieldParetoAnalyzer
 
 
 class LogLoaderWorker(QThread):
@@ -28,5 +29,31 @@ class LogLoaderWorker(QThread):
                 useMultiprocessing=self.useMultiprocessing,
             )
             self.finishedLoading.emit()
+        except Exception as exc:
+            self.errorOccurred.emit(str(exc))
+
+class YieldAnalysisWorker(QThread):
+    finishedAnalysis = Signal(int)
+    errorOccurred = Signal(str)
+
+    def __init__(self, analyzer:YieldParetoAnalyzer, measurements:dict, site:str, limitsMode:str,
+            requestId:int, parent=None):
+
+        super().__init__(parent)
+        self.analyzer = analyzer
+        self.measurements = measurements
+        self.site = site
+        self.limitsMode = limitsMode
+        self.requestId = requestId
+        self.result: BatchSummaryResult | None = None
+
+    def run(self):
+        try:
+            self.result = self.analyzer.analyze(
+                measurements=self.measurements,
+                site=self.site,
+                limitsMode=self.limitsMode,
+            )
+            self.finishedAnalysis.emit(self.requestId)
         except Exception as exc:
             self.errorOccurred.emit(str(exc))

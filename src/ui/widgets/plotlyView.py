@@ -32,12 +32,14 @@ class PlotlyView(QWidget):
     _CACHE_DIR = os.path.join(tempfile.gettempdir(), 'data_analyzer_v2_plotly')
     _PLOTLY_JS_FILENAME = 'plotly.min.js'
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, enablePointCard:bool=True):
         super().__init__(parent)
         self._htmlPath = os.path.join(self._CACHE_DIR, f'chart_{id(self)}.html')
         self._shellReady = False
         self._pendingFigureJson: str | None = None
         self._pendingMessage: str | None = 'Load logs in order to display plot.'
+        self._enablePointCard = enablePointCard
+
         self._ensurePlotlyJsCached()
         self._writeShellHtml()
         self._buildUi()
@@ -228,6 +230,7 @@ class PlotlyView(QWidget):
 
             var currentPointData = {{}};
             var currentLayoutXTitle = '';
+            var enablePointCard = {'true' if self._enablePointCard else 'false'};
 
             // Prevent mouse drags inside popup from panning/zooming the plot underneath
             card.addEventListener('mousedown', function(e) {{ e.stopPropagation(); }});
@@ -282,6 +285,7 @@ class PlotlyView(QWidget):
             }});
 
             function handlePointClick(data) {{
+                if (!enablePointCard || !data || !data.points || data.points.length === 0) return;
                 if (!data || !data.points || data.points.length === 0) return;
                 var pt = data.points[0];
 

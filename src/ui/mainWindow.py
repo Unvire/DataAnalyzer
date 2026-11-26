@@ -63,6 +63,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.sidebar.generateReportRequested.connect(self._onGenerateReport)
         self.workspace.plotOptionsChanged.connect(self._refreshCurrentView)
         self.workspace.statusMessageRequested.connect(self.statusLabel.setText)
+        self.workspace.jumpToTestRequested.connect(self._onJumpToTest)
 
     def _onProcessorChanged(self, processorName:str):
         self._selectedProcessorType = processorName
@@ -132,6 +133,7 @@ class DataAnalyzerWindow(QMainWindow):
         testNames = list(measurements)
         self.sidebar.setTestNames(testNames)
         self._onTestSelected(testNames[0])
+        self.workspace.setBatchMeasurements(measurements)
 
     def _onLoadingError(self, errorMessage:str):
         self.progressBar.setVisible(False)
@@ -250,5 +252,10 @@ class DataAnalyzerWindow(QMainWindow):
     def closeEvent(self, event):
         if self._loaderWorker is not None and self._loaderWorker.isRunning():
             self._loaderWorker.wait(2000)
-        self.workspace.plotView.cleanup()
+        self.workspace.cleanup()
         super().closeEvent(event)
+
+    def _onJumpToTest(self, testName: str):
+        if self.sidebar.selectTest(testName):
+            self._onTestSelected(testName)
+            self.workspace.switchToPlotsTab()
