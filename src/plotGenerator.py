@@ -205,7 +205,7 @@ class PlotlyChartGenerator:
                 useWebgl=True,
             )
 
-        xTitle='Samples sorted by date' if orderBy == 'Date' else 'Samples grouped by site',
+        xTitle='Samples sorted by date' if orderBy == 'Date' else 'Samples grouped by site'
         self._applyCommonLayout(fig, title=testName, xTitle=xTitle, yTitle=ctx.yAxisTitle(),
             logScale=(logScale and not ctx.useSymlog))
         fig.update_xaxes(range=[-max(1, maxX * 0.01), maxX + max(1, maxX * 0.01)])
