@@ -8,8 +8,24 @@ import plotly.graph_objects as go
 from plotly.offline import get_plotlyjs
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QColor, QGuiApplication, QImage
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+
+
+class _PlotlyWebEnginePage(QWebEnginePage):
+    _CLIPBOARD_PREFIX = '__PY_CLIPBOARD__:'
+
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        if isinstance(message, str) and message.startswith(self._CLIPBOARD_PREFIX):
+            payload = message[len(self._CLIPBOARD_PREFIX):]
+            try:
+                text = json.loads(payload)
+            except json.JSONDecodeError:
+                text = payload
+            QGuiApplication.clipboard().setText(str(text))
+            return
+        super().javaScriptConsoleMessage(level, message, lineNumber, sourceID)
 
 
 class PlotlyView(QWidget):
@@ -31,7 +47,14 @@ class PlotlyView(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.webView = QWebEngineView(self)
-        self.webView.page().setBackgroundColor(QColor('#1e1f22'))
+        self._webPage = _PlotlyWebEnginePage(self.webView)
+        self.webView.setPage(self._webPage)
+        self._webPage.setBackgroundColor(QColor('#1e1f22'))
+
+        settings = self.webView.settings()
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanPaste, True)
+
         self.webView.loadFinished.connect(self._onShellLoaded)
         layout.addWidget(self.webView)
 
@@ -85,7 +108,7 @@ class PlotlyView(QWidget):
             border-radius: 6px;
             box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
             color: #dfe1e5;
-            width: 290px;
+            width: 295px;
             padding: 10px 12px;
             font-size: 12px;
             user-select: text !important;
@@ -204,28 +227,30 @@ class PlotlyView(QWidget):
             }};
 
             var currentPointData = {{}};
-            var clickBound = false;
+            var currentLayoutXTitle = '';
+
+            // Prevent mouse drags inside popup from panning/zooming the plot underneath
+            card.addEventListener('mousedown', function(e) {{ e.stopPropagation(); }});
+            card.addEventListener('click', function(e) {{ e.stopPropagation(); }});
 
             function copyTextToClipboard(text) {{
-                if (navigator.clipboard && window.isSecureContext) {{
-                    navigator.clipboard.writeText(text).catch(function() {{
-                        fallbackCopy(text);
-                    }});
-                }} else {{
-                    fallbackCopy(text);
-                }}
+                var strVal = String(text);
+                console.log('__PY_CLIPBOARD__:' + JSON.stringify(strVal));
             }}
 
-            function fallbackCopy(text) {{
-                var textArea = document.createElement("textarea");
-                textArea.value = text;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-999999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {{ document.execCommand('copy'); }} catch (err) {{}}
-                document.body.removeChild(textArea);
+            function escapeHtml(str) {{
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }}
+
+            function formatNum(val) {{
+                var num = Number(val);
+                if (val !== null && val !== '' && !isNaN(num)) {{
+                    return Number(num.toPrecision(6)).toString();
+                }}
+                return String(val);
             }}
 
             closeBtn.addEventListener('click', function() {{
@@ -233,92 +258,105 @@ class PlotlyView(QWidget):
             }});
 
             copySnBtn.addEventListener('click', function() {{
-                if (currentPointData.sn) {{
+                if (currentPointData.sn && currentPointData.sn !== '—') {{
                     copyTextToClipboard(currentPointData.sn);
-                    var origText = copySnBtn.innerText;
                     copySnBtn.innerText = 'Copied!';
-                    setTimeout(function() {{ copySnBtn.innerText = origText; }}, 1200);
+                    setTimeout(function() {{ copySnBtn.innerText = 'Copy SN'; }}, 1200);
                 }}
             }});
 
             copyAllBtn.addEventListener('click', function() {{
-                var summary = [
+                var lines = [
                     'SN: ' + (currentPointData.sn || '—'),
                     'Site: ' + (currentPointData.site || '—'),
                     'Value: ' + (currentPointData.val || '—'),
-                    'Date: ' + (currentPointData.date || '—'),
-                    'LSL: ' + (currentPointData.lsl || '—'),
-                    'USL: ' + (currentPointData.usl || '—')
-                ].join('\\n');
-                copyTextToClipboard(summary);
-                var origText = copyAllBtn.innerText;
+                    'Date: ' + (currentPointData.date || '—')
+                ];
+                if (currentPointData.lsl && currentPointData.lsl !== '—') {{
+                    lines.push('LSL: ' + currentPointData.lsl);
+                    lines.push('USL: ' + currentPointData.usl);
+                }}
+                copyTextToClipboard(lines.join('\\n'));
                 copyAllBtn.innerText = 'Copied!';
-                setTimeout(function() {{ copyAllBtn.innerText = origText; }}, 1200);
+                setTimeout(function() {{ copyAllBtn.innerText = 'Copy Summary'; }}, 1200);
             }});
 
-            function bindPlotClick() {{
-                if (clickBound || !plotDiv || typeof plotDiv.on !== 'function') return;
-                clickBound = true;
-                plotDiv.on('plotly_click', function(data) {{
-                    if (!data || !data.points || data.points.length === 0) return;
-                    var pt = data.points[0];
+            function handlePointClick(data) {{
+                if (!data || !data.points || data.points.length === 0) return;
+                var pt = data.points[0];
 
-                    if (pt.data && (pt.data.name === 'LSL' || pt.data.name === 'USL')) return;
+                if (pt.data && (pt.data.name === 'LSL' || pt.data.name === 'USL')) return;
 
-                    var sn = '—';
-                    var date = '—';
-                    var lsl = '—';
-                    var usl = '—';
-                    var realVal = pt.y;
-                    var siteName = (pt.data && pt.data.name) ? pt.data.name.split(' (')[0] : '—';
+                var sn = '—';
+                var date = '—';
+                var lsl = '—';
+                var usl = '—';
+                var siteName = (pt.data && pt.data.name) ? pt.data.name.split(' (')[0] : '—';
+                var valFormatted = '';
 
-                    if (pt.customdata && pt.customdata.length > 0) {{
-                        sn = pt.customdata[0] || '—';
-                        date = pt.customdata[1] || '—';
-                        if (pt.customdata.length >= 5) {{
-                            lsl = pt.customdata[2];
-                            usl = pt.customdata[3];
-                            realVal = pt.customdata[4];
-                            if (pt.customdata.length >= 6 && pt.customdata[5] !== undefined) {{
-                                siteName = 'Site ' + pt.customdata[5];
-                            }}
-                        }} else if (pt.customdata.length === 3) {{
-                            siteName = 'Site ' + pt.customdata[2];
+                var cd = pt.customdata;
+                if (cd && cd.length > 0) {{
+                    sn = (cd[0] !== undefined && cd[0] !== null && cd[0] !== '') ? String(cd[0]) : '—';
+                    date = (cd[1] !== undefined && cd[1] !== null && cd[1] !== '') ? String(cd[1]) : '—';
+                    if (cd.length >= 5) {{
+                        lsl = String(cd[2]);
+                        usl = String(cd[3]);
+                        valFormatted = formatNum(cd[4]);
+                        if (cd.length >= 6 && cd[5] !== undefined && cd[5] !== null) {{
+                            siteName = 'Site ' + cd[5];
                         }}
+                    }} else if (cd.length === 3) {{
+                        siteName = 'Site ' + cd[2];
                     }}
+                }}
 
-                    var valFormatted = (typeof realVal === 'number') ? realVal.toPrecision(6) : realVal;
+                if (!valFormatted) {{
+                    if (currentLayoutXTitle === 'CX') {{
+                        valFormatted = 'CX=' + formatNum(pt.x) + ', CY=' + formatNum(pt.y);
+                    }} else if (pt.y === 0 && typeof pt.x === 'number' && currentLayoutXTitle.indexOf('Measured Value') === 0) {{
+                        valFormatted = formatNum(pt.x);
+                    }} else {{
+                        valFormatted = formatNum(pt.y);
+                    }}
+                }}
 
-                    currentPointData = {{
-                        sn: sn,
-                        site: siteName,
-                        val: valFormatted,
-                        date: date,
-                        lsl: lsl,
-                        usl: usl
-                    }};
+                currentPointData = {{
+                    sn: sn,
+                    site: siteName,
+                    val: valFormatted,
+                    date: date,
+                    lsl: lsl,
+                    usl: usl
+                }};
 
-                    cardBody.innerHTML =
-                        '<div class="info-row"><span class="info-key">Serial Number:</span><span class="info-val sn-highlight">' + sn + '</span></div>' +
-                        '<div class="info-row"><span class="info-key">Site:</span><span class="info-val">' + siteName + '</span></div>' +
-                        '<div class="info-row"><span class="info-key">Value:</span><span class="info-val">' + valFormatted + '</span></div>' +
-                        '<div class="info-row"><span class="info-key">Date:</span><span class="info-val">' + date + '</span></div>' +
-                        (lsl !== '—' ? '<div class="info-row"><span class="info-key">Limits:</span><span class="info-val">[' + lsl + ', ' + usl + ']</span></div>' : '');
+                cardBody.innerHTML =
+                    '<div class="info-row"><span class="info-key">Serial Number:</span><span class="info-val sn-highlight">' + escapeHtml(sn) + '</span></div>' +
+                    '<div class="info-row"><span class="info-key">Site:</span><span class="info-val">' + escapeHtml(siteName) + '</span></div>' +
+                    '<div class="info-row"><span class="info-key">Value:</span><span class="info-val">' + escapeHtml(valFormatted) + '</span></div>' +
+                    '<div class="info-row"><span class="info-key">Date:</span><span class="info-val">' + escapeHtml(date) + '</span></div>' +
+                    (lsl !== '—' ? '<div class="info-row"><span class="info-key">Limits:</span><span class="info-val">[' + escapeHtml(lsl) + ', ' + escapeHtml(usl) + ']</span></div>' : '');
 
-                    var evt = data.event;
-                    var clickX = evt ? evt.clientX : (window.innerWidth / 2 - 145);
-                    var clickY = evt ? evt.clientY : (window.innerHeight / 2 - 100);
+                var evt = data.event;
+                var clickX = evt ? evt.clientX : (window.innerWidth / 2 - 145);
+                var clickY = evt ? evt.clientY : (window.innerHeight / 2 - 100);
 
-                    var posX = clickX + 16;
-                    var posY = clickY + 16;
+                var posX = clickX + 16;
+                var posY = clickY + 16;
 
-                    if (posX + 300 > window.innerWidth) posX = clickX - 305;
-                    if (posY + 230 > window.innerHeight) posY = clickY - 220;
+                if (posX + 305 > window.innerWidth) posX = clickX - 310;
+                if (posY + 230 > window.innerHeight) posY = clickY - 220;
 
-                    card.style.left = Math.max(10, posX) + 'px';
-                    card.style.top = Math.max(10, posY) + 'px';
-                    card.style.display = 'block';
-                }});
+                card.style.left = Math.max(10, posX) + 'px';
+                card.style.top = Math.max(10, posY) + 'px';
+                card.style.display = 'block';
+            }}
+
+            function bindPlotClick() {{
+                if (!plotDiv || typeof plotDiv.on !== 'function') return;
+                if (typeof plotDiv.removeAllListeners === 'function') {{
+                    plotDiv.removeAllListeners('plotly_click');
+                }}
+                plotDiv.on('plotly_click', handlePointClick);
             }}
 
             window.renderPlot = function(figObj) {{
@@ -326,7 +364,12 @@ class PlotlyView(QWidget):
                 msgOverlay.style.display = 'none';
                 plotDiv.style.display = 'block';
 
-                Plotly.react(plotDiv, figObj.data || [], figObj.layout || {{}}, plotConfig)
+                var layout = figObj.layout || {{}};
+                currentLayoutXTitle = (layout.xaxis && layout.xaxis.title && layout.xaxis.title.text)
+                    ? String(layout.xaxis.title.text)
+                    : '';
+
+                Plotly.react(plotDiv, figObj.data || [], layout, plotConfig)
                     .then(function() {{
                         bindPlotClick();
                         Plotly.Plots.resize(plotDiv);
@@ -337,7 +380,6 @@ class PlotlyView(QWidget):
                 card.style.display = 'none';
                 if (typeof Plotly !== 'undefined') {{
                     try {{ Plotly.purge(plotDiv); }} catch (e) {{}}
-                    clickBound = false;
                 }}
                 plotDiv.style.display = 'none';
                 msgOverlay.textContent = msg;
