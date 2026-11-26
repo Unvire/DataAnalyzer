@@ -359,6 +359,28 @@ class PlotlyView(QWidget):
                 plotDiv.on('plotly_click', handlePointClick);
             }}
 
+            function isPlotDisplayed() {{
+                return (
+                    plotDiv &&
+                    plotDiv.style.display !== 'none' &&
+                    plotDiv.offsetParent !== null &&
+                    plotDiv.clientWidth > 0 &&
+                    plotDiv.clientHeight > 0
+                );
+            }}
+
+            function safeResizePlot() {{
+                if (typeof Plotly === 'undefined' || !isPlotDisplayed() || !plotDiv._fullLayout) {{
+                    return;
+                }}
+                try {{
+                    var res = Plotly.Plots.resize(plotDiv);
+                    if (res && typeof res.catch === 'function') {{
+                        res.catch(function() {{}});
+                    }}
+                }} catch (e) {{}}
+            }}
+
             window.renderPlot = function(figObj) {{
                 card.style.display = 'none';
                 msgOverlay.style.display = 'none';
@@ -372,8 +394,9 @@ class PlotlyView(QWidget):
                 Plotly.react(plotDiv, figObj.data || [], layout, plotConfig)
                     .then(function() {{
                         bindPlotClick();
-                        Plotly.Plots.resize(plotDiv);
-                    }});
+                        safeResizePlot();
+                    }})
+                    .catch(function() {{}});
             }};
 
             window.showMessage = function(msg) {{
@@ -386,11 +409,14 @@ class PlotlyView(QWidget):
                 msgOverlay.style.display = 'flex';
             }};
 
-            window.addEventListener('resize', function() {{
-                if (plotDiv.style.display !== 'none' && typeof Plotly !== 'undefined') {{
-                    Plotly.Plots.resize(plotDiv);
-                }}
-            }});
+            if (typeof ResizeObserver !== 'undefined') {{
+                var resizeObserver = new ResizeObserver(function() {{
+                    safeResizePlot();
+                }});
+                resizeObserver.observe(plotDiv);
+            }}
+
+            window.addEventListener('resize', safeResizePlot);
         }})();
     </script>
 </body>
