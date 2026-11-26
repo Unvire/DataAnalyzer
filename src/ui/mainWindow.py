@@ -8,6 +8,7 @@ from src.ui.widgets.folderBrowserDialog import FolderBrowserDialog
 from src.ui.widgets.sidebarPanel import SidebarPanel
 from src.ui.widgets.workspacePanel import WorkspacePanel
 from src.ui.workers import LogLoaderWorker
+from src.processCalculator import ProcessParameterCalculator
 
 
 class DataAnalyzerWindow(QMainWindow):
@@ -18,6 +19,8 @@ class DataAnalyzerWindow(QMainWindow):
 
         self.engine = MeasurementEngine()
         self.plotGenerator = PlotlyChartGenerator()
+        self.statsCalculator = ProcessParameterCalculator()
+
         self._loadedProcessorType = ''
         self._selectedProcessorType = ''
         self._isSearchInSubfolders = True
@@ -193,14 +196,10 @@ class DataAnalyzerWindow(QMainWindow):
         self.workspace.setRawDataFrame(self._selectedTestName, filteredDf)
 
         isCxCy = MeasurementEngine.isCxCyDataFrame(filteredDf)
-        if isCxCy:
-            self.sidebar.statsPanel.updateStats({'samples': f'{len(filteredDf):,}'})
-        elif not filteredDf.empty:
-            self.sidebar.statsPanel.updateStats({
-                'samples': f'{len(filteredDf):,}',
-                'lsl': f"{filteredDf['LSL'].iloc[-1]:.4g}",
-                'usl': f"{filteredDf['USL'].iloc[-1]:.4g}",
-            })
+        if not filteredDf.empty:
+            metrics = self.statsCalculator.calculate(filteredDf, limitsMode=options['limits'])
+            statValues, statStatuses, statTooltips = self.statsCalculator.formatForStatsPanel(metrics)
+            self.sidebar.statsPanel.updateStats(statValues, statuses=statStatuses, tooltips=statTooltips)
         else:
             self.sidebar.statsPanel.clear()
 

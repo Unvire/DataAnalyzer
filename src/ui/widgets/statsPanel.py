@@ -6,15 +6,22 @@ class StatsPanel(QWidget):
     METRIC_LAYOUT = [
         ('samples', 'Samples', 0, 0),
         ('yield', 'Yield', 0, 2),
-        ('lsl', 'LSL', 1, 0),
-        ('usl', 'USL', 1, 2),
-        ('mean', 'Mean', 2, 0),
-        ('sigma', 'Sigma', 2, 2),
-        ('pp', 'Pp', 3, 0),
-        ('cp', 'Cp', 3, 2),
-        ('ppk', 'Ppk', 4, 0),
-        ('cpk', 'Cpk', 4, 2),
-        ('stability', 'Max/Min - 1', 5, 0),
+        ('failLH', 'Fail L/H', 1, 0),
+        ('dpmo', 'DPMO', 1, 2),
+        ('lsl', 'LSL', 2, 0),
+        ('usl', 'USL', 2, 2),
+        ('mean', 'Mean', 3, 0),
+        ('sigma', 'Sigma', 3, 2),
+        ('pp', 'Pp', 4, 0),
+        ('cp', 'Cp', 4, 2),
+        ('ppk', 'Ppk', 5, 0),
+        ('cpk', 'Cpk', 5, 2),
+        ('ppkNp', 'Ppk (NP)', 6, 0),
+        ('tolUtil', 'Tol. Util.', 6, 2),
+        ('centering', 'Centering', 7, 0),
+        ('siteDelta', 'Site Delta', 7, 2),
+        ('skewness', 'Skewness', 8, 0),
+        ('kurtosis', 'Kurtosis', 8, 2),
     ]
 
     def __init__(self, parent=None):
@@ -28,8 +35,9 @@ class StatsPanel(QWidget):
 
         groupBox = QGroupBox('Process statistics')
         grid = QGridLayout(groupBox)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(6)
+        grid.setContentsMargins(6, 6, 6, 6)
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(4)
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(3, 1)
 
@@ -39,23 +47,36 @@ class StatsPanel(QWidget):
 
             valLabel = QLabel('—')
             valLabel.setProperty('role', 'statValue')
-            valLabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            valLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            valLabel.setProperty('status', 'neutral')
+            valLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            valLabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
             grid.addWidget(keyLabel, row, col)
-            if key == 'stability':
-                grid.addWidget(valLabel, row, col + 1, 1, 3)
-            else:
-                grid.addWidget(valLabel, row, col + 1)
+            grid.addWidget(valLabel, row, col + 1)
 
             self._valueLabels[key] = valLabel
 
         outerLayout.addWidget(groupBox)
 
-    def updateStats(self, stats: dict[str, str]):
+    def updateStats(self, stats:dict[str,str], statuses:dict[str, str]|None=None, tooltips:dict[str, str]|None=None):
+        statuses = statuses or {}
+        tooltips = tooltips or {}
+
         for key, label in self._valueLabels.items():
             label.setText(stats.get(key, '—'))
+            label.setToolTip(tooltips.get(key, ''))
+
+            newStatus = statuses.get(key, 'neutral') if key in stats else 'neutral'
+            if label.property('status') != newStatus:
+                label.setProperty('status', newStatus)
+                label.style().unpolish(label)
+                label.style().polish(label)
 
     def clear(self):
         for label in self._valueLabels.values():
             label.setText('—')
+            label.setToolTip('')
+            if label.property('status') != 'neutral':
+                label.setProperty('status', 'neutral')
+                label.style().unpolish(label)
+                label.style().polish(label)
