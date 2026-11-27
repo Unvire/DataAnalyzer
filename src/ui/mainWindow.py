@@ -65,6 +65,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.workspace.plotOptionsChanged.connect(self._refreshCurrentView)
         self.workspace.statusMessageRequested.connect(self.statusLabel.setText)
         self.workspace.jumpToTestRequested.connect(self._onJumpToTest)
+        self.workspace.jumpToTestSiteRequested.connect(self._onJumpToTestWithSite)
 
     def _onProcessorChanged(self, processorName:str):
         self._selectedProcessorType = processorName
@@ -256,7 +257,14 @@ class DataAnalyzerWindow(QMainWindow):
         self.workspace.cleanup()
         super().closeEvent(event)
 
-    def _onJumpToTest(self, testName: str):
+    def _onJumpToTest(self, testName:str):
         if self.sidebar.selectTest(testName):
             self._onTestSelected(testName)
+            self.workspace.switchToPlotsTab()
+
+    def _onJumpToTestWithSite(self, testName:str, site:str):
+        if self.sidebar.selectTest(testName):
+            self._onTestSelected(testName)
+            self.workspace.selectSite(site)
+            self._refreshCurrentView()
             self.workspace.switchToPlotsTab()

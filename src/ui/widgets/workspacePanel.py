@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from src.ui.widgets.dataTableModel import PandasTableModel
 from src.ui.widgets.plotlyView import PlotlyView
 from src.ui.widgets.yieldParetoTab import YieldParetoTab
+from src.ui.widgets.pivotTab import PivotTab
 
 
 class WorkspacePanel(QWidget):
@@ -19,6 +20,7 @@ class WorkspacePanel(QWidget):
     openPlotWindowRequested = Signal()
     statusMessageRequested = Signal(str)
     jumpToTestRequested = Signal(str)
+    jumpToTestSiteRequested = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,7 +54,7 @@ class WorkspacePanel(QWidget):
         self.tabs.tabBar().setElideMode(Qt.TextElideMode.ElideNone)
         self._plotsTabIndex = self.tabs.addTab(self._buildPlotsTab(), 'Plots')
         self._yieldTabIndex = self.tabs.addTab(self._buildYieldParetoTab(), 'Yield && Pareto')
-        self.tabs.addTab(self._buildPivotTab(), 'Pivot && Multi-Test')
+        self._pivotTabIndex = self.tabs.addTab(self._buildPivotTab(), 'Pivot && Multi-Test')
         self._rawTabIndex = self.tabs.addTab(self._buildRawDataTab(), 'Raw data')
 
         layout.addWidget(self.tabs)
@@ -160,13 +162,8 @@ class WorkspacePanel(QWidget):
         return self.yieldParetoTab
 
     def _buildPivotTab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        placeholder = QLabel('Pivot table & Multi-Test analysis will be connected in the next step.')
-        placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet('color: #9da0a8;')
-        layout.addWidget(placeholder)
-        return tab
+        self.pivotTab = PivotTab()
+        return self.pivotTab
 
     def _buildRawDataTab(self) -> QWidget:
         tab = QWidget()
@@ -253,6 +250,9 @@ class WorkspacePanel(QWidget):
 
         self.yieldParetoTab.testActivated.connect(self.jumpToTestRequested.emit)
         self.yieldParetoTab.statusMessageRequested.connect(self.statusMessageRequested.emit)
+
+        self.pivotTab.testSiteActivated.connect(self.jumpToTestSiteRequested.emit)
+        self.pivotTab.statusMessageRequested.connect(self.statusMessageRequested.emit)
 
     def _onTabChanged(self, index: int):
         if index == self._rawTabIndex and self._rawDataDirty:
@@ -536,6 +536,7 @@ class WorkspacePanel(QWidget):
         self.exportCsvButton.setEnabled(False)
 
         self.yieldParetoTab.clear()
+        self.pivotTab.clear()
 
         self.updateSites([])
         self.setPlotControlsEnabled(False)
@@ -544,6 +545,7 @@ class WorkspacePanel(QWidget):
     def setBatchMeasurements(self, measurements: dict[str, pd.DataFrame], resetExcluded: bool = False):
         isYieldActive = self.tabs.currentIndex() == self._yieldTabIndex
         self.yieldParetoTab.setMeasurements(measurements, isTabActive=isYieldActive, resetExcluded=resetExcluded)
+        self.pivotTab.setMeasurements(measurements, resetSelection=resetExcluded)
 
     def switchToPlotsTab(self):
         self.tabs.setCurrentIndex(self._plotsTabIndex)
@@ -551,3 +553,11 @@ class WorkspacePanel(QWidget):
     def cleanup(self):
         self.plotView.cleanup()
         self.yieldParetoTab.cleanup()
+        self.pivotTab.cleanup()
+
+    def selectSite(self, site: str):
+        idx = self.siteComboBox.findText(site)
+        if idx >= 0:
+            self.siteComboBox.blockSignals(True)
+            self.siteComboBox.setCurrentIndex(idx)
+            self.siteComboBox.blockSignals(False)

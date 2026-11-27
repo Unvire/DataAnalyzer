@@ -63,6 +63,19 @@ STATS_GUIDE_HTML = """
     <li><b>Yield:</b> <span class="ok">&ge; 99.5%</span> | <span class="warn">98.0 – 99.49%</span> | <span class="bad">&lt; 98.0%</span></li>
     <li><b>Tol. Util.:</b> <span class="ok">&le; 75%</span> | <span class="warn">75.1 – 100%</span> | <span class="bad">&gt; 100%</span> &nbsp;&bull;&nbsp; <b>Site Delta:</b> <span class="ok">&le; 10%</span> | <span class="warn">10.1 – 25%</span> | <span class="bad">&gt; 25%</span></li>
 </ul>
+<h3>6. Pivot &amp; Multi-Test Heatmap Diagnostics</h3>
+<table>
+    <tr><th>Heatmap Pattern (Site &times; Position)</th><th>Most Likely Root Cause</th></tr>
+    <tr><td><b>Entire column stands out</b> (1 LED / channel across all sites)</td><td>SMT feeder issue, wrong component reel at that board position, or mechanical light-pipe/PCB offset.</td></tr>
+    <tr><td><b>Entire row stands out</b> (all LEDs / channels on 1 site)</td><td>Uncalibrated test site, contaminated master sensor, fixture alignment, or nest clamping issue.</td></tr>
+    <tr><td><b>Single cell stands out</b> (1 position &times; 1 site)</td><td>Damaged single optical fiber, worn test probe, or single multiplexer channel on that site.</td></tr>
+    <tr><td><b>Whole map shifted</b> (in Centering or Batch &times; Test view)</td><td>Shifted component lot / LED bin reel across production or mid-lot reel changeover.</td></tr>
+</table>
+<ul>
+    <li><b>Dev. vs Group (% tol.)</b> &mdash; Shift of each cell&rsquo;s mean relative to the group median, normalized by tolerance width. Highlights anomalous columns, rows, and single cells regardless of nominal value.</li>
+    <li><b>Dev. vs Group (Z-score)</b> &mdash; Robust deviation from group median in units of MAD-&sigma;. Useful when comparing tests without common specification limits.</li>
+    <li><b>Dist. from Bin Center (CxCy)</b> &mdash; Euclidean distance between a cell&rsquo;s mean (CX, CY) and the geometric centroid of the active LED bin polygon.</li>
+</ul>
 """
 
 
