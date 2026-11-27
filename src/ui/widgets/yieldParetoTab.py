@@ -9,7 +9,7 @@ from PySide6.QtGui import QAction, QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QFrame, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QMenu, QMessageBox, QPushButton, QSplitter, QTableView,
-    QVBoxLayout, QWidget,
+    QVBoxLayout, QWidget, QSizePolicy
 )
 
 from src.processCalculator import METRIC_HELP
@@ -424,6 +424,7 @@ class YieldParetoTab(QWidget):
         titleLabel.setStyleSheet('color: #9da0a8; font-size: 11px; border: none;')
 
         valLabel = QLabel('—')
+        valLabel.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         valLabel.setStyleSheet(
             'color: #dfe1e5; font-size: 13px; font-weight: 600; '
             'font-family: "Consolas", "Cascadia Mono", monospace; border: none;'

@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -31,8 +30,6 @@ def test_siteByTestMatrix_detectsColumnFeederAndRowSiteAnomalies():
     dates = [f'2025/01/01 10:0{i}:00' for i in range(6)]
     sites = ['1', '1', '2', '2', '3', '3']
 
-    # Baseline ~100 across LED1 & LED3; LED2 shifted +8 (+40% of tol=20) on ALL sites (SMT feeder)
-    # Site 3 shifted -4 (-20% of tol=20) across LED1 & LED3 (uncalibrated site)
     measurements = {
         'LED1 | LUM': _makeScalarTest(sites, [100, 100, 100, 100, 96, 96], dates),
         'LED2 | LUM': _makeScalarTest(sites, [108, 108, 108, 108, 104, 104], dates),
@@ -43,20 +40,16 @@ def test_siteByTestMatrix_detectsColumnFeederAndRowSiteAnomalies():
     res = analyzer.analyzeMatrix(
         measurements,
         selectedTests=['LED1 | LUM', 'LED2 | LUM', 'LED3 | LUM'],
-        rowMode='Site',
         metric='Dev. vs Group (% tol.)',
     )
 
     assert res.rowLabels == ['1', '2', '3']
     assert res.zMatrix.shape == (3, 3)
 
-    # LED2 stands out +40% on nominal sites and +33.33% overall (pulled down by Site 3's -20% shift)
     assert res.zMatrix[0, 1] == pytest.approx(40.0, abs=0.1)
     assert res.zMatrix[2, 1] == pytest.approx(20.0, abs=0.1)
     assert res.colSummary[1] == pytest.approx(33.333, abs=0.1)
     assert (res.colSummary[1] - res.colSummary[0]) == pytest.approx(40.0, abs=0.1)
-
-    # Site 3 row average stands out negative relative to Sites 1 and 2
     assert res.rowSummary[2] < res.rowSummary[0] - 15.0
 
     fig = analyzer.createHeatmapFigure(res)
@@ -64,36 +57,8 @@ def test_siteByTestMatrix_detectsColumnFeederAndRowSiteAnomalies():
     assert fig.data[0].type == 'heatmap'
 
 
-def test_batchByTestMatrix_detectsMidLotShift():
-    # 4 chronological runs: first 2 at 100, last 2 shifted to 106 (reel change)
-    dates = [
-        '2025/01/01 08:00:00',
-        '2025/01/01 09:00:00',
-        '2025/01/02 08:00:00',
-        '2025/01/02 09:00:00',
-    ]
-    sites = ['1', '1', '1', '1']
-    measurements = {
-        'LED1': _makeScalarTest(sites, [100.0, 100.0, 106.0, 106.0], dates),
-        'LED2': _makeScalarTest(sites, [100.0, 100.0, 106.0, 106.0], dates),
-    }
-
-    analyzer = PivotAnalyzer()
-    res = analyzer.analyzeMatrix(
-        measurements,
-        selectedTests=['LED1', 'LED2'],
-        rowMode='Batch',
-        batchSetting='Daily',
-        metric='Centering Offset (%)',
-    )
-
-    assert res.rowLabels == ['2025/01/01', '2025/01/02']
-    assert res.zMatrix[0, 0] == pytest.approx(0.0)
-    assert res.zMatrix[1, 0] == pytest.approx(60.0)
-
-
 def test_cxCyMatrixAndOverlay():
-    poly = [(0.30, 0.30), (0.34, 0.30), (0.34, 0.34), (0.30, 0.34), (0.30, 0.30)]  # centroid = (0.32, 0.32)
+    poly = [(0.30, 0.30), (0.34, 0.30), (0.34, 0.34), (0.30, 0.34), (0.30, 0.30)]
     dates = ['2025/01/01 10:00:00', '2025/01/01 10:01:00']
 
     dfLed1 = pd.DataFrame({
@@ -106,7 +71,7 @@ def test_cxCyMatrixAndOverlay():
     })
     dfLed2 = pd.DataFrame({
         'Site': ['1', '2'],
-        'CX': [0.35, 0.32],  # Site 1 LED2 is 0.03 away from center and outside bin
+        'CX': [0.35, 0.32],
         'CY': [0.32, 0.32],
         'Boundary': [poly, poly],
         'TestDate': dates,
@@ -117,7 +82,6 @@ def test_cxCyMatrixAndOverlay():
     res = analyzer.analyzeMatrix(
         {'LED1 | WHITE': dfLed1, 'LED2 | WHITE': dfLed2},
         selectedTests=['LED1 | WHITE', 'LED2 | WHITE'],
-        rowMode='Site',
         metric='Dist. from Bin Center',
     )
 
@@ -160,3 +124,41 @@ def test_mixedScalarAndCxCyReturnsGracefulWarning():
     assert 'Mixed Scalar and CxCy' in res.warningMessage
     fig = analyzer.createHeatmapFigure(res)
     assert len(fig.data) == 0
+
+def test_sampleSizeWeightingAndMinSamplesMasking():
+    # Col 1 & 3: 100 samples per site around 100.0
+    # Col 2: only 3 samples per site with a huge outlier shift (-30% tol) on Site 2
+    nBig = 100
+    nSmall = 3
+    datesBig = [f'2025/01/01 10:{i // 60:02d}:{i % 60:02d}' for i in range(nBig * 2)]
+    datesSmall = [f'2025/01/01 10:00:0{i}' for i in range(nSmall * 2)]
+
+    measurements = {
+        'LED3_MAIN': _makeScalarTest(['1'] * nBig + ['2'] * nBig, [100.0] * (nBig * 2), datesBig),
+        'LED4_RARE': _makeScalarTest(['1'] * nSmall + ['2'] * nSmall, [100.0] * nSmall + [94.0] * nSmall, datesSmall),
+        'LED3_AUX': _makeScalarTest(['1'] * nBig + ['2'] * nBig, [100.0] * (nBig * 2), datesBig),
+    }
+
+    analyzer = PivotAnalyzer()
+
+    # Even with minSamples=1, sample-weighted Row Avg for Site 2 is barely affected by 3 samples vs 200
+    resAll = analyzer.analyzeMatrix(
+        measurements,
+        selectedTests=['LED3_MAIN', 'LED4_RARE', 'LED3_AUX'],
+        metric='Dev. vs Group (% tol.)',
+        minSamples=1,
+    )
+    # 3 samples at -30% out of 203 samples => ~ -0.44% instead of unweighted -10.0%
+    assert abs(resAll.rowSummary[1]) < 1.0
+
+    # With minSamples=10, LED4_RARE (n=3 per site) is masked out as NaN without distorting colorscale
+    resMasked = analyzer.analyzeMatrix(
+        measurements,
+        selectedTests=['LED3_MAIN', 'LED4_RARE', 'LED3_AUX'],
+        metric='Dev. vs Group (% tol.)',
+        minSamples=10,
+    )
+    assert pd.isna(resMasked.zMatrix[0, 1])
+    assert pd.isna(resMasked.zMatrix[1, 1])
+    assert resMasked.countMatrix[1, 1] == 3
+    assert resMasked.rowSummary[1] == pytest.approx(0.0)

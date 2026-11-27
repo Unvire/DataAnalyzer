@@ -8,7 +8,7 @@ from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QHeaderView,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton,
-    QSplitter, QTableView, QVBoxLayout, QWidget,
+    QSplitter, QTableView, QVBoxLayout, QWidget, QSizePolicy
 )
 
 from src.measurementEngine import MeasurementEngine
@@ -22,17 +22,25 @@ class PivotTableModel(QAbstractTableModel):
     COLOR_WARN = QColor('#ffa726')
     COLOR_BAD = QColor('#ef5350')
     COLOR_BLUE = QColor('#4c8dff')
+    COLOR_MUTED = QColor('#7c8089')
     SUMMARY_BG = QColor('#2d3038')
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._result: PivotMatrixResult | None = None
         self._df = pd.DataFrame()
+        self._lowNThreshold = 0
 
     def setResult(self, result:PivotMatrixResult|None):
         self.beginResetModel()
         self._result = result
-        self._df = result.pivotDf.reset_index(drop=True) if (result is not None and not result.pivotDf.empty) else pd.DataFrame()
+        if result is not None and not result.pivotDf.empty:
+            self._df = result.pivotDf.reset_index(drop=True)
+            maxN = int(np.max(result.countMatrix)) if result.countMatrix.size > 0 else 0
+            self._lowNThreshold = 10 if maxN >= 20 else 0
+        else:
+            self._df = pd.DataFrame()
+            self._lowNThreshold = 0
         self.endResetModel()
 
     def getDataFrame(self) -> pd.DataFrame:
@@ -60,6 +68,9 @@ class PivotTableModel(QAbstractTableModel):
                 return colName
             
             if role == Qt.ItemDataRole.ToolTipRole:
+                if self._result and 1 <= section <= len(self._result.colLabels):
+                    totalColN = int(np.sum(self._result.countMatrix[:, section - 1]))
+                    return f'{colName}\nTotal samples across sites: {totalColN:,}'
                 return colName
             
         elif orientation == Qt.Orientation.Vertical and role == Qt.ItemDataRole.DisplayRole:
@@ -77,6 +88,7 @@ class PivotTableModel(QAbstractTableModel):
         nCols = len(self._df.columns)
         isSummaryRow = row == (nRows - 1)
         isSummaryCol = col == (nCols - 1)
+        isTestCell = (not isSummaryRow) and (1 <= col <= len(self._result.colLabels))
 
         rawVal = self._df.iat[row, col]
 
@@ -96,58 +108,65 @@ class PivotTableModel(QAbstractTableModel):
         if col == 0:
             if role == Qt.ItemDataRole.DisplayRole:
                 text = str(rawVal)
-                if not isSummaryRow and self._result.rowMode.lower() == 'site':
-                    return f'Site {text}'
-                return text
+                return text if isSummaryRow else f'Site {text}'
             return None
 
+        cellCnt = int(self._result.countMatrix[row, col - 1]) if isTestCell else 0
+        isMasked = isTestCell and (0 < cellCnt < self._result.minSamples)
+        isLowN = isTestCell and (not isMasked) and (self._lowNThreshold > 0) and (0 < cellCnt < self._lowNThreshold)
+
         if role == Qt.ItemDataRole.DisplayRole:
+            if isMasked:
+                return f'— (n={cellCnt})'
+            
             try:
                 num = float(rawVal)
             except (TypeError, ValueError):
                 return '—'
-            return PivotAnalyzer.formatMetricValue(num, self._result.metricName, self._result.unitPrefix)
+            
+            formatted = PivotAnalyzer.formatMetricValue(num, self._result.metricName, self._result.unitPrefix)
+            if isLowN and formatted != '—':
+                return f'{formatted} (n={cellCnt})'
+            
+            return formatted
 
         if role == Qt.ItemDataRole.ToolTipRole and 1 <= col <= len(self._result.colLabels):
             testName = self._result.colLabels[col - 1]
             if not isSummaryRow:
-                cnt = int(self._result.countMatrix[row, col - 1])
                 fls = int(self._result.failMatrix[row, col - 1])
-                rowTitle = (
-                    f'Site {self._result.rowLabels[row]}'
-                    if self._result.rowMode.lower() == 'site'
-                    else self._result.rowLabels[row]
-                )
+                extra = ''
+                if isMasked:
+                    extra = f'\nMasked by Min n ≥ {self._result.minSamples}'
+                elif isLowN:
+                    extra = '\n⚠ Low sample size — interpret with caution'
                 return (
-                    f'{testName}\n{rowTitle}\n'
-                    f'Samples: {cnt:,}  |  Fails: {fls:,}\n'
-                    'Double-click to open on Plots tab'
+                    f'{testName}\nSite {self._result.rowLabels[row]}\n'
+                    f'Samples: {cellCnt:,}  |  Fails: {fls:,}{extra}\n'
+                    'Double-click to open test on Plots tab (All sites)'
                 )
-            return f'{testName}\nDouble-click to open on Plots tab (All sites)'
+            totalColN = int(np.sum(self._result.countMatrix[:, col - 1]))
+            return f'{testName}\nTotal samples: {totalColN:,}\nDouble-click to open test on Plots tab (All sites)'
 
         if role == Qt.ItemDataRole.ForegroundRole:
+            if isMasked:
+                return self.COLOR_MUTED
+            
             try:
                 num = float(rawVal)
             except (TypeError, ValueError):
                 return None
+            
             return self._getCellColor(num, self._result.metricName)
 
         return None
 
-    def getDrillDownTarget(self, row:int, col:int) -> tuple[str, str]|None:
-        """Returns (testName, siteNameOrAllSites) when user double-clicks a test column cell."""
+    def getTestNameAtColumn(self, col: int) -> str:
         if self._result is None or col < 1 or col > len(self._result.colLabels):
-            return None
-
-        testName = self._result.colLabels[col - 1]
-        isSummaryRow = row >= len(self._result.rowLabels)
-
-        if not isSummaryRow and self._result.rowMode.lower() == 'site':
-            return testName, self._result.rowLabels[row]
-        return testName, 'All sites'
+            return ''
+        return self._result.colLabels[col - 1]
 
     @classmethod
-    def _getCellColor(cls, val:float, metric:str) -> QColor|None:
+    def _getCellColor(cls, val: float, metric: str) -> QColor | None:
         if not np.isfinite(val):
             return None
 
@@ -185,7 +204,7 @@ class PivotTableModel(QAbstractTableModel):
 
 
 class PivotTab(QWidget):
-    testSiteActivated = Signal(str, str)
+    testActivated = Signal(str)
     statusMessageRequested = Signal(str)
 
     def __init__(self, parent=None):
@@ -221,7 +240,7 @@ class PivotTab(QWidget):
 
         # ---- Left pane: Explicit test group picker ----
         pickerGroup = QGroupBox('Test group selection')
-        pickerGroup.setMinimumWidth(250)
+        pickerGroup.setMinimumWidth(190)
         pickerLayout = QVBoxLayout(pickerGroup)
         pickerLayout.setContentsMargins(8, 8, 8, 8)
         pickerLayout.setSpacing(6)
@@ -248,6 +267,10 @@ class PivotTab(QWidget):
         self.typeFilterCombo = QComboBox()
         self.typeFilterCombo.addItems(['All types', 'Scalar only', 'CxCy only'])
         self.typeFilterCombo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.typeFilterCombo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.typeFilterCombo.setMinimumContentsLength(8)
 
         self.naturalSortCheckBox = QCheckBox('Natural sort')
         self.naturalSortCheckBox.setChecked(True)
@@ -270,6 +293,7 @@ class PivotTab(QWidget):
 
         self.selectionInfoLabel = QLabel('Selected: 0 / 0')
         self.selectionInfoLabel.setStyleSheet('color: #9da0a8; font-size: 11px;')
+        self.selectionInfoLabel.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
 
         self.testListWidget = QListWidget()
         self.testListWidget.setAlternatingRowColors(True)
@@ -280,50 +304,75 @@ class PivotTab(QWidget):
         pickerLayout.addWidget(self.selectionInfoLabel)
         pickerLayout.addWidget(self.testListWidget, 1)
 
-        # ---- Right pane: Controls + Heatmap/Overlay + Pivot Table ----
+        # ---- Right pane: Compact 2-row controls + Heatmap/Overlay + Pivot Table ----
         rightPane = QWidget()
+        rightPane.setMinimumWidth(300)
         rightLayout = QVBoxLayout(rightPane)
         rightLayout.setContentsMargins(4, 0, 0, 0)
         rightLayout.setSpacing(6)
 
-        controlsRow = QHBoxLayout()
-        controlsRow.setSpacing(8)
+        controlsRow1 = QHBoxLayout()
+        controlsRow1.setSpacing(6)
 
         self.viewModeLabel = QLabel('View:')
         self.viewModeCombo = QComboBox()
         self.viewModeCombo.addItems([
             'Heatmap: Site × Test',
-            'Heatmap: Batch × Test',
             'Overlay Comparison',
         ])
+        self.viewModeCombo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.viewModeCombo.setMinimumContentsLength(14)
         self.viewModeCombo.setStyleSheet("""
             QComboBox {
                 font-weight: 600;
                 border: 1px solid #3574f0;
-                padding: 4px 10px;
-                min-width: 170px;
+                padding: 4px 8px;
             }
         """)
 
         self.metricLabel = QLabel('Metric:')
         self.metricCombo = QComboBox()
         self.metricCombo.addItems(PivotAnalyzer.SCALAR_METRICS)
-        self.metricCombo.setMinimumWidth(160)
-
-        self.batchLabel = QLabel('Batches:')
-        self.batchCombo = QComboBox()
-        self.batchCombo.addItems(['4', '6', '8', '12', 'Daily'])
-        self.batchCombo.setCurrentText('8')
+        self.metricCombo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.metricCombo.setMinimumContentsLength(14)
 
         self.colorByLabel = QLabel('Color:')
         self.colorByCombo = QComboBox()
         self.colorByCombo.addItems(['Test (Position)', 'Site'])
+        self.colorByCombo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.colorByCombo.setMinimumContentsLength(10)
+
+        controlsRow1.addWidget(self.viewModeLabel)
+        controlsRow1.addWidget(self.viewModeCombo, 1)
+        controlsRow1.addWidget(self.metricLabel)
+        controlsRow1.addWidget(self.metricCombo, 1)
+        controlsRow1.addWidget(self.colorByLabel)
+        controlsRow1.addWidget(self.colorByCombo)
+        controlsRow1.addStretch(1)
+
+        controlsRow2 = QHBoxLayout()
+        controlsRow2.setSpacing(6)
 
         self.limitsLabel = QLabel('Limits:')
         self.limitsCombo = QComboBox()
         self.limitsCombo.addItems(['All', 'Newest', 'Oldest'])
 
-        for combo in (self.viewModeCombo, self.metricCombo, self.batchCombo, self.colorByCombo, self.limitsCombo):
+        self.minSamplesLabel = QLabel('Min n:')
+        self.minSamplesCombo = QComboBox()
+        self.minSamplesCombo.addItems(['1', '5', '10', '30', '50'])
+        self.minSamplesCombo.setCurrentText('1')
+        self.minSamplesCombo.setToolTip(
+            'Minimum sample count per Site × Test cell required for heatmap & averages.\n'
+            'Increase (e.g. 5 or 10) to mask low-count retest/branch steps.'
+        )
+
+        for combo in (self.viewModeCombo, self.metricCombo, self.colorByCombo, self.limitsCombo, self.minSamplesCombo):
             combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.guideButton = QPushButton('? Guide')
@@ -336,26 +385,20 @@ class PivotTab(QWidget):
         self.exportCsvButton = QPushButton('Export CSV')
         self.exportCsvButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        controlsRow.addWidget(self.viewModeLabel)
-        controlsRow.addWidget(self.viewModeCombo)
-        controlsRow.addWidget(self.metricLabel)
-        controlsRow.addWidget(self.metricCombo)
-        controlsRow.addWidget(self.batchLabel)
-        controlsRow.addWidget(self.batchCombo)
-        controlsRow.addWidget(self.colorByLabel)
-        controlsRow.addWidget(self.colorByCombo)
-        controlsRow.addWidget(self.limitsLabel)
-        controlsRow.addWidget(self.limitsCombo)
-        controlsRow.addStretch(1)
-        controlsRow.addWidget(self.guideButton)
-        controlsRow.addWidget(self.copyPlotButton)
-        controlsRow.addWidget(self.exportCsvButton)
+        controlsRow2.addWidget(self.limitsLabel)
+        controlsRow2.addWidget(self.limitsCombo)
+        controlsRow2.addWidget(self.minSamplesLabel)
+        controlsRow2.addWidget(self.minSamplesCombo)
+        controlsRow2.addStretch(1)
+        controlsRow2.addWidget(self.guideButton)
+        controlsRow2.addWidget(self.copyPlotButton)
+        controlsRow2.addWidget(self.exportCsvButton)
 
         self.rightSplitter = QSplitter(Qt.Orientation.Vertical)
 
         self.plotView = PlotlyView(enablePointCard=False)
         self.plotView.showMessage(
-            'Enter a pattern on the left and check tests to compare across sites or batches.'
+            'Enter a pattern on the left and check tests to compare across sites.'
         )
 
         tableContainer = QWidget()
@@ -363,8 +406,9 @@ class PivotTab(QWidget):
         tableLayout.setContentsMargins(0, 4, 0, 0)
         tableLayout.setSpacing(4)
 
-        self.tableInfoLabel = QLabel('Double-click any table cell to jump directly to its plot & site')
+        self.tableInfoLabel = QLabel('Double-click any test cell to open it on Plots tab (All sites)')
         self.tableInfoLabel.setStyleSheet('color: #9da0a8; font-size: 11px;')
+        self.tableInfoLabel.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
 
         self.tableModel = PivotTableModel()
         self.tableView = QTableView()
@@ -379,16 +423,17 @@ class PivotTab(QWidget):
         self.rightSplitter.addWidget(tableContainer)
         self.rightSplitter.setStretchFactor(0, 2)
         self.rightSplitter.setStretchFactor(1, 1)
-        self.rightSplitter.setSizes([410, 250])
+        self.rightSplitter.setSizes([380, 220])
 
-        rightLayout.addLayout(controlsRow)
+        rightLayout.addLayout(controlsRow1)
+        rightLayout.addLayout(controlsRow2)
         rightLayout.addWidget(self.rightSplitter, 1)
 
         self.mainSplitter.addWidget(pickerGroup)
         self.mainSplitter.addWidget(rightPane)
         self.mainSplitter.setStretchFactor(0, 0)
         self.mainSplitter.setStretchFactor(1, 1)
-        self.mainSplitter.setSizes([285, 860])
+        self.mainSplitter.setSizes([230, 620])
 
         layout.addWidget(self.mainSplitter)
 
@@ -403,7 +448,6 @@ class PivotTab(QWidget):
 
         self.viewModeCombo.currentTextChanged.connect(self._onViewOptionsChanged)
         self.metricCombo.currentTextChanged.connect(self._recomputeView)
-        self.batchCombo.currentTextChanged.connect(self._recomputeView)
         self.colorByCombo.currentTextChanged.connect(self._recomputeView)
         self.limitsCombo.currentTextChanged.connect(self._recomputeView)
 
@@ -411,6 +455,8 @@ class PivotTab(QWidget):
         self.copyPlotButton.clicked.connect(self._onCopyPlotClicked)
         self.exportCsvButton.clicked.connect(self._onExportCsvClicked)
         self.tableView.doubleClicked.connect(self._onTableDoubleClicked)
+
+        self.minSamplesCombo.currentTextChanged.connect(self._recomputeView)
 
     def setMeasurements(self, measurements:dict[str, pd.DataFrame], resetSelection:bool=False):
         self._measurements = measurements
@@ -568,24 +614,20 @@ class PivotTab(QWidget):
 
     def _updateOptionStates(self):
         hasData = bool(self._measurements)
-        viewMode = self.viewModeCombo.currentText()
-        isBatchHeatmap = 'Batch' in viewMode
-        isOverlay = 'Overlay' in viewMode
+        isOverlay = 'Overlay' in self.viewModeCombo.currentText()
         isCxCy = self._selectionIsAllCxCy()
 
         self.metricLabel.setEnabled(hasData and not isOverlay)
         self.metricCombo.setEnabled(hasData and not isOverlay)
-
-        self.batchLabel.setVisible(isBatchHeatmap)
-        self.batchCombo.setVisible(isBatchHeatmap)
-        self.batchLabel.setEnabled(hasData and isBatchHeatmap)
-        self.batchCombo.setEnabled(hasData and isBatchHeatmap)
 
         showColorBy = isOverlay and isCxCy
         self.colorByLabel.setVisible(showColorBy)
         self.colorByCombo.setVisible(showColorBy)
         self.colorByLabel.setEnabled(hasData and showColorBy)
         self.colorByCombo.setEnabled(hasData and showColorBy)
+
+        self.minSamplesLabel.setEnabled(hasData and not isOverlay)
+        self.minSamplesCombo.setEnabled(hasData and not isOverlay)
 
     def _updateSelectionLabel(self):
         visibleCount = self.testListWidget.count()
@@ -611,13 +653,13 @@ class PivotTab(QWidget):
 
         self._syncMetricComboForSelection()
         viewMode = self.viewModeCombo.currentText()
-        rowMode = 'Batch' if 'Batch' in viewMode else 'Site'
         metric = self.metricCombo.currentText()
-        batchSetting = self.batchCombo.currentText()
         limitsMode = self.limitsCombo.currentText()
 
-        result = self._analyzer.analyzeMatrix(measurements=self._measurements, selectedTests=selectedTests, rowMode=rowMode,
-            batchSetting=batchSetting, metric=metric, limitsMode=limitsMode)
+        minSamples = int(self.minSamplesCombo.currentText())
+
+        result = self._analyzer.analyzeMatrix(measurements=self._measurements, selectedTests=selectedTests,
+            metric=metric, limitsMode=limitsMode, minSamples=minSamples)
         self._lastResult = result
 
         if result.warningMessage:
@@ -639,8 +681,8 @@ class PivotTab(QWidget):
 
         self.plotView.setFigure(fig)
         self.tableInfoLabel.setText(
-            f'Matrix: {len(result.rowLabels)} {rowMode.lower()}(s) × {len(result.colLabels)} test(s)  '
-            '|  Double-click any cell to inspect on Plots tab'
+            f'Matrix: {len(result.rowLabels)} site(s) × {len(result.colLabels)} test(s)  '
+            '|  Double-click any test cell to inspect on Plots tab (All sites)'
         )
         self.statusMessageRequested.emit(
             f'Pivot ready: {len(result.rowLabels)} × {len(result.colLabels)} ({metric})'
@@ -651,19 +693,16 @@ class PivotTab(QWidget):
         colCount = self.tableModel.columnCount()
         if colCount == 0:
             return
-        
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        for col in range(1, colCount):
+        for col in range(colCount):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
-    def _onTableDoubleClicked(self, index:QModelIndex):
+    def _onTableDoubleClicked(self, index: QModelIndex):
         if not index.isValid():
             return
         
-        target = self.tableModel.getDrillDownTarget(index.row(), index.column())
-        if target is not None:
-            testName, siteName = target
-            self.testSiteActivated.emit(testName, siteName)
+        testName = self.tableModel.getTestNameAtColumn(index.column())
+        if testName:
+            self.testActivated.emit(testName)
 
     def _openGuideDialog(self):
         if self._guideDialog is None:
@@ -724,7 +763,7 @@ class PivotTab(QWidget):
         ]
         for widget in widgetList:
             widget.setEnabled(enabled)
-
+            
         self.guideButton.setEnabled(True)
         self.exportCsvButton.setEnabled(enabled and self.tableModel.rowCount() > 0)
         self._updateOptionStates()

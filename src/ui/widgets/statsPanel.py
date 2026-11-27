@@ -69,7 +69,7 @@ STATS_GUIDE_HTML = """
     <tr><td><b>Entire column stands out</b> (1 LED / channel across all sites)</td><td>SMT feeder issue, wrong component reel at that board position, or mechanical light-pipe/PCB offset.</td></tr>
     <tr><td><b>Entire row stands out</b> (all LEDs / channels on 1 site)</td><td>Uncalibrated test site, contaminated master sensor, fixture alignment, or nest clamping issue.</td></tr>
     <tr><td><b>Single cell stands out</b> (1 position &times; 1 site)</td><td>Damaged single optical fiber, worn test probe, or single multiplexer channel on that site.</td></tr>
-    <tr><td><b>Whole map shifted</b> (in Centering or Batch &times; Test view)</td><td>Shifted component lot / LED bin reel across production or mid-lot reel changeover.</td></tr>
+    <tr><td><b>Whole map shifted</b> (in Centering Offset view)</td><td>Shifted component lot / LED bin reel across the whole production batch.</td></tr>
 </table>
 <ul>
     <li><b>Dev. vs Group (% tol.)</b> &mdash; Shift of each cell&rsquo;s mean relative to the group median, normalized by tolerance width. Highlights anomalous columns, rows, and single cells regardless of nominal value.</li>

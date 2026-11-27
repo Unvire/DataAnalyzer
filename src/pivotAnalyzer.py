@@ -1,7 +1,7 @@
+import colorsys
 from dataclasses import dataclass, field
 import math
 import re
-import colorsys
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ from src.processCalculator import ProcessParameterCalculator
 from src.siFormatter import formatAxisTitle, formatSiValue, getSiScale, isSentinelLimit
 
 
-def naturalSortKey(text:str) -> list[int | str]:
+def naturalSortKey(text: str) -> list[int | str]:
     parts = re.split(r'(\d+)', str(text))
     return [int(p) if p.isdigit() else p.lower() for p in parts]
 
@@ -20,8 +20,8 @@ def naturalSortKey(text:str) -> list[int | str]:
 @dataclass
 class PivotMatrixResult:
     isCxCy: bool = False
-    rowMode: str = 'Site'
     metricName: str = ''
+    minSamples: int = 1
     rowLabels: list[str] = field(default_factory=list)
     colLabels: list[str] = field(default_factory=list)
     shortColLabels: list[str] = field(default_factory=list)
@@ -84,23 +84,26 @@ class PivotAnalyzer:
 
 
     # ------------------------------------------------------------------
-    # Matrix Calculation
+    # Matrix Calculation (Site × Test)
     # ------------------------------------------------------------------
-    def analyzeMatrix(self, measurements:dict[str, pd.DataFrame], selectedTests:list[str], rowMode:str='Site',
-            batchSetting:str='8', metric:str='', limitsMode:str='All') -> PivotMatrixResult:
+    def analyzeMatrix(self, measurements:dict[str, pd.DataFrame], selectedTests:list[str], metric:str='', limitsMode:str='All',
+            minSamples: int = 1) -> PivotMatrixResult:
         
+        minSamples = max(1, int(minSamples))
         validTests = [
             t for t in selectedTests
             if t in measurements and measurements[t] is not None and not measurements[t].empty
         ]
         if not validTests:
-            return PivotMatrixResult(rowMode=rowMode,
-                warningMessage='Select at least one test from the left panel to build the matrix.')
+            return PivotMatrixResult(
+                minSamples=minSamples,
+                warningMessage='Select at least one test from the left panel to build the matrix.',
+            )
 
         cxcyFlags = [MeasurementEngine.isCxCyDataFrame(measurements[t]) for t in validTests]
         if any(cxcyFlags) and not all(cxcyFlags):
             return PivotMatrixResult(
-                rowMode=rowMode,
+                minSamples=minSamples,
                 warningMessage=(
                     'Mixed Scalar and CxCy tests selected.\n'
                     'Filter by Type (Scalar or CxCy) or uncheck one of the groups.'
@@ -113,87 +116,30 @@ class PivotAnalyzer:
             metric = defaultMetric
 
         if isCxCy:
-            return self._analyzeCxCyMatrix(measurements=measurements, testNames=validTests, rowMode=rowMode, batchSetting=batchSetting,
-                metric=metric, limitsMode=limitsMode)
+            return self._analyzeCxCyMatrix(measurements=measurements, testNames=validTests, metric=metric, limitsMode=limitsMode, 
+                minSamples=minSamples)
 
-        return self._analyzeScalarMatrix(measurements=measurements, testNames=validTests, rowMode=rowMode, batchSetting=batchSetting,
-            metric=metric, limitsMode=limitsMode)
+        return self._analyzeScalarMatrix(measurements=measurements, testNames=validTests, metric=metric, limitsMode=limitsMode,
+            minSamples=minSamples)
 
-    def _buildRowAssignment(self, measurements:dict[str, pd.DataFrame], testNames:list[str], rowMode:str,
-        batchSetting:str) -> tuple[list[str], dict[str, np.ndarray]]:
-        """
-        Returns (orderedRowLabels, perTestRowLabelArrays).
-        For 'Site' mode: rows are naturally sorted site identifiers.
-        For 'Batch' mode: rows are synchronized chronological buckets across all selected tests.
-        """
-        if rowMode.lower() == 'site':
-            allSites: set[str] = set()
-            perTest: dict[str, np.ndarray] = {}
-            for t in testNames:
-                df = measurements[t]
-                arr = df['Site'].astype(str).to_numpy()
-                perTest[t] = arr
-                allSites.update(np.unique(arr).tolist())
-            ordered = sorted(allSites, key=naturalSortKey)
-            return ordered, perTest
-
-        # Batch (Time) mode
-        if batchSetting.strip().lower() == 'daily':
-            allDays: set[str] = set()
-            perTest = {}
-            for t in testNames:
-                df = measurements[t]
-                days = df['TestDate'].astype(str).str.slice(0, 10).to_numpy()
-                perTest[t] = days
-                allDays.update(np.unique(days).tolist())
-            ordered = sorted(d for d in allDays if d)
-            return ordered, perTest
-
-        try:
-            numBatches = max(2, int(batchSetting))
-        except ValueError:
-            numBatches = 8
-
-        allTimestamps: set[str] = set()
+    @staticmethod
+    def _collectSiteRows(measurements:dict[str, pd.DataFrame], testNames:list[str]) -> tuple[list[str], dict[str, np.ndarray]]:
+        allSites: set[str] = set()
+        perTest: dict[str, np.ndarray] = {}
         for t in testNames:
-            df = measurements[t]
-            allTimestamps.update(df['TestDate'].dropna().astype(str).unique().tolist())
+            arr = measurements[t]['Site'].astype(str).to_numpy()
+            perTest[t] = arr
+            allSites.update(np.unique(arr).tolist())
+        return sorted(allSites, key=naturalSortKey), perTest
 
-        sortedTs = sorted(ts for ts in allTimestamps if ts)
-        if not sortedTs:
-            return [], {}
-
-        effectiveBatches = min(numBatches, len(sortedTs))
-        chunks = np.array_split(np.array(sortedTs, dtype=object), effectiveBatches)
-
-        tsToBatch: dict[str, str] = {}
-        orderedLabels: list[str] = []
-        for idx, chunk in enumerate(chunks, start=1):
-            if len(chunk) == 0:
-                continue
-            startStr = str(chunk[0])
-            shortStart = startStr[5:16] if len(startStr) >= 16 else startStr
-            label = f'B{idx} ({shortStart})'
-            orderedLabels.append(label)
-            for ts in chunk:
-                tsToBatch[str(ts)] = label
-
-        perTest = {}
-        for t in testNames:
-            df = measurements[t]
-            dates = df['TestDate'].astype(str).tolist()
-            perTest[t] = np.array([tsToBatch.get(d, '') for d in dates], dtype=object)
-
-        return orderedLabels, perTest
-
-    def _analyzeScalarMatrix(self, measurements:dict[str, pd.DataFrame], testNames:list[str], rowMode:str,
-            batchSetting:str, metric:str,limitsMode:str) -> PivotMatrixResult:
+    def _analyzeScalarMatrix(self, measurements:dict[str, pd.DataFrame], testNames:list[str], metric:str, limitsMode:str,
+            minSamples:int) -> PivotMatrixResult:
         
-        rowLabels, perTestRows = self._buildRowAssignment(measurements, testNames, rowMode, batchSetting)
+        rowLabels, perTestRows = self._collectSiteRows(measurements, testNames)
         nRows = len(rowLabels)
         nCols = len(testNames)
         if nRows == 0 or nCols == 0:
-            return PivotMatrixResult(rowMode=rowMode, metricName=metric, warningMessage='No matching rows found.')
+            return PivotMatrixResult(metricName=metric, minSamples=minSamples, warningMessage='No matching sites found.')
 
         rowIdxMap = {label: i for i, label in enumerate(rowLabels)}
 
@@ -212,9 +158,10 @@ class PivotAnalyzer:
         colYield = np.full(nCols, np.nan, dtype=float)
         colCentering = np.full(nCols, np.nan, dtype=float)
         colNormPos = np.full(nCols, np.nan, dtype=float)
-        colFails = np.zeros(nCols, dtype=int)
+        colFails = np.full(nCols, np.nan, dtype=float)
 
-        allSampleValues: list[np.ndarray] = []
+        acceptedSampleValues: list[np.ndarray] = []
+        fallbackSampleValues: list[np.ndarray] = []
         refLsls: list[float] = []
         refUsls: list[float] = []
 
@@ -222,43 +169,40 @@ class PivotAnalyzer:
             df = measurements[testName]
             fullMetrics, fullFailMask = self._calculator.calculateWithFailMask(df, limitsMode=limitsMode, includeShapeStats=False)
 
-            colMean[c] = fullMetrics.mean if fullMetrics.mean is not None else np.nan
-            colSigma[c] = fullMetrics.sigmaOverall if fullMetrics.sigmaOverall is not None else np.nan
-            colPpk[c] = fullMetrics.ppk if fullMetrics.ppk is not None else np.nan
-            colYield[c] = fullMetrics.yieldPct if fullMetrics.yieldPct is not None else np.nan
-            colCentering[c] = fullMetrics.centeringOffsetPct if fullMetrics.centeringOffsetPct is not None else np.nan
-            colFails[c] = fullMetrics.failTotal
-
             lsl = fullMetrics.lsl
             usl = fullMetrics.usl
             hasTwoSided = lsl is not None and usl is not None and usl > lsl
             tolSpan = (usl - lsl) if hasTwoSided else None
             midpoint = (0.5 * (lsl + usl)) if hasTwoSided else None
 
-            if hasTwoSided and fullMetrics.mean is not None:
-                colNormPos[c] = ((fullMetrics.mean - midpoint) / tolSpan) * 100.0
-                refLsls.append(lsl)
-                refUsls.append(usl)
-
             rawVals = df['Value'].to_numpy(dtype=float)
             finiteMask = np.isfinite(rawVals)
             if np.any(finiteMask):
-                allSampleValues.append(rawVals[finiteMask])
+                fallbackSampleValues.append(rawVals[finiteMask])
 
             rowArr = perTestRows[testName]
+            acceptedSites: list[str] = []
+
             for rLabel, rIdx in rowIdxMap.items():
                 cellMask = (rowArr == rLabel) & finiteMask
                 nCell = int(np.sum(cellMask))
                 if nCell == 0:
                     continue
 
-                cellVals = rawVals[cellMask]
                 cellFails = int(np.sum(fullFailMask[cellMask]))
+                countMatrix[rIdx, c] = nCell
+                failMatrix[rIdx, c] = cellFails
+
+                if nCell < minSamples:
+                    continue
+
+                acceptedSites.append(rLabel)
+                cellVals = rawVals[cellMask]
+                acceptedSampleValues.append(cellVals)
+
                 cMean = float(np.mean(cellVals))
                 cSigma = float(np.std(cellVals, ddof=1)) if nCell > 1 else np.nan
 
-                countMatrix[rIdx, c] = nCell
-                failMatrix[rIdx, c] = cellFails
                 meanMatrix[rIdx, c] = cMean
                 sigmaMatrix[rIdx, c] = cSigma
 
@@ -274,48 +218,72 @@ class PivotAnalyzer:
                     centeringMatrix[rIdx, c] = ((cMean - midpoint) / (0.5 * tolSpan)) * 100.0
                     normPosMatrix[rIdx, c] = ((cMean - midpoint) / tolSpan) * 100.0
 
-        # Compute SI scaling across the selected scalar group
+            if not acceptedSites:
+                continue
+
+            if len(acceptedSites) == len(rowIdxMap) or minSamples <= 1:
+                colMetrics = fullMetrics
+            else:
+                acceptedRowMask = np.isin(rowArr, acceptedSites)
+                colMetrics = self._calculator.calculate(df[acceptedRowMask], limitsMode=limitsMode, includeShapeStats=False)
+
+            colMean[c] = colMetrics.mean if colMetrics.mean is not None else np.nan
+            colSigma[c] = colMetrics.sigmaOverall if colMetrics.sigmaOverall is not None else np.nan
+            colPpk[c] = colMetrics.ppk if colMetrics.ppk is not None else np.nan
+            colYield[c] = colMetrics.yieldPct if colMetrics.yieldPct is not None else np.nan
+            colCentering[c] = colMetrics.centeringOffsetPct if colMetrics.centeringOffsetPct is not None else np.nan
+            colFails[c] = float(colMetrics.failTotal)
+
+            if hasTwoSided and tolSpan is not None and midpoint is not None and colMetrics.mean is not None:
+                colNormPos[c] = ((colMetrics.mean - midpoint) / tolSpan) * 100.0
+                refLsls.append(lsl)
+                refUsls.append(usl)
+
+        samplePool = acceptedSampleValues if acceptedSampleValues else fallbackSampleValues
         prefix, scaleFactor = '', 1.0
-        if allSampleValues:
-            combined = np.concatenate(allSampleValues)
+        if samplePool:
+            combined = np.concatenate(samplePool)
             lslHint = float(np.median(refLsls)) if refLsls else None
             uslHint = float(np.median(refUsls)) if refUsls else None
             prefix, scaleFactor = getSiScale(combined, lslHint, uslHint)
 
-        # Select Z matrix and summary vectors for requested metric
+        acceptedWeights = np.where(countMatrix >= minSamples, countMatrix, 0).astype(float)
+        colWeights = np.sum(acceptedWeights, axis=0)
+
         if metric == 'Dev. vs Group (% tol.)':
-            finiteNorm = normPosMatrix[np.isfinite(normPosMatrix)]
-            if finiteNorm.size > 0:
-                groupMedPos = float(np.median(finiteNorm))
+            if np.any(np.isfinite(normPosMatrix) & (acceptedWeights > 0)):
+                groupMedPos = self._weightedMedian(normPosMatrix, acceptedWeights)
                 zMatrix = normPosMatrix - groupMedPos
                 colSummary = colNormPos - groupMedPos
+
             else:
-                zMatrix, colSummary = self._computeZScoreFallback(meanMatrix, colMean)
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(zMatrix)) if np.any(np.isfinite(zMatrix)) else float('nan')
+                zMatrix, colSummary = self._computeWeightedZScore(meanMatrix, colMean, acceptedWeights)
+
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(zMatrix, acceptedWeights)
 
         elif metric == 'Dev. vs Group (Z-score)':
-            zMatrix, colSummary = self._computeZScoreFallback(meanMatrix, colMean)
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(zMatrix)) if np.any(np.isfinite(zMatrix)) else float('nan')
+            zMatrix, colSummary = self._computeWeightedZScore(meanMatrix, colMean, acceptedWeights)
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(zMatrix, acceptedWeights)
 
         elif metric == 'Centering Offset (%)':
             zMatrix = centeringMatrix
             colSummary = colCentering
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(colCentering)) if np.any(np.isfinite(colCentering)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(colCentering, colWeights)
 
         elif metric == 'Mean':
             zMatrix = meanMatrix * scaleFactor
             colSummary = colMean * scaleFactor
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(colSummary)) if np.any(np.isfinite(colSummary)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(colSummary, colWeights)
 
         elif metric == 'Sigma':
             zMatrix = sigmaMatrix * scaleFactor
             colSummary = colSigma * scaleFactor
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(colSummary)) if np.any(np.isfinite(colSummary)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(colSummary, colWeights)
 
         elif metric == 'Ppk':
             zMatrix = ppkMatrix
@@ -326,27 +294,30 @@ class PivotAnalyzer:
         elif metric == 'Yield (%)':
             zMatrix = yieldMatrix
             colSummary = colYield
-            rowCounts = np.sum(countMatrix, axis=1)
-            rowFails = np.sum(failMatrix, axis=1)
+            validYieldMask = np.isfinite(yieldMatrix) & (acceptedWeights > 0)
+            rowCounts = np.sum(np.where(validYieldMask, countMatrix, 0), axis=1)
+            rowFails = np.sum(np.where(validYieldMask, failMatrix, 0), axis=1)
             rowSummary = np.where(rowCounts > 0, ((rowCounts - rowFails) / np.maximum(rowCounts, 1)) * 100.0, np.nan)
-            totalCount = int(np.sum(countMatrix))
-            totalFail = int(np.sum(failMatrix))
+            totalCount = int(np.sum(rowCounts))
+            totalFail = int(np.sum(rowFails))
             overallSummary = ((totalCount - totalFail) / totalCount) * 100.0 if totalCount > 0 else float('nan')
 
         else:  # 'Fails'
-            zMatrix = failMatrix.astype(float)
-            colSummary = colFails.astype(float)
-            rowSummary = np.sum(failMatrix, axis=1).astype(float)
-            overallSummary = float(np.sum(failMatrix))
+            zMatrix = np.where(acceptedWeights > 0, failMatrix.astype(float), np.nan)
+            colSummary = colFails
+            rowHasAccepted = np.sum(acceptedWeights > 0, axis=1) > 0
+            rowFailSums = np.sum(np.where(acceptedWeights > 0, failMatrix, 0), axis=1).astype(float)
+            rowSummary = np.where(rowHasAccepted, rowFailSums, np.nan)
+            overallSummary = float(np.nansum(colFails)) if np.any(np.isfinite(colFails)) else float('nan')
 
         shortCols = self._makeUniqueShortLabels(testNames)
-        pivotDf = self._buildPivotDataFrame(rowMode=rowMode, metric=metric, rowLabels=rowLabels, colLabels=testNames, zMatrix=zMatrix,
+        pivotDf = self._buildPivotDataFrame(metric=metric, rowLabels=rowLabels, colLabels=testNames, zMatrix=zMatrix,
             rowSummary=rowSummary, colSummary=colSummary, overallSummary=overallSummary)
 
         return PivotMatrixResult(
             isCxCy=False,
-            rowMode=rowMode,
             metricName=metric,
+            minSamples=minSamples,
             rowLabels=rowLabels,
             colLabels=testNames,
             shortColLabels=shortCols,
@@ -362,14 +333,14 @@ class PivotAnalyzer:
             scaleFactor=scaleFactor,
         )
 
-    def _analyzeCxCyMatrix(self, measurements:dict[str, pd.DataFrame], testNames:list[str], rowMode:str, batchSetting:str,
-            metric:str, limitsMode:str) -> PivotMatrixResult:
+    def _analyzeCxCyMatrix(self, measurements:dict[str, pd.DataFrame], testNames:list[str], metric:str, limitsMode:str,
+            minSamples:int) -> PivotMatrixResult:
         
-        rowLabels, perTestRows = self._buildRowAssignment(measurements, testNames, rowMode, batchSetting)
+        rowLabels, perTestRows = self._collectSiteRows(measurements, testNames)
         nRows = len(rowLabels)
         nCols = len(testNames)
         if nRows == 0 or nCols == 0:
-            return PivotMatrixResult(isCxCy=True, rowMode=rowMode, metricName=metric, warningMessage='No matching rows found.')
+            return PivotMatrixResult(isCxCy=True, metricName=metric, minSamples=minSamples, warningMessage='No matching sites found.')
 
         rowIdxMap = {label: i for i, label in enumerate(rowLabels)}
 
@@ -384,38 +355,37 @@ class PivotAnalyzer:
         colCyMean = np.full(nCols, np.nan, dtype=float)
         colDist = np.full(nCols, np.nan, dtype=float)
         colYield = np.full(nCols, np.nan, dtype=float)
-        colFails = np.zeros(nCols, dtype=int)
+        colFails = np.full(nCols, np.nan, dtype=float)
 
         for c, testName in enumerate(testNames):
             df = measurements[testName]
             fullMetrics, fullFailMask = self._calculator.calculateWithFailMask(df, limitsMode=limitsMode, includeShapeStats=False)
 
-            colCxMean[c] = fullMetrics.cxMean if fullMetrics.cxMean is not None else np.nan
-            colCyMean[c] = fullMetrics.cyMean if fullMetrics.cyMean is not None else np.nan
-            colYield[c] = fullMetrics.yieldPct if fullMetrics.yieldPct is not None else np.nan
-            colFails[c] = fullMetrics.failTotal
-
             centroid = self._getActivePolygonCentroid(df, limitsMode)
-            if centroid is not None and np.isfinite(colCxMean[c]) and np.isfinite(colCyMean[c]):
-                colDist[c] = math.hypot(colCxMean[c] - centroid[0], colCyMean[c] - centroid[1])
-
             cxArr = df['CX'].to_numpy(dtype=float)
             cyArr = df['CY'].to_numpy(dtype=float)
             finiteMask = np.isfinite(cxArr) & np.isfinite(cyArr)
 
             rowArr = perTestRows[testName]
+            acceptedSites: list[str] = []
+
             for rLabel, rIdx in rowIdxMap.items():
                 cellMask = (rowArr == rLabel) & finiteMask
                 nCell = int(np.sum(cellMask))
                 if nCell == 0:
                     continue
 
-                cCx = float(np.mean(cxArr[cellMask]))
-                cCy = float(np.mean(cyArr[cellMask]))
                 cellFails = int(np.sum(fullFailMask[cellMask]))
-
                 countMatrix[rIdx, c] = nCell
                 failMatrix[rIdx, c] = cellFails
+
+                if nCell < minSamples:
+                    continue
+
+                acceptedSites.append(rLabel)
+                cCx = float(np.mean(cxArr[cellMask]))
+                cCy = float(np.mean(cyArr[cellMask]))
+
                 cxMeanMatrix[rIdx, c] = cCx
                 cyMeanMatrix[rIdx, c] = cCy
 
@@ -425,64 +395,85 @@ class PivotAnalyzer:
                 if centroid is not None:
                     distMatrix[rIdx, c] = math.hypot(cCx - centroid[0], cCy - centroid[1])
 
+            if not acceptedSites:
+                continue
+
+            if len(acceptedSites) == len(rowIdxMap) or minSamples <= 1:
+                colMetrics = fullMetrics
+            else:
+                acceptedRowMask = np.isin(rowArr, acceptedSites)
+                colMetrics = self._calculator.calculate(df[acceptedRowMask], limitsMode=limitsMode, includeShapeStats=False)
+
+            colCxMean[c] = colMetrics.cxMean if colMetrics.cxMean is not None else np.nan
+            colCyMean[c] = colMetrics.cyMean if colMetrics.cyMean is not None else np.nan
+            colYield[c] = colMetrics.yieldPct if colMetrics.yieldPct is not None else np.nan
+            colFails[c] = float(colMetrics.failTotal)
+
+            if centroid is not None and np.isfinite(colCxMean[c]) and np.isfinite(colCyMean[c]):
+                colDist[c] = math.hypot(colCxMean[c] - centroid[0], colCyMean[c] - centroid[1])
+
+        acceptedWeights = np.where(countMatrix >= minSamples, countMatrix, 0).astype(float)
+        colWeights = np.sum(acceptedWeights, axis=0)
+
         if metric == 'Dist. from Bin Center':
             zMatrix = distMatrix
             colSummary = colDist
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(colDist)) if np.any(np.isfinite(colDist)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(colDist, colWeights)
 
         elif metric == 'CX Dev. vs Group':
-            validCx = cxMeanMatrix[np.isfinite(cxMeanMatrix)]
-            medCx = float(np.median(validCx)) if validCx.size > 0 else 0.0
+            medCx = self._weightedMedian(cxMeanMatrix, acceptedWeights)
             zMatrix = cxMeanMatrix - medCx
             colSummary = colCxMean - medCx
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(zMatrix)) if np.any(np.isfinite(zMatrix)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(zMatrix, acceptedWeights)
 
         elif metric == 'CY Dev. vs Group':
-            validCy = cyMeanMatrix[np.isfinite(cyMeanMatrix)]
-            medCy = float(np.median(validCy)) if validCy.size > 0 else 0.0
+            medCy = self._weightedMedian(cyMeanMatrix, acceptedWeights)
             zMatrix = cyMeanMatrix - medCy
             colSummary = colCyMean - medCy
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(zMatrix)) if np.any(np.isfinite(zMatrix)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(zMatrix, acceptedWeights)
 
         elif metric == 'CX Mean':
             zMatrix = cxMeanMatrix
             colSummary = colCxMean
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(colCxMean)) if np.any(np.isfinite(colCxMean)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(colCxMean, colWeights)
 
         elif metric == 'CY Mean':
             zMatrix = cyMeanMatrix
             colSummary = colCyMean
-            rowSummary = self._nanMeanAxis(zMatrix, axis=1)
-            overallSummary = float(np.nanmean(colCyMean)) if np.any(np.isfinite(colCyMean)) else float('nan')
+            rowSummary = self._weightedNanMean(zMatrix, acceptedWeights, axis=1)
+            overallSummary = self._weightedNanMeanScalar(colCyMean, colWeights)
 
         elif metric == 'Yield (%)':
             zMatrix = yieldMatrix
             colSummary = colYield
-            rowCounts = np.sum(countMatrix, axis=1)
-            rowFails = np.sum(failMatrix, axis=1)
+            validYieldMask = np.isfinite(yieldMatrix) & (acceptedWeights > 0)
+            rowCounts = np.sum(np.where(validYieldMask, countMatrix, 0), axis=1)
+            rowFails = np.sum(np.where(validYieldMask, failMatrix, 0), axis=1)
             rowSummary = np.where(rowCounts > 0, ((rowCounts - rowFails) / np.maximum(rowCounts, 1)) * 100.0, np.nan)
-            totalCount = int(np.sum(countMatrix))
-            totalFail = int(np.sum(failMatrix))
+            totalCount = int(np.sum(rowCounts))
+            totalFail = int(np.sum(rowFails))
             overallSummary = ((totalCount - totalFail) / totalCount) * 100.0 if totalCount > 0 else float('nan')
 
         else:  # 'Fails'
-            zMatrix = failMatrix.astype(float)
-            colSummary = colFails.astype(float)
-            rowSummary = np.sum(failMatrix, axis=1).astype(float)
-            overallSummary = float(np.sum(failMatrix))
+            zMatrix = np.where(acceptedWeights > 0, failMatrix.astype(float), np.nan)
+            colSummary = colFails
+            rowHasAccepted = np.sum(acceptedWeights > 0, axis=1) > 0
+            rowFailSums = np.sum(np.where(acceptedWeights > 0, failMatrix, 0), axis=1).astype(float)
+            rowSummary = np.where(rowHasAccepted, rowFailSums, np.nan)
+            overallSummary = float(np.nansum(colFails)) if np.any(np.isfinite(colFails)) else float('nan')
 
         shortCols = self._makeUniqueShortLabels(testNames)
-        pivotDf = self._buildPivotDataFrame(rowMode=rowMode, metric=metric, rowLabels=rowLabels,  colLabels=testNames,
-            zMatrix=zMatrix, rowSummary=rowSummary, colSummary=colSummary, overallSummary=overallSummary)
+        pivotDf = self._buildPivotDataFrame(metric=metric, rowLabels=rowLabels, colLabels=testNames, zMatrix=zMatrix, rowSummary=rowSummary,
+            colSummary=colSummary, overallSummary=overallSummary)
 
         return PivotMatrixResult(
             isCxCy=True,
-            rowMode=rowMode,
             metricName=metric,
+            minSamples=minSamples,
             rowLabels=rowLabels,
             colLabels=testNames,
             shortColLabels=shortCols,
@@ -510,10 +501,13 @@ class PivotAnalyzer:
 
         metric = result.metricName
         unitSuffix = f' [{result.unitPrefix}]' if (metric in ('Mean', 'Sigma') and result.unitPrefix) else ''
-        yLabels = [f'Site {r}' if result.rowMode.lower() == 'site' else r for r in result.rowLabels]
+        yLabels = [f'Site {r}' for r in result.rowLabels]
 
-        # Build cell display text & rich hover text
+        maxCellN = int(np.max(result.countMatrix)) if result.countMatrix.size > 0 else 0
+        lowNThreshold = 10 if maxCellN >= 20 else 0
+
         showCellText = (nRows * nCols) <= 220
+        showSecondLineN = (nRows * nCols) <= 120
         textMatrix: list[list[str]] = []
         hoverMatrix: list[list[str]] = []
 
@@ -525,24 +519,61 @@ class PivotAnalyzer:
                 cnt = int(result.countMatrix[r, c])
                 fls = int(result.failMatrix[r, c])
 
-                if cnt == 0 or not np.isfinite(val):
+                if cnt == 0:
                     tRow.append('')
                     hRow.append(f'<b>{result.colLabels[c]}</b><br>{yLabels[r]}<br>No data')
                     continue
 
+                if cnt < result.minSamples:
+                    tRow.append(
+                        f'<span style="color:#8b8f99;font-size:10px">n={cnt:,} (&lt;{result.minSamples})</span>'
+                        if showCellText else ''
+                    )
+                    hRow.append(
+                        f'<b>{result.colLabels[c]}</b><br>{yLabels[r]}<br>'
+                        f'Masked by Min n &ge; {result.minSamples} (actual n={cnt:,})<br>'
+                        f'Fails: {fls:,}'
+                    )
+                    continue
+
+                if not np.isfinite(val):
+                    tRow.append(
+                        f'<span style="color:#8b8f99;font-size:10px">— (n={cnt:,})</span>'
+                        if showCellText else ''
+                    )
+                    hRow.append(
+                        f'<b>{result.colLabels[c]}</b><br>{yLabels[r]}<br>'
+                        f'{metric}: — (insufficient samples)<br>'
+                        f'Samples: {cnt:,}  |  Fails: {fls:,}'
+                    )
+                    continue
+
                 formatted = self.formatMetricValue(val, metric, result.unitPrefix)
-                tRow.append(formatted if showCellText else '')
+                isLowN = lowNThreshold > 0 and cnt < lowNThreshold
+                warnPrefix = '⚠ ' if isLowN else ''
+
+                if showCellText:
+                    if showSecondLineN:
+                        tRow.append(
+                            f'{formatted}<br>'
+                            f'<span style="font-size:9px;color:rgba(255,255,255,0.75)">{warnPrefix}n={cnt:,}</span>'
+                        )
+                    else:
+                        tRow.append(f'{warnPrefix}{formatted}')
+                else:
+                    tRow.append('')
 
                 extraMean = ''
                 if not result.isCxCy and metric not in ('Mean', 'Sigma') and np.isfinite(result.auxMeanMatrix[r, c]):
                     extraMean = f'<br>Mean: {formatSiValue(float(result.auxMeanMatrix[r, c]), precision=4)}'
 
+                lowNNote = '  <b>(⚠ low sample size)</b>' if isLowN else ''
                 hRow.append(
                     f'<b>{result.colLabels[c]}</b><br>'
                     f'{yLabels[r]}<br>'
                     f'{metric}{unitSuffix}: <b>{formatted}</b>'
                     f'{extraMean}<br>'
-                    f'Samples: {cnt:,}  |  Fails: {fls:,}'
+                    f'Samples: {cnt:,}{lowNNote}  |  Fails: {fls:,}'
                 )
             textMatrix.append(tRow)
             hoverMatrix.append(hRow)
@@ -573,11 +604,12 @@ class PivotAnalyzer:
         if zmid is not None:
             heatmapKwargs['zmid'] = zmid
 
+        minNote = f'  [Min n ≥ {result.minSamples}]' if result.minSamples > 1 else ''
         fig = go.Figure(data=go.Heatmap(**heatmapKwargs))
         fig.update_layout(
             separators='. ',
             title=dict(
-                text=f'Pivot Heatmap ({result.rowMode} × Test) — {metric}{unitSuffix}',
+                text=f'Pivot Heatmap (Site × Test) — {metric}{unitSuffix}{minNote}',
                 x=0.02,
                 y=0.96,
                 font=dict(size=14, color=self.TEXT_COLOR),
@@ -592,7 +624,7 @@ class PivotAnalyzer:
         return fig
 
     def createOverlayFigure(self, measurements:dict[str, pd.DataFrame], selectedTests:list[str], limitsMode:str='All',
-            colorBy: str = 'Test (Position)') -> go.Figure:
+            colorBy:str='Test (Position)') -> go.Figure:
         
         validTests = [
             t for t in selectedTests
@@ -649,14 +681,13 @@ class PivotAnalyzer:
             fig.add_trace(
                 go.Box(
                     y=finiteScaled,
-                    name=shortLbl,
+                    name=f'{shortLbl} (n={len(finiteScaled):,})',
                     marker_color=self._getColor(idx),
                     boxmean='sd',
                     boxpoints='outliers',
                 )
             )
 
-        # Draw shared reference lines if all selected tests have the same LSL / USL
         if len(lsls) == len(testNames) and np.allclose(lsls, lsls[0], rtol=1e-6, atol=1e-12):
             lslScaled = lsls[0] * scaleFactor
             fig.add_hline(y=lslScaled, line_dash='dash', line_color=self.LSL_COLOR, line_width=1.8,
@@ -680,7 +711,7 @@ class PivotAnalyzer:
             paper_bgcolor=self.BG_COLOR,
             plot_bgcolor=self.PLOT_BG_COLOR,
             font=dict(family='Segoe UI, Arial, sans-serif', size=11, color=self.TEXT_COLOR),
-            margin=dict(l=65, r=25, t=60, b=105),
+            margin=dict(l=65, r=25, t=60, b=115),
             showlegend=False,
             xaxis=dict(tickangle=-35, gridcolor=self.GRID_COLOR, automargin=True),
             yaxis=dict(
@@ -694,14 +725,11 @@ class PivotAnalyzer:
         )
         return fig
 
-    def _createCxCyOverlayFigure(self, measurements:dict[str, pd.DataFrame], testNames:list[str], limitsMode:str,
-            colorBy:str) -> go.Figure:
-        
+    def _createCxCyOverlayFigure(self, measurements:dict[str, pd.DataFrame], testNames:list[str], limitsMode:str, colorBy:str) -> go.Figure:
         fig = go.Figure()
         shortLabels = self._makeUniqueShortLabels(testNames)
 
         if colorBy.lower().startswith('site'):
-            # Group points across all selected LEDs by Site
             siteBuckets: dict[str, list[pd.DataFrame]] = {}
             for tName in testNames:
                 df = measurements[tName].copy()
@@ -735,7 +763,6 @@ class PivotAnalyzer:
                     )
                 )
         else:
-            # Color by LED / Test position
             for idx, (tName, shortLbl) in enumerate(zip(testNames, shortLabels)):
                 df = measurements[tName]
                 customData = np.column_stack((
@@ -762,7 +789,6 @@ class PivotAnalyzer:
                     )
                 )
 
-        # Deduplicated bin boundaries across selected tests
         seenBounds: set[tuple[tuple[float, float], ...]] = set()
         uniqueBounds: list[tuple[tuple[float, float], ...]] = []
         for tName in testNames:
@@ -796,7 +822,10 @@ class PivotAnalyzer:
             by = [p[1] for p in poly]
             color = self.USL_COLOR if idx == 0 else ('#e040fb' if idx == 1 else self.LSL_COLOR)
             fig.add_trace(
-                go.Scatter(x=bx, y=by, mode='lines',
+                go.Scatter(
+                    x=bx,
+                    y=by,
+                    mode='lines',
                     name=f'Bin Boundary {idx + 1}' if len(uniqueBounds) > 1 else 'Bin Boundary',
                     line=dict(color=color, width=2.2, dash=dashStyles[idx % len(dashStyles)]),
                     hoverinfo='skip',
@@ -833,28 +862,71 @@ class PivotAnalyzer:
 
 
     # ------------------------------------------------------------------
-    # Helpers
+    # Weighted Statistics & Helpers
     # ------------------------------------------------------------------
     @staticmethod
-    def _computeZScoreFallback(meanMatrix:np.ndarray, colMean:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        finite = meanMatrix[np.isfinite(meanMatrix)]
-        if finite.size < 2:
+    def _weightedMedian(values:np.ndarray, weights:np.ndarray) -> float:
+        valid = np.isfinite(values) & (weights > 0)
+        v = values[valid]
+        w = weights[valid].astype(float)
+        if v.size == 0:
+            return float('nan')
+        
+        if v.size == 1:
+            return float(v[0])
+
+        order = np.argsort(v)
+        vSorted = v[order]
+        wSorted = w[order]
+        cumW = np.cumsum(wSorted)
+        cutoff = 0.5 * cumW[-1]
+        idx = int(np.searchsorted(cumW, cutoff))
+        if idx < len(vSorted) - 1 and math.isclose(cumW[idx], cutoff, rel_tol=1e-12, abs_tol=1e-12):
+            return 0.5 * float(vSorted[idx] + vSorted[idx + 1])
+        return float(vSorted[min(idx, len(vSorted) - 1)])
+
+    @staticmethod
+    def _weightedNanMean(values:np.ndarray, weights:np.ndarray, axis:int) -> np.ndarray:
+        valid = np.isfinite(values) & (weights > 0)
+        safeVals = np.where(valid, values, 0.0)
+        safeWeights = np.where(valid, weights, 0.0)
+        wSum = np.sum(safeWeights, axis=axis)
+        vSum = np.sum(safeVals * safeWeights, axis=axis)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            return np.where(wSum > 0, vSum / wSum, np.nan)
+
+    @staticmethod
+    def _weightedNanMeanScalar(values:np.ndarray, weights:np.ndarray) -> float:
+        valid = np.isfinite(values) & (weights > 0)
+        if not np.any(valid):
+            return float('nan')
+        wSum = float(np.sum(weights[valid]))
+        if wSum <= 0.0:
+            return float('nan')
+        return float(np.sum(values[valid] * weights[valid]) / wSum)
+
+    @classmethod
+    def _computeWeightedZScore(cls, meanMatrix:np.ndarray, colMean:np.ndarray, weights:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        valid = np.isfinite(meanMatrix) & (weights > 0)
+        if int(np.sum(valid)) < 2:
             return np.zeros_like(meanMatrix), np.zeros_like(colMean)
 
-        med = float(np.median(finite))
-        mad = float(np.median(np.abs(finite - med)))
+        med = cls._weightedMedian(meanMatrix, weights)
+        absDev = np.abs(meanMatrix - med)
+        mad = cls._weightedMedian(absDev, weights)
         robustSigma = 1.4826 * mad
-        if robustSigma <= 0.0:
-            robustSigma = float(np.std(finite, ddof=1))
+
+        if not np.isfinite(robustSigma) or robustSigma <= 0.0:
+            v = meanMatrix[valid]
+            w = weights[valid].astype(float)
+            wMean = float(np.sum(v * w) / np.sum(w))
+            wVar = float(np.sum(w * ((v - wMean) ** 2)) / np.sum(w))
+            robustSigma = math.sqrt(wVar) if wVar > 0.0 else 0.0
+
         if robustSigma <= 0.0:
             return np.zeros_like(meanMatrix), np.zeros_like(colMean)
 
         return (meanMatrix - med) / robustSigma, (colMean - med) / robustSigma
-
-    @staticmethod
-    def _nanMeanAxis(arr:np.ndarray, axis:int) -> np.ndarray:
-        with np.errstate(all='ignore'):
-            return np.nanmean(arr, axis=axis)
 
     @staticmethod
     def _nanMinAxis(arr:np.ndarray, axis:int) -> np.ndarray:
@@ -880,7 +952,6 @@ class PivotAnalyzer:
         if len(pts) < 3:
             return None
 
-        # Shoelace polygon centroid
         area2 = 0.0
         cxAcc = 0.0
         cyAcc = 0.0
@@ -902,40 +973,37 @@ class PivotAnalyzer:
         )
 
     @staticmethod
-    def _buildPivotDataFrame(rowMode:str, metric:str, rowLabels:list[str], colLabels:list[str], zMatrix:np.ndarray,
+    def _buildPivotDataFrame(metric:str, rowLabels:list[str], colLabels:list[str], zMatrix:np.ndarray,
             rowSummary:np.ndarray, colSummary:np.ndarray, overallSummary:float) -> pd.DataFrame:
         
-        firstColName = 'Site' if rowMode.lower() == 'site' else 'Batch'
         summaryColName = 'Total' if metric == 'Fails' else ('Min' if metric == 'Ppk' else 'Row Avg')
 
         rows: list[dict] = []
         for rIdx, rLabel in enumerate(rowLabels):
-            rowDict: dict = {firstColName: rLabel}
+            rowDict: dict = {'Site': rLabel}
             for cIdx, cLabel in enumerate(colLabels):
                 rowDict[cLabel] = float(zMatrix[rIdx, cIdx])
             rowDict[summaryColName] = float(rowSummary[rIdx])
             rows.append(rowDict)
 
-        # Bottom summary row across all rows
-        totalRow: dict = {firstColName: 'All / Group'}
+        totalRow: dict = {'Site': 'All / Group'}
         for cIdx, cLabel in enumerate(colLabels):
             totalRow[cLabel] = float(colSummary[cIdx])
         totalRow[summaryColName] = float(overallSummary)
         rows.append(totalRow)
 
-        return pd.DataFrame(rows, columns=[firstColName, *colLabels, summaryColName])
+        return pd.DataFrame(rows, columns=['Site', *colLabels, summaryColName])
 
     @staticmethod
-    def formatMetricValue(val:float, metric:str, unitPrefix:str='') -> str:
+    def formatMetricValue(val: float, metric: str, unitPrefix: str = '') -> str:
         if not np.isfinite(val):
             return '—'
         
         if metric == 'Fails':
             return f'{int(round(val)):,}'
-        
         if metric == 'Yield (%)':
+
             return f'{val:.2f}%'
-        
         if metric == 'Ppk':
             return f'{val:.2f}'
         
@@ -954,7 +1022,7 @@ class PivotAnalyzer:
         
         if metric in ('CX Mean', 'CY Mean', 'Dist. from Bin Center'):
             return f'{val:.4f}'
-    
+        
         return f'{val:.4g}'
 
     @staticmethod
@@ -1005,7 +1073,6 @@ class PivotAnalyzer:
             high = max(1e-6, float(np.max(finite)))
             return lowerBetterScale, 0.0, high, None
 
-        # Neutral magnitude metrics (Mean, CX Mean, CY Mean)
         return [[0.0, '#1f3b5c'], [0.5, '#26c6da'], [1.0, '#ffd600']], None, None, None
 
     def _createEmptyFigure(self, message:str) -> go.Figure:
@@ -1030,19 +1097,25 @@ class PivotAnalyzer:
         return fig
 
     @staticmethod
-    def _makeUniqueShortLabels(names:list[str], maxLen:int=24) -> list[str]:
+    def _makeUniqueShortLabels(names:list[str], maxLen:int=28) -> list[str]:
+        """Keep both prefix and distinguishing suffix when shortening long test names."""
         counts: dict[str, int] = {}
         labels: list[str] = []
+        headLen = max(8, (maxLen - 1) // 2 + 2)
+        tailLen = max(6, maxLen - headLen - 1)
+
         for name in names:
-            short = name if len(name) <= maxLen else f'{name[:maxLen - 1]}…'
+            if len(name) <= maxLen:
+                short = name
+            else:
+                short = f'{name[:headLen]}…{name[-tailLen:]}'
             counts[short] = counts.get(short, 0) + 1
             labels.append(f'{short} ({counts[short]})' if counts[short] > 1 else short)
         return labels
 
-    def _getColor(self, idx:int) -> str:
+    def _getColor(self, idx: int) -> str:
         if idx < len(self.SITE_PALETTE):
             return self.SITE_PALETTE[idx]
-        
         step = idx - len(self.SITE_PALETTE) + 1
         hue = ((step * 137.508) % 360.0) / 360.0
         lightness = 0.56 + (step % 3) * 0.08

@@ -20,7 +20,6 @@ class WorkspacePanel(QWidget):
     openPlotWindowRequested = Signal()
     statusMessageRequested = Signal(str)
     jumpToTestRequested = Signal(str)
-    jumpToTestSiteRequested = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -251,7 +250,7 @@ class WorkspacePanel(QWidget):
         self.yieldParetoTab.testActivated.connect(self.jumpToTestRequested.emit)
         self.yieldParetoTab.statusMessageRequested.connect(self.statusMessageRequested.emit)
 
-        self.pivotTab.testSiteActivated.connect(self.jumpToTestSiteRequested.emit)
+        self.pivotTab.testActivated.connect(self.jumpToTestRequested.emit)
         self.pivotTab.statusMessageRequested.connect(self.statusMessageRequested.emit)
 
     def _onTabChanged(self, index: int):
@@ -555,9 +554,7 @@ class WorkspacePanel(QWidget):
         self.yieldParetoTab.cleanup()
         self.pivotTab.cleanup()
 
-    def selectSite(self, site: str):
-        idx = self.siteComboBox.findText(site)
-        if idx >= 0:
-            self.siteComboBox.blockSignals(True)
-            self.siteComboBox.setCurrentIndex(idx)
-            self.siteComboBox.blockSignals(False)
+    def resetSiteToAll(self):
+        self.siteComboBox.blockSignals(True)
+        self.siteComboBox.setCurrentIndex(0)
+        self.siteComboBox.blockSignals(False)

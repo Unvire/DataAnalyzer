@@ -6,11 +6,11 @@ from typing import Callable
 
 import plotly.graph_objects as go
 from plotly.offline import get_plotlyjs
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QSize, QUrl
 from PySide6.QtGui import QColor, QGuiApplication, QImage
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
 
 class _PlotlyWebEnginePage(QWebEnginePage):
@@ -61,6 +61,9 @@ class PlotlyView(QWidget):
         layout.addWidget(self.webView)
 
         self.webView.load(QUrl.fromLocalFile(self._htmlPath))
+
+        self.webView.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.webView.setMinimumSize(180, 160)
 
     @classmethod
     def _ensurePlotlyJsCached(cls):
@@ -504,3 +507,9 @@ class PlotlyView(QWidget):
                 os.remove(self._htmlPath)
             except OSError:
                 pass
+
+    def sizeHint(self) -> QSize:
+        return QSize(420, 300)
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(180, 160)
