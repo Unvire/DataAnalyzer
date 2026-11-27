@@ -63,7 +63,6 @@ class DataAnalyzerWindow(QMainWindow):
         self.sidebar.clearRequested.connect(self._onClear)
         self.sidebar.searchSubfoldersChanged.connect(self._onSearchSubfoldersChanged)
         self.sidebar.testSelected.connect(self._onTestSelected)
-        self.sidebar.generateReportRequested.connect(self._onGenerateReport)
         self.workspace.plotOptionsChanged.connect(self._refreshCurrentView)
         self.workspace.statusMessageRequested.connect(self.statusLabel.setText)
         self.workspace.jumpToTestRequested.connect(self._onJumpToTest)
@@ -100,6 +99,7 @@ class DataAnalyzerWindow(QMainWindow):
         self._startLoadingLogs(folderPath, isAppend)
 
     def _startLoadingLogs(self, folderPath:str, isAppend:bool):
+        self._lastLoadWasAppend = isAppend
         self.sidebar.setBusy(True)
         self.progressBar.setValue(0)
         self.progressBar.setVisible(True)
@@ -156,22 +156,21 @@ class DataAnalyzerWindow(QMainWindow):
         self.workspace.updateSites(sites)
         self.workspace.setPlotControlsEnabled(True, isCxCy=isCxCy)
 
+        self._currentLimitSets = extractLimitSets(df)
+        prevMode = self.workspace.getSelectedLimitMode()
+        preserveMode = not prevMode.startswith(LIMIT_SET_PREFIX)
+        self.workspace.updateLimitSets(self._currentLimitSets, preserveMode=preserveMode)
+
         if not isCxCy and not df.empty and 'Value' in df.columns:
             lsl = float(df['LSL'].iloc[-1]) if 'LSL' in df.columns else None
             usl = float(df['USL'].iloc[-1]) if 'USL' in df.columns else None
             vals = df['Value'].dropna().to_numpy(dtype=float)
-            
+
             autoLog = shouldAutoLogScale(vals, lsl, usl, ratioThreshold=1000.0)
-            
+
             self.workspace.logScaleButton.blockSignals(True)
             self.workspace.logScaleButton.setChecked(autoLog)
             self.workspace.logScaleButton.blockSignals(False)
-
-        fullDf = self.engine.getTestData(testName)
-        self._currentLimitSets = extractLimitSets(fullDf)
-        prevMode = self.workspace.getSelectedLimitMode()
-        preserveMode = not prevMode.startswith(LIMIT_SET_PREFIX)
-        self.workspace.updateLimitSets(self._currentLimitSets, preserveMode=preserveMode)
 
         self._refreshCurrentView()
 
@@ -186,6 +185,10 @@ class DataAnalyzerWindow(QMainWindow):
         options = self.workspace.getPlotOptions()
         selectedSite = options['site']
         filteredDf = df if selectedSite == 'All sites' else df[df['Site'] == selectedSite]
+
+        # Isolate specific limit set (e.g. LED ON vs OFF) before SN tracking, Raw table, stats and plot
+        selectedLimitMode = options['limitsMode']
+        filteredDf, effectiveLimitsMode = filterByLimitSet(filteredDf, selectedLimitMode, self._currentLimitSets)
 
         snQuery = options['snQuery']
         onlySn = options['onlySn']
@@ -206,23 +209,20 @@ class DataAnalyzerWindow(QMainWindow):
 
         self.workspace.setRawDataFrame(self._selectedTestName, filteredDf)
 
-        isCxCy = MeasurementEngine.isCxCyDataFrame(filteredDf)
         if not filteredDf.empty:
-            metrics = self.statsCalculator.calculate(filteredDf, limitsMode=options['limits'])
+            metrics = self.statsCalculator.calculate(filteredDf, limitsMode=effectiveLimitsMode)
             statValues, statStatuses, statTooltips = self.statsCalculator.formatForStatsPanel(metrics)
             self.sidebar.statsPanel.updateStats(statValues, statuses=statStatuses, tooltips=statTooltips)
+            
         else:
             self.sidebar.statsPanel.clear()
-
-        selectedLimitMode = options['limitsMode']
-        df, effectiveLimitsMode = filterByLimitSet(df, selectedLimitMode, self._currentLimitSets)
 
         fig = self.plotGenerator.createPlot(
             df=filteredDf,
             testName=self._selectedTestName,
             plotType=options['plotType'],
             orderBy=options['orderBy'],
-            limitsMode=options['limits'],
+            limitsMode=effectiveLimitsMode,
             valuesInLimits=options['valuesInLimits'],
             logScale=options['logScale'],
             highlightSn=highlightSn,
@@ -254,13 +254,6 @@ class DataAnalyzerWindow(QMainWindow):
         self.workspace.clear()
         self.statusLabel.setText('Data cleared')
         self._currentLimitSets = []
-
-    def _onGenerateReport(self):
-        QMessageBox.information(
-            self,
-            'HTML Report v2.0',
-            'Jinja2 + Plotly report generator will be connected in the next step.',
-        )
 
     def closeEvent(self, event):
         if self._loaderWorker is not None and self._loaderWorker.isRunning():

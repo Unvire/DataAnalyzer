@@ -383,8 +383,8 @@ class PivotTab(QWidget):
 
         self.exportBar = ExportActionsBar(
             showCsv=True,
-            reportButtonText='Yield report...',
-            reportTooltip='Generate Yield & Pareto report (HTML / PDF)',
+            reportButtonText='Pivot report...',
+            reportTooltip='Generate Pivot Heatmap & Overlay report (HTML / PDF)',
         )
 
         controlsRow2.addWidget(self.limitsLabel)
@@ -647,7 +647,8 @@ class PivotTab(QWidget):
         if not selectedTests:
             self._lastResult = None
             self.tableModel.clear()
-            self.exportBar.setCsvEnabled(False)
+            self.exportBar.setActionsEnabled(True, hasTableData=False)
+            self.exportBar.generateReportButton.setEnabled(False)
             self.plotView.showMessage(
                 'Enter a prefix/pattern on the left and check tests to build the Pivot matrix.'
             )
@@ -658,27 +659,38 @@ class PivotTab(QWidget):
         viewMode = self.viewModeCombo.currentText()
         metric = self.metricCombo.currentText()
         limitsMode = self.limitsCombo.currentText()
-
         minSamples = int(self.minSamplesCombo.currentText())
 
-        result = self._analyzer.analyzeMatrix(measurements=self._measurements, selectedTests=selectedTests,
-            metric=metric, limitsMode=limitsMode, minSamples=minSamples)
+        result = self._analyzer.analyzeMatrix(
+            measurements=self._measurements,
+            selectedTests=selectedTests,
+            metric=metric,
+            limitsMode=limitsMode,
+            minSamples=minSamples,
+        )
         self._lastResult = result
 
         if result.warningMessage:
             self.tableModel.clear()
-            self.exportCsvButton.setEnabled(False)
+            self.exportBar.setCsvEnabled(False)
+            self.exportBar.generateReportButton.setEnabled(False)
             self.plotView.setFigure(self._analyzer.createHeatmapFigure(result))
             self.tableInfoLabel.setText(result.warningMessage.replace('\n', ' '))
             return
 
         self.tableModel.setResult(result)
         self._configureTableColumns()
-        self.exportCsvButton.setEnabled(not result.pivotDf.empty)
+        hasTable = not result.pivotDf.empty
+        self.exportBar.setCsvEnabled(hasTable)
+        self.exportBar.generateReportButton.setEnabled(hasTable)
 
         if 'Overlay' in viewMode:
-            fig = self._analyzer.createOverlayFigure(measurements=self._measurements, selectedTests=selectedTests,
-                limitsMode=limitsMode, colorBy=self.colorByCombo.currentText())
+            fig = self._analyzer.createOverlayFigure(
+                measurements=self._measurements,
+                selectedTests=selectedTests,
+                limitsMode=limitsMode,
+                colorBy=self.colorByCombo.currentText(),
+            )
         else:
             fig = self._analyzer.createHeatmapFigure(result)
 
