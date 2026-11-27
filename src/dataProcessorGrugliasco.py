@@ -45,8 +45,17 @@ class GrugliascoDataProcessor(AbstractDataProcessor):
 
     def _processFileLine(self, fileLine: str, site: str, testTime: str, serialNumber: str):
         _, testName, _, _, _, _, _, measuredValue, _, _, lowerLimit, upperLimit, *_ = fileLine.split(',')
-        low = float(lowerLimit)
-        high = float(upperLimit)
-        if not low and not high:
+
+        try:
+            low = float(lowerLimit)
+        except ValueError:
+            low = -1e16
+
+        try:
+            high = float(upperLimit)
+        except ValueError:
+            high = 1e16
+
+        if (low == 0 and high == 0) or (low == -1e16 and high == 1e16):
             return
         self._appendScalarRow(testName, site, measuredValue, low, high, testTime, serialNumber)

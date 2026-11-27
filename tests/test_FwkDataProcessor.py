@@ -12,6 +12,9 @@ def fwkHeaderAndLines():
         'Sequence;Step Name;Status;Date;Time;Timefromstart;Value;Units;LimitLow;Limithigh;Normal',
         '1;SW1 high[2.6V];Passed;06-08-2024;01:23:06;0.31;2.660224;[V];2.340;2.860;-',
         '2;SW2 high[2.6V];Passed;06-08-2024;01:23:06;0.32;2.652450;[V];2.340;2.860;-',
+        '2;Done task;Passed;06-08-2024;01:23:06;0.32;2.652450;[V];-;-;-',
+        '2;Upper limit only;Passed;06-08-2024;01:23:06;0.32;2.652450;[V];-;3;-',
+        '2;Lower limit only;Passed;06-08-2024;01:23:06;0.32;2.652450;[V];2;0;-',
     ]
     return lines
 
@@ -43,6 +46,10 @@ def test_fwk_processFileLines(fwkHeaderAndLines):
     rawRows = processor.getRawRowsByTest()
     assert 'SW1 high[2.6V]' in rawRows
     assert 'SW2 high[2.6V]' in rawRows
+    assert 'Done task' not in rawRows
+    assert 'Upper limit only' in rawRows
+    assert 'Lower limit only' in rawRows
+    
 
     sw1 = rawRows['SW1 high[2.6V]'][0]
     assert sw1['Site'] == '1'
