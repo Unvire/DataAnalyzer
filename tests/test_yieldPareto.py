@@ -157,3 +157,27 @@ def test_yieldSummaryTableModel_filteringSortingAndLookup(qtCoreApp, sampleBatch
     yieldCol = model.getColumnNames().index('YieldPct')
     model.sort(yieldCol, Qt.SortOrder.AscendingOrder)
     assert model.getTestNameAtRow(0) == 'VDD_5V'
+
+def test_applyExclusions_recalculatesBoardYieldAndSummary(sampleBatchMeasurements):
+    analyzer = YieldParetoAnalyzer()
+    baseResult = analyzer.analyze(sampleBatchMeasurements, site='All sites', limitsMode='All')
+
+    # Initially: SN1 (VDD_5V), SN2 (LED_CXCY), SN4 (VDD_5V & R_100) fail => 25% board yield
+    assert baseResult.failedRuns == 3
+    assert baseResult.boardYieldPct == pytest.approx(25.0)
+
+    # Exclude VDD_5V (e.g. noisy prep step): SN1 becomes PASS, SN4 still fails in R_100, SN2 fails in LED_CXCY
+    filtered = YieldParetoAnalyzer.applyExclusions(baseResult, {'VDD_5V'})
+    assert filtered.totalTests == 3
+    assert filtered.failingTestsCount == 2
+    assert filtered.totalFails == 2
+    assert filtered.failedRuns == 2
+    assert filtered.boardYieldPct == pytest.approx(50.0)
+    assert 'VDD_5V' not in filtered.summaryDf['TestName'].tolist()
+
+    # Exclude remaining failing tests -> 100% board yield across all 4 runs
+    allClean = YieldParetoAnalyzer.applyExclusions(baseResult, {'VDD_5V', 'R_100', 'LED_CXCY'})
+    assert allClean.failingTestsCount == 0
+    assert allClean.totalFails == 0
+    assert allClean.failedRuns == 0
+    assert allClean.boardYieldPct == pytest.approx(100.0)

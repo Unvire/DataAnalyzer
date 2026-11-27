@@ -27,6 +27,7 @@ class DataAnalyzerWindow(QMainWindow):
         self._selectedTestName = ''
         self._loaderWorker: LogLoaderWorker | None = None
         self._lastFolderPath = ''
+        self._lastLoadWasAppend = False
 
         self._buildUi()
         self._bindEvents()
@@ -133,7 +134,7 @@ class DataAnalyzerWindow(QMainWindow):
         testNames = list(measurements)
         self.sidebar.setTestNames(testNames)
         self._onTestSelected(testNames[0])
-        self.workspace.setBatchMeasurements(measurements)
+        self.workspace.setBatchMeasurements(measurements, resetExcluded=not self._lastLoadWasAppend)
 
     def _onLoadingError(self, errorMessage:str):
         self.progressBar.setVisible(False)

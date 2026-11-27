@@ -1,12 +1,12 @@
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+import os
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from src.measurementEngine import MeasurementEngine
 from src.processCalculator import ProcessParameterCalculator
-from src.siFormatter import isSentinelLimit
 
 
 SUMMARY_COLUMNS = [
@@ -43,6 +43,7 @@ class BatchSummaryResult:
     worstYieldPct: float | None = None
     worstPpkTest: str = ''
     worstPpkValue: float | None = None
+    failedRunsByTest: dict[str, set[tuple[str, str]]] = field(default_factory=dict)
 
 
 class YieldParetoAnalyzer:
@@ -60,61 +61,95 @@ class YieldParetoAnalyzer:
     WARN_COLOR = '#ffa726'
     BAD_COLOR = '#ef5350'
 
-    def __init__(self, calculator:ProcessParameterCalculator|None=None):
+    def __init__(self, calculator: ProcessParameterCalculator | None = None, maxWorkers: int | None = None):
         self._calculator = calculator or ProcessParameterCalculator()
+        self._maxWorkers = maxWorkers or min(8, max(2, (os.cpu_count() or 2)))
 
-    def analyze(self, measurements:dict[str, pd.DataFrame], site:str='All sites', limitsMode:str='All',
-            progressCallback=None) -> BatchSummaryResult:
-        
+    def _analyzeSingleTest(self, testName:str, fullDf:pd.DataFrame, site:str, limitsMode:str) -> tuple[dict, set[tuple[str, str]], set[tuple[str, str]]]|None:
+        if fullDf is None or fullDf.empty:
+            return None
+
+        if site == 'All sites':
+            df = fullDf
+        else:
+            siteMask = fullDf['Site'].to_numpy() == site
+            if not np.any(siteMask):
+                siteMask = fullDf['Site'].astype(str).to_numpy() == site
+            if not np.any(siteMask):
+                return None
+            df = fullDf[siteMask]
+
+        metrics, failMask = self._calculator.calculateWithFailMask(df, limitsMode=limitsMode, includeShapeStats=False)
+
+        testRuns: set[tuple[str, str]] = set()
+        testFailedRuns: set[tuple[str, str]] = set()
+
+        if 'SerialNumber' in df.columns and 'TestDate' in df.columns:
+            snArr = df['SerialNumber'].to_numpy()
+            dateArr = df['TestDate'].to_numpy()
+            testRuns = set(zip(snArr.tolist(), dateArr.tolist()))
+            if metrics.failTotal > 0 and np.any(failMask):
+                testFailedRuns = set(zip(snArr[failMask].tolist(), dateArr[failMask].tolist()))
+
+        row = {
+            'TestName': testName,
+            'Samples': metrics.validSamples,
+            'Fails': metrics.failTotal,
+            'FailLow': metrics.failLow,
+            'FailHigh': metrics.failHigh,
+            'YieldPct': metrics.yieldPct if metrics.yieldPct is not None else np.nan,
+            'DPMO': metrics.dpmo if metrics.dpmo is not None else np.nan,
+            'Ppk': metrics.ppk if metrics.ppk is not None else np.nan,
+            'Cpk': metrics.cpk if metrics.cpk is not None else np.nan,
+            'PpkNP': metrics.ppkNonParametric if metrics.ppkNonParametric is not None else np.nan,
+            'SiteDeltaPct': metrics.siteDeltaPct if metrics.siteDeltaPct is not None else np.nan,
+            'LSL': metrics.lsl if metrics.lsl is not None else np.nan,
+            'USL': metrics.usl if metrics.usl is not None else np.nan,
+            'Mean': metrics.mean if metrics.mean is not None else np.nan,
+            'Sigma': metrics.sigmaOverall if metrics.sigmaOverall is not None else np.nan,
+        }
+        return row, testRuns, testFailedRuns
+
+    def analyze(self, measurements:dict[str, pd.DataFrame], site:str='All sites', limitsMode:str='All', progressCallback=None) -> BatchSummaryResult:
         if not measurements:
             return BatchSummaryResult(summaryDf=pd.DataFrame(columns=SUMMARY_COLUMNS))
 
+        items = list(measurements.items())
+        totalTestsInput = len(items)
+
         rows: list[dict] = []
-        allRuns: set[str] = set()
-        failedRuns: set[str] = set()
+        allRuns: set[tuple[str, str]] = set()
+        failedRunsByTest: dict[str, set[tuple[str, str]]] = {}
 
-        totalTestsInput = len(measurements)
-        totalFails = 0
-        totalMeasurements = 0
+        if totalTestsInput >= 8 and self._maxWorkers > 1:
+            with ThreadPoolExecutor(max_workers=self._maxWorkers) as executor:
+                resultsIter = executor.map(
+                    lambda item: self._analyzeSingleTest(item[0], item[1], site, limitsMode),
+                    items,
+                )
+                for idx, itemResult in enumerate(resultsIter, start=1):
+                    if itemResult is not None:
+                        row, testRuns, testFailedRuns = itemResult
+                        rows.append(row)
+                        if testRuns:
+                            allRuns.update(testRuns)
+                        if testFailedRuns:
+                            failedRunsByTest[row['TestName']] = testFailedRuns
+                    if progressCallback:
+                        progressCallback(int(idx / totalTestsInput * 100))
 
-        for idx, (testName, fullDf) in enumerate(measurements.items(), start=1):
-            if fullDf is None or fullDf.empty:
+        else:
+            for idx, (testName, fullDf) in enumerate(items, start=1):
+                itemResult = self._analyzeSingleTest(testName, fullDf, site, limitsMode)
+                if itemResult is not None:
+                    row, testRuns, testFailedRuns = itemResult
+                    rows.append(row)
+                    if testRuns:
+                        allRuns.update(testRuns)
+                    if testFailedRuns:
+                        failedRunsByTest[row['TestName']] = testFailedRuns
                 if progressCallback:
                     progressCallback(int(idx / totalTestsInput * 100))
-                continue
-
-            df = fullDf if site == 'All sites' else fullDf[fullDf['Site'].astype(str) == site]
-            if df.empty:
-                if progressCallback:
-                    progressCallback(int(idx / totalTestsInput * 100))
-                continue
-
-            metrics = self._calculator.calculate(df, limitsMode=limitsMode)
-            totalFails += metrics.failTotal
-            totalMeasurements += metrics.validSamples
-
-            self._accumulateBoardRuns(df, limitsMode, allRuns, failedRuns)
-
-            rows.append({
-                'TestName': testName,
-                'Samples': metrics.validSamples,
-                'Fails': metrics.failTotal,
-                'FailLow': metrics.failLow,
-                'FailHigh': metrics.failHigh,
-                'YieldPct': metrics.yieldPct if metrics.yieldPct is not None else np.nan,
-                'DPMO': metrics.dpmo if metrics.dpmo is not None else np.nan,
-                'Ppk': metrics.ppk if metrics.ppk is not None else np.nan,
-                'Cpk': metrics.cpk if metrics.cpk is not None else np.nan,
-                'PpkNP': metrics.ppkNonParametric if metrics.ppkNonParametric is not None else np.nan,
-                'SiteDeltaPct': metrics.siteDeltaPct if metrics.siteDeltaPct is not None else np.nan,
-                'LSL': metrics.lsl if metrics.lsl is not None else np.nan,
-                'USL': metrics.usl if metrics.usl is not None else np.nan,
-                'Mean': metrics.mean if metrics.mean is not None else np.nan,
-                'Sigma': metrics.sigmaOverall if metrics.sigmaOverall is not None else np.nan,
-            })
-
-            if progressCallback:
-                progressCallback(int(idx / totalTestsInput * 100))
 
         if not rows:
             return BatchSummaryResult(summaryDf=pd.DataFrame(columns=SUMMARY_COLUMNS))
@@ -127,15 +162,54 @@ class YieldParetoAnalyzer:
             kind='mergesort',
         ).reset_index(drop=True)
 
+        return self._assembleResult(summaryDf=summaryDf, totalRuns=len(allRuns), failedRunsByTest=failedRunsByTest)
+
+    @classmethod
+    def applyExclusions(cls, baseResult: BatchSummaryResult, excludedTests: set[str]) -> BatchSummaryResult:
+        if not excludedTests or baseResult.summaryDf.empty:
+            return baseResult
+
+        mask = ~baseResult.summaryDf['TestName'].isin(excludedTests)
+        filteredDf = baseResult.summaryDf[mask].reset_index(drop=True)
+
+        activeFailedByTest = {
+            t: runs
+            for t, runs in baseResult.failedRunsByTest.items()
+            if t not in excludedTests
+        }
+        return cls._assembleResult(
+            summaryDf=filteredDf,
+            totalRuns=baseResult.totalRuns,
+            failedRunsByTest=activeFailedByTest,
+        )
+
+    @staticmethod
+    def _assembleResult(summaryDf:pd.DataFrame, totalRuns:int, failedRunsByTest:dict[str, set[tuple[str, str]]]) -> BatchSummaryResult:
+        if summaryDf.empty:
+            boardYield = 100.0 if totalRuns > 0 else None
+            return BatchSummaryResult(
+                summaryDf=summaryDf,
+                totalTests=0,
+                totalRuns=totalRuns,
+                failedRuns=0,
+                boardYieldPct=boardYield,
+                failedRunsByTest=failedRunsByTest,
+            )
+
         failingTestsCount = int((summaryDf['Fails'] > 0).sum())
+        totalFails = int(summaryDf['Fails'].sum())
+        totalMeasurements = int(summaryDf['Samples'].sum())
         measurementYieldPct = (
             ((totalMeasurements - totalFails) / totalMeasurements) * 100.0
             if totalMeasurements > 0
             else None
         )
 
-        totalRuns = len(allRuns)
-        failedRunsCount = len(failedRuns)
+        failedRunsUnion: set[tuple[str, str]] = set()
+        for runs in failedRunsByTest.values():
+            failedRunsUnion.update(runs)
+
+        failedRunsCount = len(failedRunsUnion)
         boardYieldPct = (
             ((totalRuns - failedRunsCount) / totalRuns) * 100.0
             if totalRuns > 0
@@ -172,90 +246,8 @@ class YieldParetoAnalyzer:
             worstYieldPct=worstYieldPct,
             worstPpkTest=worstPpkTest,
             worstPpkValue=worstPpkValue,
+            failedRunsByTest=failedRunsByTest,
         )
-
-
-    def _accumulateBoardRuns(self, df:pd.DataFrame, limitsMode:str, allRuns:set[str], failedRuns:set[str]):
-        if 'SerialNumber' not in df.columns or 'TestDate' not in df.columns:
-            return
-
-        runKeys = df['SerialNumber'].astype(str).str.cat(df['TestDate'].astype(str), sep='\x1f')
-        allRuns.update(runKeys.unique())
-
-        failMask = self._computeRowFailMask(df, limitsMode)
-        if np.any(failMask):
-            failedRuns.update(runKeys[failMask].unique())
-
-    def _computeRowFailMask(self, df:pd.DataFrame, limitsMode:str) -> np.ndarray:
-        n = len(df)
-        if n == 0:
-            return np.zeros(0, dtype=bool)
-
-        if MeasurementEngine.isCxCyDataFrame(df):
-            cx = df['CX'].to_numpy(dtype=float)
-            cy = df['CY'].to_numpy(dtype=float)
-            finiteMask = np.isfinite(cx) & np.isfinite(cy)
-            if not np.any(finiteMask) or 'Boundary' not in df.columns:
-                return np.zeros(n, dtype=bool)
-
-            sortedDf = df.sort_values(by='TestDate', kind='mergesort') if 'TestDate' in df.columns else df
-            boundaries = sortedDf['Boundary'].dropna()
-            if boundaries.empty:
-                return np.zeros(n, dtype=bool)
-
-            failMask = np.zeros(n, dtype=bool)
-            if limitsMode in ('Newest', 'Oldest'):
-                refPoly = boundaries.iloc[0] if limitsMode == 'Oldest' else boundaries.iloc[-1]
-                inside = ProcessParameterCalculator._pointsInPolygon(cx[finiteMask], cy[finiteMask], refPoly)
-                failMask[finiteMask] = ~inside
-                return failMask
-
-            polyGroups: dict[tuple[tuple[float, float], ...], list[int]] = {}
-            validIndices = np.flatnonzero(finiteMask)
-            boundaryCol = df['Boundary'].tolist()
-            for rowIdx in validIndices:
-                poly = boundaryCol[rowIdx]
-                if poly is None or len(poly) < 3:
-                    continue
-                key = tuple((float(pt[0]), float(pt[1])) for pt in poly)
-                polyGroups.setdefault(key, []).append(int(rowIdx))
-
-            for polyKey, idxList in polyGroups.items():
-                idxArr = np.asarray(idxList, dtype=np.int64)
-                inside = ProcessParameterCalculator._pointsInPolygon(cx[idxArr], cy[idxArr], polyKey)
-                failMask[idxArr] = ~inside
-            return failMask
-
-        if 'Value' not in df.columns or 'LSL' not in df.columns or 'USL' not in df.columns:
-            return np.zeros(n, dtype=bool)
-
-        vals = df['Value'].to_numpy(dtype=float)
-        finiteMask = np.isfinite(vals)
-        if not np.any(finiteMask):
-            return np.zeros(n, dtype=bool)
-
-        finiteVals = vals[finiteMask]
-        nonZero = np.abs(finiteVals[finiteVals != 0.0])
-        dataRef = float(np.median(nonZero)) if nonZero.size > 0 else None
-
-        if limitsMode == 'All':
-            lslArr = df['LSL'].to_numpy(dtype=float)
-            uslArr = df['USL'].to_numpy(dtype=float)
-            validLsl = ProcessParameterCalculator._buildValidLimitMask(lslArr, dataRef)
-            validUsl = ProcessParameterCalculator._buildValidLimitMask(uslArr, dataRef)
-            return finiteMask & ((validLsl & (vals < lslArr)) | (validUsl & (vals > uslArr)))
-
-        lslRef, uslRef = ProcessParameterCalculator._resolveScalarLimits(df, limitsMode)
-        hasLsl = lslRef is not None and not isSentinelLimit(lslRef, dataRef)
-        hasUsl = uslRef is not None and not isSentinelLimit(uslRef, dataRef)
-
-        failMask = np.zeros(n, dtype=bool)
-        if hasLsl:
-            failMask |= finiteMask & (vals < lslRef)
-        if hasUsl:
-            failMask |= finiteMask & (vals > uslRef)
-        return failMask
-
 
     # ------------------------------------------------------------------
     # Chart Builders
@@ -280,7 +272,7 @@ class YieldParetoAnalyzer:
 
         if failingDf.empty:
             return self._createEmptyFigure(
-                '100% Yield — 0 failures across all tests.\n'
+                '100% Yield — 0 failures across active tests.\n'
                 'Switch chart mode to "Weakest Capability (Ppk)" to inspect safety margins.'
             )
 

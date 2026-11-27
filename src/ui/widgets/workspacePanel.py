@@ -541,9 +541,9 @@ class WorkspacePanel(QWidget):
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
 
-    def setBatchMeasurements(self, measurements:dict[str, pd.DataFrame]):
+    def setBatchMeasurements(self, measurements: dict[str, pd.DataFrame], resetExcluded: bool = False):
         isYieldActive = self.tabs.currentIndex() == self._yieldTabIndex
-        self.yieldParetoTab.setMeasurements(measurements, isTabActive=isYieldActive)
+        self.yieldParetoTab.setMeasurements(measurements, isTabActive=isYieldActive, resetExcluded=resetExcluded)
 
     def switchToPlotsTab(self):
         self.tabs.setCurrentIndex(self._plotsTabIndex)

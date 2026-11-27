@@ -4,19 +4,20 @@ import re
 
 import numpy as np
 import pandas as pd
-from PySide6.QtCore import QModelIndex, QTimer, Qt, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QModelIndex, QPoint, QTimer, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QFrame, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QSplitter, QTableView, QVBoxLayout,
-    QWidget,
+    QLineEdit, QMenu, QMessageBox, QPushButton, QSplitter, QTableView,
+    QVBoxLayout, QWidget,
 )
 
+from src.processCalculator import METRIC_HELP
 from src.siFormatter import formatSiValue
 from src.ui.widgets.dataTableModel import PandasTableModel
 from src.ui.widgets.plotlyView import PlotlyView
 from src.ui.workers import YieldAnalysisWorker
-from src.yieldParetoAnalyzer import BatchSummaryResult, SUMMARY_COLUMNS, YieldParetoAnalyzer
+from src.yieldParetoAnalyzer import BatchSummaryResult, YieldParetoAnalyzer
 
 
 class YieldSummaryTableModel(PandasTableModel):
@@ -36,6 +37,24 @@ class YieldSummaryTableModel(PandasTableModel):
         'USL': 'USL',
         'Mean': 'Mean',
         'Sigma': 'Sigma',
+    }
+
+    HEADER_TOOLTIPS: dict[str, str] = {
+        'TestName': 'Test step name (double-click to open plot, Delete or right-click to exclude from Pareto).',
+        'Samples': METRIC_HELP['samples'],
+        'Fails': 'Total out-of-limits failures for this test.',
+        'FailLow': 'Measurements strictly below LSL (< LSL).',
+        'FailHigh': 'Measurements strictly above USL (> USL).',
+        'YieldPct': METRIC_HELP['yield'],
+        'DPMO': METRIC_HELP['dpmo'],
+        'Ppk': METRIC_HELP['ppk'],
+        'Cpk': METRIC_HELP['cpk'],
+        'PpkNP': METRIC_HELP['ppkNp'],
+        'SiteDeltaPct': METRIC_HELP['siteDelta'],
+        'LSL': METRIC_HELP['lsl'],
+        'USL': METRIC_HELP['usl'],
+        'Mean': METRIC_HELP['mean'],
+        'Sigma': METRIC_HELP['sigma'],
     }
 
     SUMMARY_ALIASES: dict[str, str] = {
@@ -68,10 +87,15 @@ class YieldSummaryTableModel(PandasTableModel):
     COLOR_BAD = QColor('#ef5350')
 
     def headerData(self, section:int, orientation:Qt.Orientation, role:int=Qt.ItemDataRole.DisplayRole):
-        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
-            if 0 <= section < len(self._columnNames):
-                colName = self._columnNames[section]
+        if orientation == Qt.Orientation.Horizontal and 0 <= section < len(self._columnNames):
+            colName = self._columnNames[section]
+
+            if role == Qt.ItemDataRole.DisplayRole:
                 return self.HEADER_LABELS.get(colName, colName)
+            
+            if role == Qt.ItemDataRole.ToolTipRole:
+                return self.HEADER_TOOLTIPS.get(colName, '')
+            
         return super().headerData(section, orientation, role)
 
     def data(self, index:QModelIndex, role:int=Qt.ItemDataRole.DisplayRole):
@@ -110,7 +134,14 @@ class YieldSummaryTableModel(PandasTableModel):
         sourceRow = int(self._viewIndices[viewRow])
         return str(self._columnArrays[colIdx][sourceRow])
 
-    def _resolveColumnByName(self, name:str) -> int|None:
+    def getAllVisibleTestNames(self) -> list[str]:
+        if 'TestName' not in self._columnNames or len(self._viewIndices) == 0:
+            return []
+        colIdx = self._columnNames.index('TestName')
+        colArr = self._columnArrays[colIdx]
+        return [str(colArr[int(srcRow)]) for srcRow in self._viewIndices]
+
+    def _resolveColumnByName(self, name: str) -> int | None:
         key = name.strip().lower()
         canonical = self.SUMMARY_ALIASES.get(key)
         if canonical:
@@ -135,27 +166,34 @@ class YieldSummaryTableModel(PandasTableModel):
         return False
 
     @classmethod
-    def _formatSummaryCell(cls, colName:str, value) -> str:
+    def _formatSummaryCell(cls, colName: str, value) -> str:
         if cls._isMissing(value):
             return '—'
 
         if colName == 'TestName':
             return str(value)
+        
         if colName in ('Samples', 'Fails', 'FailLow', 'FailHigh'):
             return f'{int(value):,}'
+        
         if colName == 'YieldPct':
             return f'{float(value):.2f}%'
+        
         if colName == 'DPMO':
             v = float(value)
             if v == 0.0:
                 return '0'
             return f'{v:.1f}' if v < 10.0 else f'{v:,.0f}'
+
         if colName in ('Ppk', 'Cpk', 'PpkNP'):
             return f'{float(value):.2f}'
+        
         if colName == 'SiteDeltaPct':
             return f'{float(value):.1f}%'
+
         if colName in ('LSL', 'USL', 'Mean', 'Sigma'):
             return formatSiValue(float(value), precision=4)
+        
         return str(value)
 
     @classmethod
@@ -195,7 +233,9 @@ class YieldParetoTab(QWidget):
         super().__init__(parent)
         self._analyzer = YieldParetoAnalyzer()
         self._measurements: dict[str, pd.DataFrame] = {}
+        self._rawResult: BatchSummaryResult | None = None
         self._lastResult: BatchSummaryResult | None = None
+        self._excludedTests: set[str] = set()
         self._isDirty = False
         self._requestCounter = 0
         self._worker: YieldAnalysisWorker | None = None
@@ -248,12 +288,7 @@ class YieldParetoTab(QWidget):
         self.topNComboBox.addItems(['15', '20', '30', '50', 'All'])
         self.topNComboBox.setCurrentText('20')
 
-        for combo in (
-            self.chartModeComboBox,
-            self.siteComboBox,
-            self.limitsComboBox,
-            self.topNComboBox,
-        ):
+        for combo in (self.chartModeComboBox, self.siteComboBox, self.limitsComboBox, self.topNComboBox):
             combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.copyPlotButton = QPushButton('Copy plot')
@@ -261,7 +296,7 @@ class YieldParetoTab(QWidget):
 
         self.exportCsvButton = QPushButton('Export CSV')
         self.exportCsvButton.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.exportCsvButton.setToolTip('Export filtered batch summary table to CSV')
+        self.exportCsvButton.setToolTip('Export visible (non-excluded & filtered) tests to CSV')
 
         controlsRow.addWidget(self.chartModeLabel)
         controlsRow.addWidget(self.chartModeComboBox)
@@ -302,14 +337,14 @@ class YieldParetoTab(QWidget):
         tableLayout.setSpacing(6)
 
         filterRow = QHBoxLayout()
-        filterRow.setSpacing(8)
+        filterRow.setSpacing(6)
 
         self.searchEdit = QLineEdit()
         self.searchEdit.setPlaceholderText(
             'Filter batch tests: name/regex, fails>0, yield<99, ppk<1.33, delta>15'
         )
         self.searchEdit.setToolTip(
-            'Double-click any row to jump directly to its plot.\n'
+            'Double-click any row to open its plot. Press Delete or right-click to exclude noise/setup steps.\n'
             'Supports multi-term filters: fails>0, yield<99.5, ppk<1.33, cpk<1.33, delta>10'
         )
         self.searchEdit.setClearButtonEnabled(True)
@@ -322,12 +357,26 @@ class YieldParetoTab(QWidget):
         self.onlyFailingButton.setCheckable(True)
         self.onlyFailingButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        self.excludeSelectedButton = QPushButton('Exclude selected')
+        self.excludeSelectedButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.excludeSelectedButton.setToolTip(
+            'Exclude selected test(s) from Pareto & Board Yield until data is cleared (shortcut: Delete)'
+        )
+        self.excludeSelectedButton.setEnabled(False)
+
+        self.restoreHiddenButton = QPushButton('Hidden (0)')
+        self.restoreHiddenButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.restoreHiddenButton.setToolTip('Restore excluded tests back into Yield & Pareto')
+        self.restoreHiddenButton.setVisible(False)
+
         self.tableInfoLabel = QLabel('No data loaded')
         self.tableInfoLabel.setStyleSheet('color: #9da0a8;')
 
         filterRow.addWidget(self.searchEdit, 1)
         filterRow.addWidget(self.regexButton)
         filterRow.addWidget(self.onlyFailingButton)
+        filterRow.addWidget(self.excludeSelectedButton)
+        filterRow.addWidget(self.restoreHiddenButton)
         filterRow.addWidget(self.tableInfoLabel)
 
         self.tableModel = YieldSummaryTableModel()
@@ -335,10 +384,14 @@ class YieldParetoTab(QWidget):
         self.tableView.setModel(self.tableModel)
         self.tableView.setAlternatingRowColors(True)
         self.tableView.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
-        self.tableView.setSelectionMode(QTableView.SelectionMode.SingleSelection)
+        self.tableView.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
+        self.tableView.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tableView.horizontalHeader().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         self.tableView.setSortingEnabled(True)
         self.tableView.verticalHeader().setDefaultSectionSize(24)
+
+        self._deleteShortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self.tableView)
+        self._deleteShortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
 
         tableLayout.addLayout(filterRow)
         tableLayout.addWidget(self.tableView, 1)
@@ -354,7 +407,7 @@ class YieldParetoTab(QWidget):
         layout.addWidget(self.splitter, 1)
 
     @staticmethod
-    def _createKpiCard(title:str) -> tuple[QFrame, QLabel]:
+    def _createKpiCard(title: str) -> tuple[QFrame, QLabel]:
         frame = QFrame()
         frame.setStyleSheet("""
             QFrame {
@@ -372,7 +425,7 @@ class YieldParetoTab(QWidget):
 
         valLabel = QLabel('—')
         valLabel.setStyleSheet(
-            'color: #dfe1e5; font-size: 14px; font-weight: 600; '
+            'color: #dfe1e5; font-size: 13px; font-weight: 600; '
             'font-family: "Consolas", "Cascadia Mono", monospace; border: none;'
         )
 
@@ -391,12 +444,23 @@ class YieldParetoTab(QWidget):
         self.searchEdit.textChanged.connect(lambda _: self._filterTimer.start())
         self.regexButton.toggled.connect(self._applyTableFilter)
         self.onlyFailingButton.toggled.connect(self._applyOnlyFailingFilter)
-        self.tableView.doubleClicked.connect(self._onTableRowDoubleClicked)
+        self.excludeSelectedButton.clicked.connect(self._excludeSelectedRows)
+        self.restoreHiddenButton.clicked.connect(self._showRestoreMenu)
+        self._deleteShortcut.activated.connect(self._excludeSelectedRows)
 
-    def setMeasurements(self, measurements: dict[str, pd.DataFrame], isTabActive: bool):
+        self.tableView.doubleClicked.connect(self._onTableRowDoubleClicked)
+        self.tableView.customContextMenuRequested.connect(self._onTableContextMenu)
+        self.tableView.selectionModel().selectionChanged.connect(self._updateExcludeButtonState)
+
+    def setMeasurements(self, measurements:dict[str, pd.DataFrame], isTabActive:bool, resetExcluded:bool=False):
         self._measurements = measurements
+        self._rawResult = None
         self._lastResult = None
         self._isDirty = True
+
+        if resetExcluded:
+            self._excludedTests.clear()
+            self._updateRestoreButton()
 
         allSites = self._collectAllSites(measurements)
         self._updateSiteOptions(allSites)
@@ -431,35 +495,41 @@ class YieldParetoTab(QWidget):
         self.plotView.showMessage('Calculating Yield & Pareto across all tests...')
         self.tableInfoLabel.setText('Calculating...')
 
-        worker = YieldAnalysisWorker(
-            analyzer=self._analyzer,
-            measurements=self._measurements,
-            site=site,
-            limitsMode=limitsMode,
-            requestId=reqId,
-            parent=self,
-        )
+        worker = YieldAnalysisWorker(analyzer=self._analyzer, measurements=self._measurements, site=site,
+            limitsMode=limitsMode, requestId=reqId, parent=self)
+        
         worker.finishedAnalysis.connect(self._onAnalysisFinished)
         worker.errorOccurred.connect(self._onAnalysisError)
         self._worker = worker
         worker.start()
 
-    def _onAnalysisFinished(self, requestId: int):
+    def _onAnalysisFinished(self, requestId:int):
         if requestId != self._requestCounter or self._worker is None:
             return
         result = self._worker.result
         if result is None:
             return
 
+        self._rawResult = result
+        self._rebuildViewFromExclusions(emitStatus=True)
+
+    def _rebuildViewFromExclusions(self, emitStatus:bool=False):
+        if self._rawResult is None:
+            return
+
+        result = YieldParetoAnalyzer.applyExclusions(self._rawResult, self._excludedTests)
         self._lastResult = result
         self._updateKpiCards(result)
+        self._updateRestoreButton()
         self._applyOnlyFailingFilter()
         self._redrawParetoChart()
 
-        self.statusMessageRequested.emit(
-            f'Yield & Pareto ready: {result.failingTestsCount:,} / {result.totalTests:,} tests with failures '
-            f'({result.totalFails:,} total fails)'
-        )
+        if emitStatus:
+            hiddenSuffix = f'  ({len(self._excludedTests):,} hidden)' if self._excludedTests else ''
+            self.statusMessageRequested.emit(
+                f'Yield & Pareto ready: {result.failingTestsCount:,} / {result.totalTests:,} tests with failures '
+                f'({result.totalFails:,} total fails){hiddenSuffix}'
+            )
 
     def _onAnalysisError(self, errorMessage:str):
         self.plotView.showMessage(f'Analysis error: {errorMessage}')
@@ -480,6 +550,130 @@ class YieldParetoTab(QWidget):
         )
         self.plotView.setFigure(fig)
 
+    def _getSelectedTestNames(self) -> list[str]:
+        selModel = self.tableView.selectionModel()
+        if selModel is None:
+            return []
+        rows = sorted({idx.row() for idx in selModel.selectedRows()})
+        names = [self.tableModel.getTestNameAtRow(r) for r in rows]
+        return [name for name in names if name]
+
+    def _updateExcludeButtonState(self, *_):
+        hasSelection = bool(self._getSelectedTestNames())
+        self.excludeSelectedButton.setEnabled(bool(self._measurements) and hasSelection)
+
+    def _excludeTests(self, testNames: list[str]):
+        newItems = [t for t in testNames if t and t not in self._excludedTests]
+        if not newItems:
+            return
+
+        self._excludedTests.update(newItems)
+        self._rebuildViewFromExclusions(emitStatus=False)
+        self.statusMessageRequested.emit(
+            f'Excluded {len(newItems):,} test(s) from Pareto ({len(self._excludedTests):,} hidden total)'
+        )
+
+    def _excludeSelectedRows(self):
+        selected = self._getSelectedTestNames()
+        if selected:
+            self._excludeTests(selected)
+
+    def _restoreTests(self, testNames:list[str]|None=None):
+        if not self._excludedTests:
+            return
+
+        if testNames is None:
+            restoredCount = len(self._excludedTests)
+            self._excludedTests.clear()
+        else:
+            before = len(self._excludedTests)
+            self._excludedTests.difference_update(testNames)
+            restoredCount = before - len(self._excludedTests)
+
+        if restoredCount > 0:
+            self._rebuildViewFromExclusions(emitStatus=False)
+            self.statusMessageRequested.emit(
+                f'Restored {restoredCount:,} test(s) to Pareto ({len(self._excludedTests):,} hidden remaining)'
+            )
+
+    def _updateRestoreButton(self):
+        hiddenCount = len(self._excludedTests)
+        self.restoreHiddenButton.setVisible(hiddenCount > 0)
+        self.restoreHiddenButton.setText(f'Hidden ({hiddenCount})')
+        self.restoreHiddenButton.setEnabled(hiddenCount > 0)
+
+    def _showRestoreMenu(self):
+        if not self._excludedTests:
+            return
+
+        menu = QMenu(self)
+        restoreAllAct = QAction(f'Restore all hidden tests ({len(self._excludedTests)})', menu)
+        restoreAllAct.triggered.connect(lambda: self._restoreTests(None))
+        menu.addAction(restoreAllAct)
+        menu.addSeparator()
+
+        sortedExcluded = sorted(self._excludedTests)
+        maxDirectItems = 25
+        for testName in sortedExcluded[:maxDirectItems]:
+            act = QAction(f'Restore: {testName}', menu)
+            act.triggered.connect(lambda _, name=testName: self._restoreTests([name]))
+            menu.addAction(act)
+
+        if len(sortedExcluded) > maxDirectItems:
+            moreAct = QAction(f'... and {len(sortedExcluded) - maxDirectItems} more (use Restore all)', menu)
+            moreAct.setEnabled(False)
+            menu.addAction(moreAct)
+
+        pos = self.restoreHiddenButton.mapToGlobal(QPoint(0, self.restoreHiddenButton.height()))
+        menu.exec(pos)
+
+    def _onTableContextMenu(self, pos:QPoint):
+        if self._rawResult is None:
+            return
+
+        index = self.tableView.indexAt(pos)
+        selectedNames = self._getSelectedTestNames()
+        if index.isValid() and not selectedNames:
+            clickedName = self.tableModel.getTestNameAtRow(index.row())
+            if clickedName:
+                selectedNames = [clickedName]
+
+        menu = QMenu(self)
+
+        if len(selectedNames) == 1:
+            openPlotAct = QAction(f'Open plot: {self._truncateText(selectedNames[0], 32)}', menu)
+            openPlotAct.triggered.connect(lambda: self.testActivated.emit(selectedNames[0]))
+            menu.addAction(openPlotAct)
+            menu.addSeparator()
+
+        if selectedNames:
+            label = (
+                f'Exclude "{self._truncateText(selectedNames[0], 28)}" from Pareto'
+                if len(selectedNames) == 1
+                else f'Exclude {len(selectedNames)} selected tests from Pareto'
+            )
+            excludeSelAct = QAction(label, menu)
+            excludeSelAct.triggered.connect(lambda: self._excludeTests(selectedNames))
+            menu.addAction(excludeSelAct)
+
+        visibleNames = self.tableModel.getAllVisibleTestNames()
+        if visibleNames and (self.searchEdit.text().strip() or self.onlyFailingButton.isChecked()):
+            excludeFilteredAct = QAction(
+                f'Exclude all currently visible filtered tests ({len(visibleNames)})',
+                menu,
+            )
+            excludeFilteredAct.triggered.connect(lambda: self._excludeTests(visibleNames))
+            menu.addAction(excludeFilteredAct)
+
+        if self._excludedTests:
+            menu.addSeparator()
+            restoreAllAct = QAction(f'Restore all hidden tests ({len(self._excludedTests)})', menu)
+            restoreAllAct.triggered.connect(lambda: self._restoreTests(None))
+            menu.addAction(restoreAllAct)
+
+        if not menu.isEmpty():
+            menu.exec(self.tableView.viewport().mapToGlobal(pos))
+
     def _updateKpiCards(self, result:BatchSummaryResult):
         if result.boardYieldPct is not None:
             color = self._yieldColor(result.boardYieldPct)
@@ -497,7 +691,7 @@ class YieldParetoTab(QWidget):
             'failingTests',
             f'{result.failingTestsCount:,} / {result.totalTests:,}',
             color=failColor,
-            tooltip=f'{result.failingTestsCount:,} tests had at least 1 out-of-limits measurement',
+            tooltip=f'{result.failingTestsCount:,} active tests had at least 1 out-of-limits measurement',
         )
 
         measYieldStr = f' ({result.measurementYieldPct:.2f}%)' if result.measurementYieldPct is not None else ''
@@ -512,11 +706,10 @@ class YieldParetoTab(QWidget):
             shortName = self._truncateText(result.worstYieldTest, 20)
             self._setKpiValue(
                 'worstYield',
-                f'{result.worstYieldPct:.2f}%',
+                f'{result.worstYieldPct:.2f}% ({shortName})',
                 color=self._yieldColor(result.worstYieldPct),
                 tooltip=f'Test: {result.worstYieldTest}\nYield: {result.worstYieldPct:.2f}%',
             )
-            self._kpiLabels['worstYield'].setText(f'{result.worstYieldPct:.2f}% ({shortName})')
         else:
             self._setKpiValue('worstYield', '—')
 
@@ -554,6 +747,7 @@ class YieldParetoTab(QWidget):
         self.tableModel.setDataFrame(df)
         self._configureTableColumns()
         self._applyTableFilter()
+        self._updateExcludeButtonState()
 
     def _configureTableColumns(self):
         header = self.tableView.horizontalHeader()
@@ -578,6 +772,7 @@ class YieldParetoTab(QWidget):
             self.searchEdit.setStyleSheet('')
 
         self._updateTableInfo()
+        self._updateExcludeButtonState()
 
     def _updateTableInfo(self):
         total = self.tableModel.totalRowCount()
@@ -588,7 +783,7 @@ class YieldParetoTab(QWidget):
             return
 
         if visible == total:
-            self.tableInfoLabel.setText(f'{total:,} tests  (double-click to open plot)')
+            self.tableInfoLabel.setText(f'{total:,} tests')
         else:
             self.tableInfoLabel.setText(f'Showing {visible:,} / {total:,} tests')
         self.exportCsvButton.setEnabled(visible > 0)
@@ -668,6 +863,7 @@ class YieldParetoTab(QWidget):
         
         for widget in widgetList:
             widget.setEnabled(enabled)
+        self.excludeSelectedButton.setEnabled(enabled and bool(self._getSelectedTestNames()))
         self.exportCsvButton.setEnabled(enabled and self.tableModel.rowCount() > 0)
 
     @staticmethod
@@ -685,7 +881,9 @@ class YieldParetoTab(QWidget):
     def clear(self):
         self._requestCounter += 1
         self._measurements = {}
+        self._rawResult = None
         self._lastResult = None
+        self._excludedTests.clear()
         self._isDirty = False
         self._filterTimer.stop()
 
@@ -701,6 +899,8 @@ class YieldParetoTab(QWidget):
         self.onlyFailingButton.blockSignals(True)
         self.onlyFailingButton.setChecked(False)
         self.onlyFailingButton.blockSignals(False)
+
+        self._updateRestoreButton()
 
         for key in self._kpiLabels:
             self._setKpiValue(key, '—')
