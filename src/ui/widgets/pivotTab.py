@@ -15,6 +15,7 @@ from src.measurementEngine import MeasurementEngine
 from src.pivotAnalyzer import PivotAnalyzer, PivotMatrixResult, naturalSortKey
 from src.ui.widgets.plotlyView import PlotlyView
 from src.ui.widgets.statsPanel import StatsGuideDialog
+from src.ui.widgets.exportActionsBar import ExportActionsBar
 
 
 class PivotTableModel(QAbstractTableModel):
@@ -206,6 +207,7 @@ class PivotTableModel(QAbstractTableModel):
 class PivotTab(QWidget):
     testActivated = Signal(str)
     statusMessageRequested = Signal(str)
+    generateReportRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -379,11 +381,11 @@ class PivotTab(QWidget):
         self.guideButton.setCursor(Qt.CursorShape.PointingHandCursor)
         self.guideButton.setToolTip('Open Statistics & Pivot Heatmap Diagnostics Guide')
 
-        self.copyPlotButton = QPushButton('Copy plot')
-        self.copyPlotButton.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self.exportCsvButton = QPushButton('Export CSV')
-        self.exportCsvButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.exportBar = ExportActionsBar(
+            showCsv=True,
+            reportButtonText='Yield report...',
+            reportTooltip='Generate Yield & Pareto report (HTML / PDF)',
+        )
 
         controlsRow2.addWidget(self.limitsLabel)
         controlsRow2.addWidget(self.limitsCombo)
@@ -391,8 +393,7 @@ class PivotTab(QWidget):
         controlsRow2.addWidget(self.minSamplesCombo)
         controlsRow2.addStretch(1)
         controlsRow2.addWidget(self.guideButton)
-        controlsRow2.addWidget(self.copyPlotButton)
-        controlsRow2.addWidget(self.exportCsvButton)
+        controlsRow2.addWidget(self.exportBar)
 
         self.rightSplitter = QSplitter(Qt.Orientation.Vertical)
 
@@ -452,11 +453,13 @@ class PivotTab(QWidget):
         self.limitsCombo.currentTextChanged.connect(self._recomputeView)
 
         self.guideButton.clicked.connect(self._openGuideDialog)
-        self.copyPlotButton.clicked.connect(self._onCopyPlotClicked)
-        self.exportCsvButton.clicked.connect(self._onExportCsvClicked)
         self.tableView.doubleClicked.connect(self._onTableDoubleClicked)
 
         self.minSamplesCombo.currentTextChanged.connect(self._recomputeView)
+
+        self.exportBar.copyPlotClicked.connect(self._onCopyPlotClicked)
+        self.exportBar.exportCsvClicked.connect(self._onExportCsvClicked)
+        self.exportBar.generateReportClicked.connect(self.generateReportRequested.emit)
 
     def setMeasurements(self, measurements:dict[str, pd.DataFrame], resetSelection:bool=False):
         self._measurements = measurements
@@ -644,7 +647,7 @@ class PivotTab(QWidget):
         if not selectedTests:
             self._lastResult = None
             self.tableModel.clear()
-            self.exportCsvButton.setEnabled(False)
+            self.exportBar.setCsvEnabled(False)
             self.plotView.showMessage(
                 'Enter a prefix/pattern on the left and check tests to build the Pivot matrix.'
             )
@@ -713,18 +716,10 @@ class PivotTab(QWidget):
         self._guideDialog.activateWindow()
 
     def _onCopyPlotClicked(self):
-        origText = self.copyPlotButton.text()
-        self.copyPlotButton.setText('Copying...')
-        self.copyPlotButton.setEnabled(False)
-
-        def onDone(success:bool):
-            self.copyPlotButton.setText('Copied!' if success else 'Failed')
-            QTimer.singleShot(1200, lambda: (
-                self.copyPlotButton.setText(origText),
-                self.copyPlotButton.setEnabled(bool(self._measurements)),
-            ))
-
-        self.plotView.copyPlotToClipboard(onDone)
+        self.exportBar.runCopyFeedback(
+            self.plotView.copyPlotToClipboard,
+            lambda: bool(self._measurements),
+        )
 
     def _onExportCsvClicked(self):
         exportDf = self.tableModel.getDataFrame()
@@ -759,13 +754,13 @@ class PivotTab(QWidget):
         widgetList = [
             self.patternEdit, self.regexButton, self.typeFilterCombo, self.naturalSortCheckBox,
             self.checkVisibleButton, self.uncheckAllButton, self.viewModeLabel, self.viewModeCombo,
-            self.limitsLabel, self.limitsCombo, self.copyPlotButton
+            self.limitsLabel, self.limitsCombo
         ]
         for widget in widgetList:
             widget.setEnabled(enabled)
             
         self.guideButton.setEnabled(True)
-        self.exportCsvButton.setEnabled(enabled and self.tableModel.rowCount() > 0)
+        self.exportBar.setActionsEnabled(enabled, hasTableData=self.tableModel.rowCount() > 0)
         self._updateOptionStates()
 
     def clear(self):

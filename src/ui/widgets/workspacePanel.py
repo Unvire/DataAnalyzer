@@ -9,10 +9,13 @@ from PySide6.QtWidgets import (
     QMessageBox, QPushButton, QTableView, QTabWidget, QVBoxLayout, QWidget,
 )
 
+from src.limitSets import LimitSetOption
+
 from src.ui.widgets.dataTableModel import PandasTableModel
 from src.ui.widgets.plotlyView import PlotlyView
 from src.ui.widgets.yieldParetoTab import YieldParetoTab
 from src.ui.widgets.pivotTab import PivotTab
+from src.ui.widgets.exportActionsBar import ExportActionsBar
 
 
 class WorkspacePanel(QWidget):
@@ -20,6 +23,9 @@ class WorkspacePanel(QWidget):
     openPlotWindowRequested = Signal()
     statusMessageRequested = Signal(str)
     jumpToTestRequested = Signal(str)
+    generatePlotReportRequested = Signal()
+    generateYieldReportRequested = Signal()
+    generatePivotReportRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -90,14 +96,14 @@ class WorkspacePanel(QWidget):
 
         self.limitsLabel = QLabel('Limits:')
         self.limitsComboBox = QComboBox()
-        self.limitsComboBox.addItems(['All', 'Newest', 'Oldest'])
+        self.limitsComboBox.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.limitsComboBox.setMinimumContentsLength(8)
+        self.limitsComboBox.view().setMinimumWidth(250)
+        self.updateLimitSets([])
 
-        for combo in (
-            self.plotTypeComboBox,
-            self.siteComboBox,
-            self.orderByComboBox,
-            self.limitsComboBox,
-        ):
+        for combo in [self.plotTypeComboBox, self.siteComboBox, self.orderByComboBox, self.limitsComboBox]:
             combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.valuesInLimitsButton = QPushButton('Only in limits')
@@ -108,8 +114,11 @@ class WorkspacePanel(QWidget):
         self.logScaleButton.setCheckable(True)
         self.logScaleButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.copyPlotButton = QPushButton('Copy plot')
-        self.copyPlotButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.plotsExportBar = ExportActionsBar(
+            showCsv=False,
+            reportButtonText='Generate report...',
+            reportTooltip='Generate MSA / Selected Tests / SN / In-Limits report (HTML / PDF)',
+        )
 
         controlsRow.addWidget(self.plotTypeLabel)
         controlsRow.addWidget(self.plotTypeComboBox)
@@ -122,7 +131,7 @@ class WorkspacePanel(QWidget):
         controlsRow.addWidget(self.valuesInLimitsButton)
         controlsRow.addWidget(self.logScaleButton)
         controlsRow.addStretch(1)
-        controlsRow.addWidget(self.copyPlotButton)
+        controlsRow.addWidget(self.plotsExportBar)
 
         snRow = QHBoxLayout()
         snRow.setSpacing(8)
@@ -236,7 +245,6 @@ class WorkspacePanel(QWidget):
         self.limitsComboBox.currentTextChanged.connect(self._emitOptionsChanged)
         self.valuesInLimitsButton.toggled.connect(self._emitOptionsChanged)
         self.logScaleButton.toggled.connect(self._emitOptionsChanged)
-        self.copyPlotButton.clicked.connect(self._onCopyPlotClicked)
 
         self.snFilterEdit.textChanged.connect(lambda _: self._snFilterTimer.start())
         self.snFilterEdit.returnPressed.connect(self._onSnReturnPressed)
@@ -252,6 +260,12 @@ class WorkspacePanel(QWidget):
 
         self.pivotTab.testActivated.connect(self.jumpToTestRequested.emit)
         self.pivotTab.statusMessageRequested.connect(self.statusMessageRequested.emit)
+
+        self.plotsExportBar.copyPlotClicked.connect(self._onCopyPlotClicked)
+        self.plotsExportBar.generateReportClicked.connect(self.generatePlotReportRequested.emit)
+        self.yieldParetoTab.generateReportRequested.connect(self.generateYieldReportRequested.emit)
+        self.pivotTab.generateReportRequested.connect(self.generatePivotReportRequested.emit)
+        self.limitsComboBox.currentIndexChanged.connect(self._emitPlotOptionsChanged)
 
     def _onTabChanged(self, index: int):
         if index == self._rawTabIndex and self._rawDataDirty:
@@ -271,18 +285,10 @@ class WorkspacePanel(QWidget):
         self.plotOptionsChanged.emit()
 
     def _onCopyPlotClicked(self):
-        origText = self.copyPlotButton.text()
-        self.copyPlotButton.setText('Copying...')
-        self.copyPlotButton.setEnabled(False)
-
-        def onDone(success: bool):
-            self.copyPlotButton.setText('Copied!' if success else 'Failed')
-            QTimer.singleShot(1200, lambda: (
-                self.copyPlotButton.setText(origText),
-                self.copyPlotButton.setEnabled(True)
-            ))
-
-        self.plotView.copyPlotToClipboard(onDone)
+        self.plotsExportBar.runCopyFeedback(
+            self.plotView.copyPlotToClipboard,
+            lambda: self.plotTypeComboBox.isEnabled(),
+        )
 
     def _applyRawDataFilter(self, *_):
         query = self.rawSearchEdit.text()
@@ -393,7 +399,7 @@ class WorkspacePanel(QWidget):
             self.limitsComboBox.setEnabled(False)
             self.valuesInLimitsButton.setEnabled(False)
             self.logScaleButton.setEnabled(False)
-            self.copyPlotButton.setEnabled(False)
+            self.plotsExportBar.setEnabled(False)
             self.snFilterLabel.setEnabled(False)
             self.snFilterEdit.setEnabled(False)
             self.onlySnButton.setEnabled(False)
@@ -402,7 +408,7 @@ class WorkspacePanel(QWidget):
         self.siteLabel.setEnabled(True)
         self.siteComboBox.setEnabled(True)
         self.valuesInLimitsButton.setEnabled(True)
-        self.copyPlotButton.setEnabled(True)
+        self.plotsExportBar.setEnabled(True)
         self.snFilterLabel.setEnabled(True)
         self.snFilterEdit.setEnabled(True)
         self.onlySnButton.setEnabled(True)
@@ -541,6 +547,8 @@ class WorkspacePanel(QWidget):
         self.setPlotControlsEnabled(False)
         self.plotView.showMessage('Data cleared.')
 
+        self.updateLimitSets([], preserveMode=False)
+
     def setBatchMeasurements(self, measurements: dict[str, pd.DataFrame], resetExcluded: bool = False):
         isYieldActive = self.tabs.currentIndex() == self._yieldTabIndex
         self.yieldParetoTab.setMeasurements(measurements, isTabActive=isYieldActive, resetExcluded=resetExcluded)
@@ -558,3 +566,35 @@ class WorkspacePanel(QWidget):
         self.siteComboBox.blockSignals(True)
         self.siteComboBox.setCurrentIndex(0)
         self.siteComboBox.blockSignals(False)
+
+    def updateLimitSets(self, limitSets:list[LimitSetOption], preserveMode:bool=True):
+        previousKey = self.getSelectedLimitMode() if preserveMode else 'All'
+
+        self.limitsComboBox.blockSignals(True)
+        self.limitsComboBox.clear()
+        for baseMode in ('All', 'Newest', 'Oldest'):
+            self.limitsComboBox.addItem(baseMode, userData=baseMode)
+
+        if limitSets:
+            self.limitsComboBox.insertSeparator(self.limitsComboBox.count())
+            for opt in limitSets:
+                self.limitsComboBox.addItem(opt.label, userData=opt.key)
+
+        # Keep All/Newest/Oldest across test switches; reset specific Limit #k when switching tests
+        targetIdx = self.limitsComboBox.findData(previousKey)
+        if targetIdx < 0:
+            targetIdx = 0
+        self.limitsComboBox.setCurrentIndex(targetIdx)
+        self.limitsComboBox.blockSignals(False)
+
+        if limitSets:
+            self.limitsComboBox.setToolTip(
+                f'Detected {len(limitSets)} distinct limit sets in this test.\n'
+                'Pick a specific Limit # to isolate rows recorded with those limits (e.g. LED ON vs OFF).'
+            )
+        else:
+            self.limitsComboBox.setToolTip('Select how specification limits are evaluated.')
+
+    def getSelectedLimitMode(self) -> str:
+        data = self.limitsComboBox.currentData()
+        return str(data) if data else (self.limitsComboBox.currentText() or 'All')

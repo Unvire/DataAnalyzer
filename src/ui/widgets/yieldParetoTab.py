@@ -18,6 +18,7 @@ from src.ui.widgets.dataTableModel import PandasTableModel
 from src.ui.widgets.plotlyView import PlotlyView
 from src.ui.workers import YieldAnalysisWorker
 from src.yieldParetoAnalyzer import BatchSummaryResult, YieldParetoAnalyzer
+from src.ui.widgets.exportActionsBar import ExportActionsBar
 
 
 class YieldSummaryTableModel(PandasTableModel):
@@ -228,6 +229,7 @@ class YieldSummaryTableModel(PandasTableModel):
 class YieldParetoTab(QWidget):
     testActivated = Signal(str)
     statusMessageRequested = Signal(str)
+    generateReportRequested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -291,12 +293,11 @@ class YieldParetoTab(QWidget):
         for combo in (self.chartModeComboBox, self.siteComboBox, self.limitsComboBox, self.topNComboBox):
             combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.copyPlotButton = QPushButton('Copy plot')
-        self.copyPlotButton.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self.exportCsvButton = QPushButton('Export CSV')
-        self.exportCsvButton.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.exportCsvButton.setToolTip('Export visible (non-excluded & filtered) tests to CSV')
+        self.exportBar = ExportActionsBar(
+            showCsv=True,
+            reportButtonText='Yield report...',
+            reportTooltip='Generate Yield & Pareto report (HTML / PDF)',
+        )
 
         controlsRow.addWidget(self.chartModeLabel)
         controlsRow.addWidget(self.chartModeComboBox)
@@ -307,8 +308,7 @@ class YieldParetoTab(QWidget):
         controlsRow.addWidget(self.topNLabel)
         controlsRow.addWidget(self.topNComboBox)
         controlsRow.addStretch(1)
-        controlsRow.addWidget(self.copyPlotButton)
-        controlsRow.addWidget(self.exportCsvButton)
+        controlsRow.addWidget(self.exportBar)
 
         # KPI summary cards
         kpiRow = QHBoxLayout()
@@ -439,8 +439,6 @@ class YieldParetoTab(QWidget):
         self.topNComboBox.currentTextChanged.connect(self._redrawParetoChart)
         self.siteComboBox.currentTextChanged.connect(self._onAnalysisParamsChanged)
         self.limitsComboBox.currentTextChanged.connect(self._onAnalysisParamsChanged)
-        self.copyPlotButton.clicked.connect(self._onCopyPlotClicked)
-        self.exportCsvButton.clicked.connect(self._onExportCsvClicked)
 
         self.searchEdit.textChanged.connect(lambda _: self._filterTimer.start())
         self.regexButton.toggled.connect(self._applyTableFilter)
@@ -452,6 +450,10 @@ class YieldParetoTab(QWidget):
         self.tableView.doubleClicked.connect(self._onTableRowDoubleClicked)
         self.tableView.customContextMenuRequested.connect(self._onTableContextMenu)
         self.tableView.selectionModel().selectionChanged.connect(self._updateExcludeButtonState)
+
+        self.exportBar.copyPlotClicked.connect(self._onCopyPlotClicked)
+        self.exportBar.exportCsvClicked.connect(self._onExportCsvClicked)
+        self.exportBar.generateReportClicked.connect(self.generateReportRequested.emit)
 
     def setMeasurements(self, measurements:dict[str, pd.DataFrame], isTabActive:bool, resetExcluded:bool=False):
         self._measurements = measurements
@@ -780,14 +782,12 @@ class YieldParetoTab(QWidget):
         visible = self.tableModel.rowCount()
         if total == 0:
             self.tableInfoLabel.setText('0 tests')
-            self.exportCsvButton.setEnabled(False)
             return
 
         if visible == total:
             self.tableInfoLabel.setText(f'{total:,} tests')
         else:
             self.tableInfoLabel.setText(f'Showing {visible:,} / {total:,} tests')
-        self.exportCsvButton.setEnabled(visible > 0)
 
     def _onTableRowDoubleClicked(self, index: QModelIndex):
         if not index.isValid():
@@ -797,18 +797,10 @@ class YieldParetoTab(QWidget):
             self.testActivated.emit(testName)
 
     def _onCopyPlotClicked(self):
-        origText = self.copyPlotButton.text()
-        self.copyPlotButton.setText('Copying...')
-        self.copyPlotButton.setEnabled(False)
-
-        def onDone(success: bool):
-            self.copyPlotButton.setText('Copied!' if success else 'Failed')
-            QTimer.singleShot(1200, lambda: (
-                self.copyPlotButton.setText(origText),
-                self.copyPlotButton.setEnabled(bool(self._measurements)),
-            ))
-
-        self.plotView.copyPlotToClipboard(onDone)
+        self.exportBar.runCopyFeedback(
+            self.plotView.copyPlotToClipboard,
+            lambda: bool(self._measurements),
+        )
 
     def _onExportCsvClicked(self):
         exportDf = self.tableModel.getFilteredDataFrame()
@@ -860,12 +852,12 @@ class YieldParetoTab(QWidget):
 
     def _setControlsEnabled(self, enabled: bool):
         widgetList = [self.chartModeLabel, self.chartModeComboBox, self.siteLabel, self.siteComboBox, self.limitsLabel, self.limitsComboBox, 
-            self.topNLabel, self.topNComboBox, self.copyPlotButton, self.searchEdit, self.regexButton, self.onlyFailingButton]
+            self.topNLabel, self.topNComboBox, self.searchEdit, self.regexButton, self.onlyFailingButton]
         
         for widget in widgetList:
             widget.setEnabled(enabled)
         self.excludeSelectedButton.setEnabled(enabled and bool(self._getSelectedTestNames()))
-        self.exportCsvButton.setEnabled(enabled and self.tableModel.rowCount() > 0)
+        self.exportBar.setActionsEnabled(enabled, hasTableData=self.tableModel.rowCount() > 0)
 
     @staticmethod
     def _yieldColor(pct:float) -> str:

@@ -9,6 +9,7 @@ from src.ui.widgets.sidebarPanel import SidebarPanel
 from src.ui.widgets.workspacePanel import WorkspacePanel
 from src.ui.workers import LogLoaderWorker
 from src.processCalculator import ProcessParameterCalculator
+from src.limitSets import LIMIT_SET_PREFIX, LimitSetOption, extractLimitSets, filterByLimitSet
 
 
 class DataAnalyzerWindow(QMainWindow):
@@ -28,6 +29,7 @@ class DataAnalyzerWindow(QMainWindow):
         self._loaderWorker: LogLoaderWorker | None = None
         self._lastFolderPath = ''
         self._lastLoadWasAppend = False
+        self._currentLimitSets: list[LimitSetOption] = []
 
         self._buildUi()
         self._bindEvents()
@@ -165,6 +167,12 @@ class DataAnalyzerWindow(QMainWindow):
             self.workspace.logScaleButton.setChecked(autoLog)
             self.workspace.logScaleButton.blockSignals(False)
 
+        fullDf = self.engine.getTestData(testName)
+        self._currentLimitSets = extractLimitSets(fullDf)
+        prevMode = self.workspace.getSelectedLimitMode()
+        preserveMode = not prevMode.startswith(LIMIT_SET_PREFIX)
+        self.workspace.updateLimitSets(self._currentLimitSets, preserveMode=preserveMode)
+
         self._refreshCurrentView()
 
     def _refreshCurrentView(self):
@@ -206,6 +214,9 @@ class DataAnalyzerWindow(QMainWindow):
         else:
             self.sidebar.statsPanel.clear()
 
+        selectedLimitMode = options['limitsMode']
+        df, effectiveLimitsMode = filterByLimitSet(df, selectedLimitMode, self._currentLimitSets)
+
         fig = self.plotGenerator.createPlot(
             df=filteredDf,
             testName=self._selectedTestName,
@@ -242,6 +253,7 @@ class DataAnalyzerWindow(QMainWindow):
         self.sidebar.reset()
         self.workspace.clear()
         self.statusLabel.setText('Data cleared')
+        self._currentLimitSets = []
 
     def _onGenerateReport(self):
         QMessageBox.information(
