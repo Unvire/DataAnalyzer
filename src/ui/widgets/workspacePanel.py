@@ -242,7 +242,7 @@ class WorkspacePanel(QWidget):
         self.plotTypeComboBox.currentTextChanged.connect(self._onPlotTypeChanged)
         self.siteComboBox.currentTextChanged.connect(self._emitOptionsChanged)
         self.orderByComboBox.currentTextChanged.connect(self._emitOptionsChanged)
-        self.limitsComboBox.currentTextChanged.connect(self._emitOptionsChanged)
+        self.limitsComboBox.currentIndexChanged.connect(self._emitOptionsChanged)
         self.valuesInLimitsButton.toggled.connect(self._emitOptionsChanged)
         self.logScaleButton.toggled.connect(self._emitOptionsChanged)
 
@@ -265,7 +265,6 @@ class WorkspacePanel(QWidget):
         self.plotsExportBar.generateReportClicked.connect(self.generatePlotReportRequested.emit)
         self.yieldParetoTab.generateReportRequested.connect(self.generateYieldReportRequested.emit)
         self.pivotTab.generateReportRequested.connect(self.generatePivotReportRequested.emit)
-        self.limitsComboBox.currentIndexChanged.connect(self._emitPlotOptionsChanged)
 
     def _onTabChanged(self, index: int):
         if index == self._rawTabIndex and self._rawDataDirty:
@@ -399,7 +398,7 @@ class WorkspacePanel(QWidget):
             self.limitsComboBox.setEnabled(False)
             self.valuesInLimitsButton.setEnabled(False)
             self.logScaleButton.setEnabled(False)
-            self.plotsExportBar.setEnabled(False)
+            self.plotsExportBar.setActionsEnabled(False)
             self.snFilterLabel.setEnabled(False)
             self.snFilterEdit.setEnabled(False)
             self.onlySnButton.setEnabled(False)
@@ -407,8 +406,10 @@ class WorkspacePanel(QWidget):
 
         self.siteLabel.setEnabled(True)
         self.siteComboBox.setEnabled(True)
+        self.limitsLabel.setEnabled(True)
+        self.limitsComboBox.setEnabled(True)
         self.valuesInLimitsButton.setEnabled(True)
-        self.plotsExportBar.setEnabled(True)
+        self.plotsExportBar.setActionsEnabled(True)
         self.snFilterLabel.setEnabled(True)
         self.snFilterEdit.setEnabled(True)
         self.onlySnButton.setEnabled(True)
@@ -418,8 +419,6 @@ class WorkspacePanel(QWidget):
             self.plotTypeComboBox.setEnabled(False)
             self.orderByLabel.setEnabled(False)
             self.orderByComboBox.setEnabled(False)
-            self.limitsLabel.setEnabled(True)
-            self.limitsComboBox.setEnabled(True)
             self.logScaleButton.setEnabled(False)
             return
 
@@ -427,24 +426,19 @@ class WorkspacePanel(QWidget):
         self.plotTypeComboBox.setEnabled(True)
 
         currType = self.plotTypeComboBox.currentText().strip().lower()
-
         if currType == 'sequence':
             self.orderByLabel.setEnabled(True)
             self.orderByComboBox.setEnabled(True)
-            self.limitsLabel.setEnabled(True)
-            self.limitsComboBox.setEnabled(True)
             self.logScaleButton.setEnabled(True)
+
         elif currType in ('capability (histogram)', 'capability', 'histogram'):
             self.orderByLabel.setEnabled(False)
             self.orderByComboBox.setEnabled(False)
-            self.limitsLabel.setEnabled(False)
-            self.limitsComboBox.setEnabled(False)
             self.logScaleButton.setEnabled(False)
+            
         elif currType == 'boxplot':
             self.orderByLabel.setEnabled(False)
             self.orderByComboBox.setEnabled(False)
-            self.limitsLabel.setEnabled(False)
-            self.limitsComboBox.setEnabled(False)
             self.logScaleButton.setEnabled(True)
 
     def setSnMatchInfo(self, matchedCount: int, matchedSites: int, hasQuery: bool):
@@ -490,12 +484,13 @@ class WorkspacePanel(QWidget):
         self._updateControlStates()
 
     def getPlotOptions(self) -> dict:
+        limitMode = self.getSelectedLimitMode()
         return {
             'site': self.siteComboBox.currentText(),
             'plotType': self.plotTypeComboBox.currentText(),
             'orderBy': self.orderByComboBox.currentText(),
-            'limits': self.limitsComboBox.currentText(),
-            'limitsMode': self.limitsComboBox.currentText(),
+            'limits': limitMode,
+            'limitsMode': limitMode,
             'valuesInLimits': self.valuesInLimitsButton.isChecked(),
             'logScale': self.logScaleButton.isChecked(),
             'snQuery': self.snFilterEdit.text().strip(),

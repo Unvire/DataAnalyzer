@@ -782,12 +782,14 @@ class YieldParetoTab(QWidget):
         visible = self.tableModel.rowCount()
         if total == 0:
             self.tableInfoLabel.setText('0 tests')
+            self.exportBar.setCsvEnabled(False)
             return
 
         if visible == total:
             self.tableInfoLabel.setText(f'{total:,} tests')
         else:
             self.tableInfoLabel.setText(f'Showing {visible:,} / {total:,} tests')
+        self.exportBar.setCsvEnabled(visible > 0)
 
     def _onTableRowDoubleClicked(self, index: QModelIndex):
         if not index.isValid():

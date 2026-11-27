@@ -81,13 +81,9 @@ class SidebarPanel(QWidget):
 
         self.statsPanel = StatsPanel()
 
-        self.generateReportButton = QPushButton('Generate report')
-        self.generateReportButton.setProperty('accent', True)
-
         layout.addWidget(sourceGroup)
         layout.addWidget(testsGroup, 1)
         layout.addWidget(self.statsPanel)
-        layout.addWidget(self.generateReportButton)
 
     def _bindEvents(self):
         self.processorComboBox.currentTextChanged.connect(self._onProcessorChanged)
@@ -96,7 +92,6 @@ class SidebarPanel(QWidget):
         self.subfoldersCheckBox.toggled.connect(self.searchSubfoldersChanged.emit)
         self.regexFilterEdit.textChanged.connect(lambda _: self._filterTimer.start())
         self.testListWidget.currentTextChanged.connect(self._onCurrentTestChanged)
-        self.generateReportButton.clicked.connect(self.generateReportRequested.emit)
 
     def _onProcessorChanged(self, text:str):
         isValid = text != self.PLACEHOLDER_PROCESSOR
@@ -146,12 +141,10 @@ class SidebarPanel(QWidget):
             not isBusy and self.processorComboBox.currentText() != self.PLACEHOLDER_PROCESSOR
         )
         self.clearButton.setEnabled(not isBusy and bool(self._allTestNames))
-        self.generateReportButton.setEnabled(not isBusy and bool(self._allTestNames))
 
     def setDataControlsEnabled(self, enabled: bool):
         self.clearButton.setEnabled(enabled)
         self.regexFilterEdit.setEnabled(enabled)
-        self.generateReportButton.setEnabled(enabled)
 
     def reset(self):
         self._allTestNames = []
